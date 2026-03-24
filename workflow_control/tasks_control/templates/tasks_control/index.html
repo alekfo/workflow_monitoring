@@ -1,0 +1,69 @@
+{% extends 'tasks_control/base.html' %}
+{% load static %}
+
+{% block title %}
+    Main
+{% endblock %}
+
+{% block content %}
+    <div class="menu-section">
+        <h1>Меню</h1>
+        <div class="menu">
+            <!-- Задачи -->
+            <div class="menu-item">
+                <button class="button main-btn">📋 Задачи</button>
+                <div class="submenu">
+                    <button class="sub-button" data-section="tasks_all">📚 Все задачи</button>
+                    <button class="sub-button" data-section="tasks_mine">📌 Мои задачи</button>
+                    <button class="sub-button" data-section="tasks_seek">🔎 Поиск задачи</button>
+                    <button class="sub-button" data-section="tasks_add">➕ Добавить задачу</button>
+                </div>
+            </div>
+            <!-- Объекты -->
+            <div class="menu-item">
+                <button class="button main-btn">🏢 Объекты</button>
+                <div class="submenu">
+                    <button class="sub-button" data-section="objects_all">🏗️ Все объекты</button>
+                    <button class="sub-button" data-section="objects_seek">🔎 Поиск объекта</button>
+                    <button class="sub-button" data-section="objects_add">➕ Добавить объект</button>
+                </div>
+            </div>
+            <!-- Склады -->
+            <div class="menu-item">
+                <button class="button main-btn">📦 Склады</button>
+                <div class="submenu">
+                    <button class="sub-button" data-section="warehouses_stock">⏳ В разработке</button>
+                </div>
+            </div>
+            <!-- Отчеты -->
+            <div class="menu-item">
+                <button class="button main-btn">📊 Отчеты</button>
+                <div class="submenu">
+                    <button class="sub-button" data-section="reports_download">📄 Сформировать отчет</button>
+                    <button class="sub-button" data-section="links_all">🔗 Ссылки на таблицы</button>
+                    <button class="sub-button" data-section="links_add">➕ Добавить ссылку</button>
+                </div>
+            </div>
+            <!-- Графики -->
+            <div class="menu-item">
+                <button class="button main-btn">📈 Графики</button>
+                <div class="submenu">
+                    <button class="sub-button" data-section="charts_download">⬇️ Выгрузить</button>
+                    <button class="sub-button" data-section="charts_add">➕ Добавить</button>
+                </div>
+            </div>
+            <!-- База знаний -->
+            <div class="menu-item">
+                <button class="button main-btn">📚 База знаний</button>
+                <div class="submenu">
+                    <button class="sub-button" data-section="alarms">🚨 Алармы</button>
+                    <button class="sub-button" data-section="instructions">📖 Инструкции</button>
+                    <button class="sub-button" data-section="others">📁 Разное</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="content-panel" class="content-panel">
+        <p>Выберите раздел</p> <!-- начальное сообщение -->
+    </div>
+{% endblock %}

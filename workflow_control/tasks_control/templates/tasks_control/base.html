@@ -1,0 +1,34 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>
+        {% block title %}
+            Base title
+        {% endblock %}
+    </title>
+    <link rel="stylesheet" href="{% static 'tasks_control/css/styles.css' %}">
+    <script src="{% static 'tasks_control/js/index.js' %}"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <button id="logoutBtn" class="button">Выйти</button>
+        </nav>
+    </header>
+
+    <!-- Основной контейнер для контента -->
+    <div class="main-layout">
+        {% block content %}
+            <!-- Здесь будет основной контент страниц -->
+        {% endblock %}
+    </div>
+
+    <footer>
+        <nav>
+            <button id="contactBtn" class="button"> 📞 Связаться с поддержкой</button>
+        </nav>
+    </footer>
+</body>
+</html>
