@@ -1,0 +1,25 @@
+{% extends 'authentication/base.html' %}
+
+{% block title %}
+    Register
+{% endblock %}
+
+{% block body %}
+    <section>
+        <h1>Register</h1>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <input type="submit" value="Register">
+        </form>
+    </section>
+    <footer>
+        <button type="submit" id="login_btn">Назад</button>
+    </footer>
+    <script>
+        document.getElementById('login_btn').addEventListener('click', function() {
+            window.location.href = "{% url 'authentication:login' %}";
+        });
+    </script>
+
+{% endblock %}

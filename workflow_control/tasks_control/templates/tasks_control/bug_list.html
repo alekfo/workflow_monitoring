@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bugs</title>
+    <link rel="stylesheet" href="{% static 'tasks_control/css/styles_stations.css' %}">
+</head>
+<body>
+    <div class="stations-container">
+        <div class="stations-header">
+            <h2>🚉 Список замечаний</h2>
+            <a href="{% url 'tasks_control:create_bug' %}" class="btn-create">
+                ✨ Создать новое замечание
+            </a>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="stations-table">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Станция</th>
+                        <th>Описание</th>
+                        <th>Ответственная организация</th>
+                        <th>Ответственный сотрудник</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bug in object_list %}
+                    <tr>
+                        <td class="road-cell">
+                            <a href="{% url 'tasks_control:bug_details' pk=bug.pk %}" class="station-link">
+                                {{ bug.pk }}
+                            </a>
+                        </td>
+                        <td class="road-cell">{{ bug.station }}</td>
+                        <td class="road-cell">{{ bug.description }}</td>
+                        <td class="description-cell">{{ bug.responsible_organization|default:"—" }}</td>
+                        <td class="description-cell">{{ bug.responsible_user|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr class="empty-table-row">
+                        <td colspan="4">
+                            <div class="empty-state">
+                                📭 Замечания не найдены
+                                <br>
+                                <small>Создайте первое замечание, нажав на кнопку выше</small>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Station #{{ station.pk }}</title>
+</head>
+<body>
+  <h1>Station <strong>{{ station.name }}</strong></h1>
+    <div>
+        <div>Наименование: <em>{{ station.name }}</em></div>
+        <div>Дорога: {{ station.road }}</div>
+        <div>Описание: {{ station.description }}</div>
+        <ul>
+          <div>Задачи на станции:</div>
+          {% for task in station.tasks.all%}
+            <li>{{ task.description }}</li>
+          {% empty %}
+            <li>Нет задач</li>
+          {% endfor %}
+        </ul>
+    </div>
+
+    <div>
+        <a href="{% url 'tasks_control:index' %}">
+            Назад
+        </a>
+    </div>
+</body>
+</html>

@@ -9,6 +9,7 @@ class Station(models.Model):
     latitude = models.FloatField('Широта', null=True, blank=True)
     longitude = models.FloatField('Долгота', null=True, blank=True)
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
     #Класс Meta — это встроенная возможность Django для задания метаданных модели;
     #Управляет поведением модели в административной панели, сортировкой, именованием и другими параметрами.
@@ -63,7 +64,6 @@ class Task(models.Model):
         related_name='tasks',
         verbose_name='Ответственный исполнитель'
     )
-    registration_date = models.DateField('Дата регистрации', auto_now_add=True)
     due_date = models.DateField('Срок выполнения', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     #auto_now=True — каждый раз, когда объект сохраняется (и при создании, и при изменении),
@@ -93,6 +93,7 @@ class Comment(models.Model):
         related_name='comments',
         verbose_name='Автор комментария'
     )
+    body = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField('Дата изменения', auto_now=True)
 

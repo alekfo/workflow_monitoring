@@ -16,7 +16,7 @@ class TaskInline(admin.TabularInline):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
 
-    list_display = "pk", "station", "description", "status", "responsible_organization", "responsible_user", "registration_date", "due_date", "updated_at"
+    list_display = "pk", "station", "description", "status", "responsible_organization", "responsible_user", "created_at", "due_date", "updated_at"
     list_display_links = "pk", "station"
     ordering = "-pk",
     search_fields = "station__name", "status"
@@ -30,7 +30,7 @@ class StationAdmin(admin.ModelAdmin):
         TaskInline
     ]
 
-    list_display = "pk", "name", "road", "description", "latitude", "longitude", "created_at"
+    list_display = "pk", "name", "road", "description", "latitude", "longitude", "created_at", "created_by"
     list_display_links = "pk", "name"
     ordering = "pk",
     search_fields = "name", "road"

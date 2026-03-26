@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Замечание #{{ bug.pk }}</title>
+</head>
+<body>
+  <h1>Замечание <strong>{{ bug.pk }}</strong></h1>
+    <div>
+        <a href="{% url 'tasks_control:station_details' pk=bug.station.pk %}" class="station-link">
+            {{ bug.station }}
+        </a>
+        <div>Дорога: {{ bug.road }}</div>
+        <div>Описание: {{ bug.description }}</div>
+        <div>Статус: {{ bug.status }}</div>
+        <div>Ответственная организация: {{ bug.responsible_organization }}</div>
+        <div>Ответственный сотрудник: {{ bug.responsible_user }}</div>
+        <div>Дата регистрации: {{ bug.created_at }}</div>
+        <div>Срок выполнения: {{ bug.due_date }}</div>
+        <ul>
+          <div>Комментарии:</div>
+          {% for comment in bug.comment.all%}
+            <li> Автор: {{ comment.user }}, текст: {{ comment.body }}</li>
+          {% empty %}
+            <li>Нет комментариев</li>
+          {% endfor %}
+        </ul>
+        <ul>
+          <div>Вложения:</div>
+          {% for attachment in bug.attachments.all%}
+            <li>Описание к вложению: {{ attachment.description }}</li>
+          {% empty %}
+            <li>Нет вложений</li>
+          {% endfor %}
+        </ul>
+    </div>
+
+    <div>
+        <a href="{% url 'tasks_control:index' %}">
+            Назад
+        </a>
+    </div>
+</body>
+</html>

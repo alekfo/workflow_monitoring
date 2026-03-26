@@ -1,0 +1,39 @@
+{% extends 'authentication/base.html' %}
+
+{% block title %}
+    Users List
+{% endblock %}
+
+{% block body %}
+    <h1>Users List</h1>
+    
+    {% if user.is_authenticated %}
+        <div>
+            <a href="{% url 'authentication:about_me' %}">My Profile</a>
+        </div>
+    {% endif %}
+    
+    <ul>
+        {% for user_obj in users %}
+            <li>
+                <a href="{% url 'authentication:user_detail' pk=user_obj.pk %}">
+                    {{ user_obj.username }}
+                </a>
+                {% if user_obj.profile.avatar %}
+                    <img src="{{ user_obj.profile.avatar.url }}">
+                {% endif %}
+                {% if user_obj.first_name or user_obj.last_name %}
+                    ({{ user_obj.first_name }} {{ user_obj.last_name }})
+                {% else %}
+                    (NO FULL NAME)
+                {% endif %}
+            </li>
+        {% empty %}
+            <li>No users found</li>
+        {% endfor %}
+    </ul>
+    
+    <div>
+        <a href="{% url 'authentication:about_me' %}">Back to About Me</a>
+    </div>
+{% endblock %}

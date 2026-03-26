@@ -1,0 +1,49 @@
+{% extends 'authentication/base.html' %}
+
+{% block title %}
+    User: {{ user_obj.username }}
+{% endblock %}
+
+{% block body %}
+    <section>
+        <h1>User: {{ user_obj.username }}</h1>
+        
+        <div>
+            {% if user_obj.profile.avatar %}
+                <img src="{{ user_obj.profile.avatar.url }}" 
+                     style="max-width: 200px; max-height: 200px; border-radius: 50%; object-fit: cover;"
+                     alt="{{ user_obj.username }} avatar">
+            {% else %}
+                <div>
+                    No Avatar
+                </div>
+            {% endif %}
+        </div>
+        
+        <h2>Details</h2>
+        <p><strong>Username:</strong> {{ user_obj.username }}</p>
+        <p><strong>First name:</strong> {{ user_obj.first_name|default:"—" }}</p>
+        <p><strong>Last name:</strong> {{ user_obj.last_name|default:"—" }}</p>
+        <p><strong>Email:</strong> {{ user_obj.email|default:"—" }}</p>
+        <p><strong>Bio:</strong> {{ user_obj.profile.bio|default:"—" }}</p>
+        
+        {% if user_obj.is_staff %}
+            <p><strong>Status:</strong> Administrator</p>
+        {% endif %}
+
+        {% if can_edit %}
+            <div style="margin-top: 20px;">
+                <a href="{% url 'authentication:update_avatar' user_id=user_obj.pk %}">
+                    <button>Update Avatar</button>
+                </a>
+            </div>
+        {% endif %}
+    </section>
+    
+    <div style="margin-top: 20px;">
+        <a href="{% url 'authentication:users_list' %}">Back to Users List</a>
+    </div>
+    <div>
+        <a href="{% url 'authentication:about_me' %}">Back to About Me</a>
+    </div>
+{% endblock %}

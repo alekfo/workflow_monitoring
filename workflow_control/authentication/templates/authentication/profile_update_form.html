@@ -1,0 +1,22 @@
+{% extends 'authentication/base.html' %}
+
+{% block title %}
+    Update Profile
+{% endblock %}
+
+{% block body %}
+    <h1>Update Profile</h1>
+    <div>
+<!--        enctype="multipart/form-data" - говорит о том, что через форму будут загружены бинарные данные-->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token  %}
+            {{ form.as_p }}
+            <button type="submit">Update</button>
+        </form>
+    </div>
+    <div>
+        <a href="{% url 'authentication:about_me' %}">
+            Back to Profile #{{ object.pk }}
+        </a>
+    </div>
+{% endblock %}

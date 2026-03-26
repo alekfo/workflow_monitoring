@@ -1,0 +1,60 @@
+{% extends 'authentication/base.html' %}
+
+{% block title %}
+    About me
+{% endblock %}
+
+{% block body %}
+    <header>
+        {% if user.is_authenticated %}
+            <button type="submit" id="logout_btn">Выйти</button>
+        {% else %}
+            <button type="submit" id="login_btn">Войти</button>
+        {% endif %}
+    </header>
+    <section>
+        <h1>User info</h1>
+        {% if user.is_authenticated %}
+            {% if user.profile.avatar %}
+                <img src="{{ user.profile.avatar.url }}" alt="{{ product.preview.name }}">
+            {% else %}
+                <p>Нет аватара</p>
+            {% endif %}
+            <h2>Details</h2>
+            <p>Username: {{ user.username }}</p>
+            <p>First name: {{ user.first_name }}</p>
+            <p>Last name: {{ user.last_name }}</p>
+            <p>Username: {{ user.email }}</p>
+            <p>Bio: {{ user.profile.bio }}</p>
+
+            <div>
+                <a href="{% url 'authentication:profile_update' %}">
+                    Update current Profile
+                </a>
+            </div>
+
+            <div>
+                <a href="{% url 'authentication:users_list' %}">View All Users</a>
+            </div>
+        {% else %}
+            <h2>User is anonymous</h2>
+        {% endif %}
+    </section>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var loginBtn = document.getElementById('login_btn');
+                if (loginBtn) {
+                    loginBtn.addEventListener('click', function() {
+                        window.location.href = "{% url 'authentication:login' %}";
+                    });
+                }
+
+                var logoutBtn = document.getElementById('logout_btn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', function() {
+                        window.location.href = "{% url 'authentication:logout' %}";
+                    });
+                }
+            });
+        </script>
+{% endblock %}
