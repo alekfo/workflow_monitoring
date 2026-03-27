@@ -1,39 +1,234 @@
-{% extends 'authentication/base.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Пользователи</title>
+    <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
+    <style>
+        .users-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+        }
 
-{% block title %}
-    Users List
-{% endblock %}
+        .users-card {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease-out;
+        }
 
-{% block body %}
-    <h1>Users List</h1>
-    
-    {% if user.is_authenticated %}
-        <div>
-            <a href="{% url 'authentication:about_me' %}">My Profile</a>
+        .users-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .users-header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .users-header p {
+            margin: 5px 0 0;
+            opacity: 0.9;
+        }
+
+        .back-link {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .users-stats {
+            background: #f8f9fa;
+            padding: 15px 40px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #7f8c8d;
+        }
+
+        .users-grid {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .user-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .user-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .user-card-avatar {
+            height: 150px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .user-card-avatar img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 3px solid white;
+            object-fit: cover;
+        }
+
+        .avatar-placeholder {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            border: 3px solid white;
+        }
+
+        .user-card-info {
+            padding: 20px;
+        }
+
+        .user-card-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .user-card-username {
+            color: #667eea;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .user-card-details {
+            color: #7f8c8d;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .user-card-details div {
+            margin: 5px 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 40px;
+            color: #95a5a6;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .users-grid {
+                padding: 20px;
+                grid-template-columns: 1fr;
+            }
+
+            .users-header {
+                padding: 20px;
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .users-stats {
+                padding: 10px 20px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="users-container">
+        <div class="users-card">
+            <div class="users-header">
+                <div>
+                    <h1>👥 Пользователи системы</h1>
+                    <p>Все зарегистрированные пользователи</p>
+                </div>
+                <a href="{% url 'authentication:about_me' %}" class="back-link">← Мой профиль</a>
+            </div>
+
+            <div class="users-stats">
+                📊 Всего пользователей: {{ users|length }}
+            </div>
+
+            <div class="users-grid">
+                {% for user_obj in users %}
+                    <a href="{% url 'authentication:user_detail' pk=user_obj.pk %}" class="user-card">
+                        <div class="user-card-avatar">
+                            {% if user_obj.profile.avatar %}
+                                <img src="{{ user_obj.profile.avatar.url }}" alt="{{ user_obj.username }}">
+                            {% else %}
+                                <div class="avatar-placeholder">
+                                    👤
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="user-card-info">
+                            <div class="user-card-name">
+                                {{ user_obj.get_full_name|default:user_obj.username }}
+                            </div>
+                            <div class="user-card-username">
+                                @{{ user_obj.username }}
+                            </div>
+                            <div class="user-card-details">
+                                {% if user_obj.first_name or user_obj.last_name %}
+                                    <div>📝 {{ user_obj.first_name }} {{ user_obj.last_name }}</div>
+                                {% endif %}
+                                {% if user_obj.email %}
+                                    <div>📧 {{ user_obj.email }}</div>
+                                {% endif %}
+                                <div>📅 {{ user_obj.date_joined|date:"d.m.Y" }}</div>
+                            </div>
+                        </div>
+                    </a>
+                {% empty %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👻</div>
+                        <h3>Пользователи не найдены</h3>
+                        <p>Пока нет зарегистрированных пользователей</p>
+                    </div>
+                {% endfor %}
+            </div>
         </div>
-    {% endif %}
-    
-    <ul>
-        {% for user_obj in users %}
-            <li>
-                <a href="{% url 'authentication:user_detail' pk=user_obj.pk %}">
-                    {{ user_obj.username }}
-                </a>
-                {% if user_obj.profile.avatar %}
-                    <img src="{{ user_obj.profile.avatar.url }}">
-                {% endif %}
-                {% if user_obj.first_name or user_obj.last_name %}
-                    ({{ user_obj.first_name }} {{ user_obj.last_name }})
-                {% else %}
-                    (NO FULL NAME)
-                {% endif %}
-            </li>
-        {% empty %}
-            <li>No users found</li>
-        {% endfor %}
-    </ul>
-    
-    <div>
-        <a href="{% url 'authentication:about_me' %}">Back to About Me</a>
     </div>
-{% endblock %}
+</body>
+</html>

@@ -9,14 +9,14 @@
         {% endblock %}
     </title>
     <link rel="stylesheet" href="{% static 'tasks_control/css/styles.css' %}">
-
     <script src="{% static 'tasks_control/js/index.js' %}"></script>
-    <script src="{% static 'tasks_control/js/logout.js' %}"></script>
+    <script src="{% static 'tasks_control/js/main_header.js' %}"></script>
 </head>
 <body>
     <header>
-        <nav>
-            <button id="logoutBtn" class="button">Выйти</button>
+        <nav style="display: flex; gap: 10px; justify-content: flex-end; padding: 10px 20px;">
+            <button id="accountBtn" class="button" style="width: auto; padding: 8px 20px;">👤 Профиль</button>
+            <button id="logoutBtn" class="button" style="width: auto; padding: 8px 20px;">🚪 Выйти</button>
         </nav>
     </header>
 

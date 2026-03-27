@@ -1,25 +1,64 @@
-{% extends 'authentication/base.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация</title>
+    <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2>📝 Создать аккаунт</h2>
+                <p>Присоединяйтесь к нам прямо сейчас</p>
+            </div>
 
-{% block title %}
-    Register
-{% endblock %}
+            <div class="auth-body">
+                <form method="post">
+                    {% csrf_token %}
 
-{% block body %}
-    <section>
-        <h1>Register</h1>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <input type="submit" value="Register">
-        </form>
-    </section>
-    <footer>
-        <button type="submit" id="login_btn">Назад</button>
-    </footer>
-    <script>
-        document.getElementById('login_btn').addEventListener('click', function() {
-            window.location.href = "{% url 'authentication:login' %}";
-        });
-    </script>
+                    {% if form.non_field_errors %}
+                        <div class="non-field-errors">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
 
-{% endblock %}
+                    {% for field in form %}
+                        <div class="form-group">
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                    <span style="color: #e74c3c;">*</span>
+                                {% endif %}
+                            </label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <span class="error-message">
+                                    {% for error in field.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </span>
+                            {% endif %}
+                            {% if field.help_text %}
+                                <span class="help-text">{{ field.help_text }}</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <button type="submit" class="btn-auth">
+                        Зарегистрироваться
+                    </button>
+                </form>
+            </div>
+
+            <div class="auth-footer">
+                <p>Уже есть аккаунт?</p>
+                <a href="{% url 'authentication:login' %}">Войти в систему</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,60 +1,268 @@
-{% extends 'authentication/base.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Мой профиль</title>
+    <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
+    <style>
+        .profile-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+        }
 
-{% block title %}
-    About me
-{% endblock %}
+        .profile-card {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease-out;
+        }
 
-{% block body %}
-    <header>
-        {% if user.is_authenticated %}
-            <button type="submit" id="logout_btn">Выйти</button>
-        {% else %}
-            <button type="submit" id="login_btn">Войти</button>
-        {% endif %}
-    </header>
-    <section>
-        <h1>User info</h1>
-        {% if user.is_authenticated %}
-            {% if user.profile.avatar %}
-                <img src="{{ user.profile.avatar.url }}" alt="{{ product.preview.name }}">
-            {% else %}
-                <p>Нет аватара</p>
-            {% endif %}
-            <h2>Details</h2>
-            <p>Username: {{ user.username }}</p>
-            <p>First name: {{ user.first_name }}</p>
-            <p>Last name: {{ user.last_name }}</p>
-            <p>Username: {{ user.email }}</p>
-            <p>Bio: {{ user.profile.bio }}</p>
+        .profile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
 
-            <div>
-                <a href="{% url 'authentication:profile_update' %}">
-                    Update current Profile
-                </a>
+        /* Контейнер для кнопок в шапке */
+        .header-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        /* Стили для кнопок в шапке */
+        .header-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: inline-block;
+            backdrop-filter: blur(5px);
+        }
+
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .profile-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            object-fit: cover;
+            margin-bottom: 20px;
+        }
+
+        .profile-avatar-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 60px;
+            border: 4px solid white;
+        }
+
+        .profile-header h1 {
+            margin: 0 0 10px;
+            font-size: 32px;
+        }
+
+        .profile-header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .profile-body {
+            padding: 40px;
+        }
+
+        .info-section {
+            margin-bottom: 30px;
+        }
+
+        .info-section h2 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            transition: transform 0.2s;
+        }
+
+        .info-item:hover {
+            transform: translateX(5px);
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #2c3e50;
+            font-size: 16px;
+            word-break: break-word;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+            box-shadow: 0 5px 15px rgba(127, 140, 141, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .profile-body {
+                padding: 20px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            /* На мобильных устройствах кнопки становятся статичными */
+            .header-buttons {
+                position: static;
+                justify-content: center;
+                margin-bottom: 20px;
+            }
+
+            .profile-header {
+                padding-top: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <div class="profile-card">
+            <div class="profile-header">
+                <!-- Контейнер для кнопок -->
+                <div class="header-buttons">
+                    <a href="{% url 'authentication:logout' %}" class="header-btn">🚪 Выйти</a>
+                    <a href="{% url 'tasks_control:index' %}" class="header-btn">🏠 Меню</a>
+                </div>
+
+                {% if user.profile.avatar %}
+                    <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="profile-avatar">
+                {% else %}
+                    <div class="profile-avatar-placeholder">
+                        👤
+                    </div>
+                {% endif %}
+
+                <h1>{{ user.get_full_name|default:user.username }}</h1>
+                <p>@{{ user.username }}</p>
             </div>
 
-            <div>
-                <a href="{% url 'authentication:users_list' %}">View All Users</a>
-            </div>
-        {% else %}
-            <h2>User is anonymous</h2>
-        {% endif %}
-    </section>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                var loginBtn = document.getElementById('login_btn');
-                if (loginBtn) {
-                    loginBtn.addEventListener('click', function() {
-                        window.location.href = "{% url 'authentication:login' %}";
-                    });
-                }
+            <div class="profile-body">
+                <div class="info-section">
+                    <h2>📋 Личная информация</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Имя пользователя</div>
+                            <div class="info-value">{{ user.username }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Имя</div>
+                            <div class="info-value">{{ user.first_name|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Фамилия</div>
+                            <div class="info-value">{{ user.last_name|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Email</div>
+                            <div class="info-value">{{ user.email|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">О себе</div>
+                            <div class="info-value">{{ user.profile.bio|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Дата регистрации</div>
+                            <div class="info-value">{{ user.date_joined|date:"d.m.Y" }}</div>
+                        </div>
+                    </div>
+                </div>
 
-                var logoutBtn = document.getElementById('logout_btn');
-                if (logoutBtn) {
-                    logoutBtn.addEventListener('click', function() {
-                        window.location.href = "{% url 'authentication:logout' %}";
-                    });
-                }
-            });
-        </script>
-{% endblock %}
+                <div class="button-group">
+                    <a href="{% url 'authentication:profile_update' %}" class="btn-action">
+                        ✏️ Редактировать профиль
+                    </a>
+                    <a href="{% url 'authentication:users_list' %}" class="btn-action btn-secondary">
+                        👥 Все пользователи
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

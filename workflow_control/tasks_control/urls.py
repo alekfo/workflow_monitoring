@@ -6,6 +6,8 @@ from .views import (TasksIndexView,
                     StationCreateView,
                     BugCreateView,
                     BugDetailView,
+                    BugUpdateView,
+                    StationUpdateView
                     )
 
 app_name = "tasks_control"
@@ -15,7 +17,9 @@ urlpatterns = [
     path("bugs/", BugsListView.as_view(), name="bugs_list"),
     path("bugs/<int:pk>/", BugDetailView.as_view(), name="bug_details"),
     path("bugs/create", BugCreateView.as_view(), name="create_bug"),
+    path("bugs/<int:pk>/update", BugUpdateView.as_view(), name="bug_update"),
     path("stations/", StationListView.as_view(), name="station_list"),
     path("stations/<int:pk>/", StationDetailView.as_view(), name="station_details"),
     path("stations/create", StationCreateView.as_view(), name="create_station"),
+    path("stations/<int:pk>/update", StationUpdateView.as_view(), name="station_update"),
 ]

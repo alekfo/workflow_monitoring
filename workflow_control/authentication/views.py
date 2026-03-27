@@ -14,7 +14,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import get_object_or_404
 
 from .models import Profile
-from .forms import ProfileForm
+from .forms import ProfileForm, CustomUserCreationForm
 
 class AboutMeView(LoginRequiredMixin, TemplateView):
     """"Посмотреть инфу о текущем пользователе"""
@@ -45,7 +45,7 @@ class UserDetailView(LoginRequiredMixin, DetailView):
         )
         return context
 
-class ProfileUpdateView(UpdateView):
+class ProfileUpdateView(LoginRequiredMixin, UpdateView):
     """"Обновить весь профиль"""
 
     model = Profile
@@ -59,11 +59,11 @@ class ProfileUpdateView(UpdateView):
         return profile
 
 #создаем view для регистрации пользователя на основе класса CreateView
-class RegisterView(CreateView):
+class RegisterView(LoginRequiredMixin, CreateView):
     #для юзера уже есть форма с необходимой валидацией, в тч двойная проверка пароля
-    form_class = UserCreationForm
+    form_class = CustomUserCreationForm
     template_name = "authentication/register.html"
-    success_url = reverse_lazy("authentication:about_me")
+    success_url = reverse_lazy("tasks_control:index")
 
     #для того, чтобы после создания формы происходила еще и аутентификация
     # нужно переопределить метод form_valid (в нем поумолчанию происходит сохранение сущности

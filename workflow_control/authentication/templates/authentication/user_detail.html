@@ -1,49 +1,239 @@
-{% extends 'authentication/base.html' %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Пользователь: {{ user_obj.username }}</title>
+    <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
+    <style>
+        .user-detail-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+        }
 
-{% block title %}
-    User: {{ user_obj.username }}
-{% endblock %}
+        .user-detail-card {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease-out;
+        }
 
-{% block body %}
-    <section>
-        <h1>User: {{ user_obj.username }}</h1>
-        
-        <div>
-            {% if user_obj.profile.avatar %}
-                <img src="{{ user_obj.profile.avatar.url }}" 
-                     style="max-width: 200px; max-height: 200px; border-radius: 50%; object-fit: cover;"
-                     alt="{{ user_obj.username }} avatar">
-            {% else %}
-                <div>
-                    No Avatar
-                </div>
-            {% endif %}
-        </div>
-        
-        <h2>Details</h2>
-        <p><strong>Username:</strong> {{ user_obj.username }}</p>
-        <p><strong>First name:</strong> {{ user_obj.first_name|default:"—" }}</p>
-        <p><strong>Last name:</strong> {{ user_obj.last_name|default:"—" }}</p>
-        <p><strong>Email:</strong> {{ user_obj.email|default:"—" }}</p>
-        <p><strong>Bio:</strong> {{ user_obj.profile.bio|default:"—" }}</p>
-        
-        {% if user_obj.is_staff %}
-            <p><strong>Status:</strong> Administrator</p>
-        {% endif %}
+        .user-detail-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
 
-        {% if can_edit %}
-            <div style="margin-top: 20px;">
-                <a href="{% url 'authentication:update_avatar' user_id=user_obj.pk %}">
-                    <button>Update Avatar</button>
-                </a>
+        .user-detail-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            object-fit: cover;
+            margin-bottom: 20px;
+        }
+
+        .avatar-placeholder {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 60px;
+            border: 4px solid white;
+        }
+
+        .user-detail-header h1 {
+            margin: 0 0 10px;
+            font-size: 32px;
+        }
+
+        .user-detail-header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.3);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .user-detail-body {
+            padding: 40px;
+        }
+
+        .info-section {
+            margin-bottom: 30px;
+        }
+
+        .info-section h2 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            transition: transform 0.2s;
+        }
+
+        .info-item:hover {
+            transform: translateX(5px);
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #2c3e50;
+            font-size: 16px;
+            word-break: break-word;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+            box-shadow: 0 5px 15px rgba(127, 140, 141, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .user-detail-body {
+                padding: 20px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="user-detail-container">
+        <div class="user-detail-card">
+            <div class="user-detail-header">
+                {% if user_obj.profile.avatar %}
+                    <img src="{{ user_obj.profile.avatar.url }}" alt="{{ user_obj.username }}" class="user-detail-avatar">
+                {% else %}
+                    <div class="avatar-placeholder">
+                        👤
+                    </div>
+                {% endif %}
+
+                <h1>{{ user_obj.get_full_name|default:user_obj.username }}</h1>
+                <p>@{{ user_obj.username }}</p>
+
+                {% if user_obj.is_staff %}
+                    <div class="badge">⭐ Администратор</div>
+                {% endif %}
             </div>
-        {% endif %}
-    </section>
-    
-    <div style="margin-top: 20px;">
-        <a href="{% url 'authentication:users_list' %}">Back to Users List</a>
+
+            <div class="user-detail-body">
+                <div class="info-section">
+                    <h2>📋 Информация о пользователе</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Имя пользователя</div>
+                            <div class="info-value">{{ user_obj.username }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Имя</div>
+                            <div class="info-value">{{ user_obj.first_name|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Фамилия</div>
+                            <div class="info-value">{{ user_obj.last_name|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Email</div>
+                            <div class="info-value">{{ user_obj.email|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">О себе</div>
+                            <div class="info-value">{{ user_obj.profile.bio|default:"—" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Дата регистрации</div>
+                            <div class="info-value">{{ user_obj.date_joined|date:"d.m.Y H:i" }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Последний вход</div>
+                            <div class="info-value">{{ user_obj.last_login|date:"d.m.Y H:i"|default:"Никогда" }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <a href="{% url 'authentication:users_list' %}" class="btn-action btn-secondary">
+                        ← Все пользователи
+                    </a>
+                    <a href="{% url 'authentication:about_me' %}" class="btn-action">
+                        Мой профиль
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
-    <div>
-        <a href="{% url 'authentication:about_me' %}">Back to About Me</a>
-    </div>
-{% endblock %}
+</body>
+</html>

@@ -1,23 +1,285 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Create bug</title>
+    <title>Создание замечания</title>
+    <link rel="stylesheet" href="{% static 'tasks_control/css/styles_stations.css' %}">
+    <style>
+        .form-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .form-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px 30px;
+            color: white;
+        }
+
+        .form-header h1 {
+            margin: 0 0 10px;
+            font-size: 28px;
+            color: white;
+            border: none;
+            padding: 0;
+        }
+
+        .form-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .form-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .form-group label .required {
+            color: #e74c3c;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        select.form-control {
+            cursor: pointer;
+            background-color: white;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .help-text {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn-submit {
+            flex: 1;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-cancel {
+            flex: 1;
+            padding: 12px 24px;
+            background: #95a5a6;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-cancel:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+        }
+
+        .info-note {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #7f8c8d;
+            border-left: 3px solid #667eea;
+        }
+
+        .info-note strong {
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .form-body {
+                padding: 20px;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+            .form-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>Создать замевание</h1>
-    <div>
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token  %}
-            {{ form.as_p }}
-            <button type="submit">Create</button>
-        </form>
-    </div>
-    <div>
-        <a href="{% url 'tasks_control:index' %}">
-            Назад
-        </a>
-    </div>
+    <div class="form-container">
+        <div class="form-header">
+            <h1>⚠️ Создание замечания</h1>
+            <p>Зарегистрируйте новое замечание по объекту</p>
+        </div>
 
+        <div class="form-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="error-message" style="background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                        {% for error in form.non_field_errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Поле station -->
+                <div class="form-group">
+                    <label for="{{ form.station.id_for_label }}">
+                        {{ form.station.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.station }}
+                    {% if form.station.errors %}
+                        <span class="error-message">
+                            {% for error in form.station.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </span>
+                    {% endif %}
+                    {% if form.station.help_text %}
+                        <span class="help-text">{{ form.station.help_text }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Поле description -->
+                <div class="form-group">
+                    <label for="{{ form.description.id_for_label }}">
+                        {{ form.description.label }}
+                        <span class="required">*</span>
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <span class="error-message">
+                            {% for error in form.description.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </span>
+                    {% endif %}
+                    {% if form.description.help_text %}
+                        <span class="help-text">{{ form.description.help_text }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Поле responsible_organization -->
+                <div class="form-group">
+                    <label for="{{ form.responsible_organization.id_for_label }}">
+                        {{ form.responsible_organization.label }}
+                    </label>
+                    {{ form.responsible_organization }}
+                    {% if form.responsible_organization.errors %}
+                        <span class="error-message">
+                            {% for error in form.responsible_organization.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </span>
+                    {% endif %}
+                    {% if form.responsible_organization.help_text %}
+                        <span class="help-text">{{ form.responsible_organization.help_text }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Поле due_date -->
+                <div class="form-group">
+                    <label for="{{ form.due_date.id_for_label }}">
+                        {{ form.due_date.label }}
+                    </label>
+                    {{ form.due_date }}
+                    {% if form.due_date.errors %}
+                        <span class="error-message">
+                            {% for error in form.due_date.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </span>
+                    {% endif %}
+                    {% if form.due_date.help_text %}
+                        <span class="help-text">{{ form.due_date.help_text }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="info-note">
+                    <strong>ℹ️ Информация</strong><br>
+                    Статус замечания автоматически устанавливается как "Новая".<br>
+                    Ответственным исполнителем будет назначен текущий пользователь.
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit">
+                        ✅ Создать замечание
+                    </button>
+                    <a href="{% url 'tasks_control:index' %}" class="btn-cancel">
+                        ← Отмена
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
