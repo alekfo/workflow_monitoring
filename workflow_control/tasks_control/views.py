@@ -4,11 +4,12 @@ from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, JsonRes
 from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.contrib.auth.models import Group
 from django.views import View
+from django.db import models
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
-from .models import Station, Task
+from .models import Station, Task, Comment, Attachment
 
 class TasksIndexView(LoginRequiredMixin, View):
 
@@ -75,11 +76,25 @@ class StationUpdateView(UserPassesTestMixin, UpdateView):
 
 
 class BugsListView(LoginRequiredMixin, ListView):
-    model = Task  # явно указываем модель
+    model = Task
     template_name = 'tasks_control/bug_list.html'
-    queryset = (
-        Task.objects.select_related("responsible_user", "station")
-    )
+    # paginate_by = 20  # опционально, если нужна пагинация
+
+    # def get_template_names(self):
+    #     if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    #         return ['tasks_control/bug_list_ajax.html']
+    #     return [self.template_name]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related("responsible_user", "station")
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            queryset = queryset.filter(
+                models.Q(description__icontains=search_query) |
+                models.Q(station__name__icontains=search_query) |
+                models.Q(responsible_organization__icontains=search_query)
+            )
+        return queryset
 
 class BugDetailView(LoginRequiredMixin, DetailView):
     template_name = 'tasks_control/bug_details.html'
@@ -88,7 +103,33 @@ class BugDetailView(LoginRequiredMixin, DetailView):
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
-        # Проверка прав
+
+        # 1. --- Обработка вложения ---
+        if 'file' in request.FILES:
+            # Создаём вложение
+            attachment = Attachment(
+                task=self.object,
+                file=request.FILES['file'],
+                description=request.POST.get('description', '')
+            )
+            attachment.save()
+            return redirect('tasks_control:bug_details', pk=self.object.pk)
+
+        # 2. Обработка добавления комментария (обычная форма)
+        if 'comment_text' in request.POST:
+            comment_text = request.POST.get('comment_text', '').strip()
+            if comment_text:
+                # Создаём комментарий, привязывая текущего пользователя
+                Comment.objects.create(
+                    task=self.object,
+                    user=request.user,
+                    body=comment_text
+                )
+            # Перенаправляем обратно на страницу с этим же замечанием
+            return redirect('tasks_control:bug_details', pk=self.object.pk)
+
+        # 3. Обработка изменения статуса (JSON-запрос от JavaScript)
+        # Проверка прав на изменение статуса
         if not (request.user.is_superuser or
                 request.user.has_perm('tasks_control.change_task') or
                 self.object.responsible_user == request.user):

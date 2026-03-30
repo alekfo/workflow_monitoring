@@ -1,3 +1,5 @@
+import os
+
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -97,6 +99,16 @@ class Comment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField('Дата изменения', auto_now=True)
 
+    def author_name(self):
+        """Возвращает отображаемое имя автора комментария"""
+        user = self.user
+        if not user:
+            return "Аноним"
+        if user.first_name and user.last_name:
+            return f"{user.first_name} {user.last_name}"
+        if user.first_name:
+            return user.first_name
+        return user.username
 
 def task_attachment_path(instance, filename):
     # путь для сохранения файлов: tasks/task_<id>/<filename>
@@ -138,6 +150,15 @@ class Attachment(models.Model):
 
     def __str__(self):
         return f"Вложение к задаче {self.task.id}: {self.file.name}"
+
+    def is_image(self):
+        """Возвращает True, если файл является изображением"""
+        ext = os.path.splitext(self.file.name)[1].lower()
+        return ext in ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
+
+    def filename(self):
+        """Возвращает чистое имя файла (без пути)"""
+        return os.path.basename(self.file.name)
 
 def knowledge_file_path(instance, filename):
     return f'knowledge/{filename}'

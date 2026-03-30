@@ -30,70 +30,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Функция для выполнения скриптов из загруженного HTML
-    function executeScripts(html) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-
-        const scripts = tempDiv.querySelectorAll('script');
+    // Функция для выполнения скриптов из контейнера (после вставки)
+    function executeScripts(container) {
+        const scripts = container.querySelectorAll('script');
         scripts.forEach(oldScript => {
             const newScript = document.createElement('script');
-
-            // Копируем все атрибуты
             Array.from(oldScript.attributes).forEach(attr => {
                 newScript.setAttribute(attr.name, attr.value);
             });
-
-            // Копируем содержимое скрипта
             newScript.textContent = oldScript.textContent;
-
-            // Удаляем старый скрипт
             oldScript.parentNode.removeChild(oldScript);
-
-            // Добавляем новый скрипт в head или body
             document.head.appendChild(newScript);
         });
-
-        // Возвращаем HTML без скриптов
-        return tempDiv.innerHTML;
     }
 
     // Функция для загрузки контента по URL
     async function loadContent(url) {
         const contentPanel = document.getElementById('content-panel');
-
-        // Показываем загрузку
         contentPanel.innerHTML = '<p>Загрузка...</p>';
-
         try {
             const response = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error ${response.status}`);
-            }
-
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const html = await response.text();
+            // Вставляем HTML целиком
+            contentPanel.innerHTML = html;
+            // Выполняем скрипты из вставленного HTML
+            executeScripts(contentPanel);
 
-            // Выполняем скрипты и получаем HTML без них
-            const htmlWithoutScripts = executeScripts(html);
-
-            // Вставляем HTML
-            contentPanel.innerHTML = htmlWithoutScripts;
-
-            // Вызываем функцию инициализации кнопок (если она существует)
-            if (typeof window.initTasksToggle === 'function') {
-                window.initTasksToggle();
-            }
-
-            // Также можно вызвать и другие функции инициализации
-            if (typeof window.initStationTasks === 'function') {
-                window.initStationTasks();
-            }
-
+            // Дополнительные инициализации
+            if (typeof window.initTasksToggle === 'function') window.initTasksToggle();
+            if (typeof window.initStationTasks === 'function') window.initStationTasks();
         } catch (error) {
             contentPanel.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
         }

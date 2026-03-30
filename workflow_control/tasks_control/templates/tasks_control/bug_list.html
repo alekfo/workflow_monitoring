@@ -10,9 +10,18 @@
     <div class="stations-container">
         <div class="stations-header">
             <h2>🚉 Список замечаний</h2>
-            <a href="{% url 'tasks_control:create_bug' %}" class="btn-create">
-                ✨ Создать новое замечание
-            </a>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <form method="get" action="" id="search-form" style="display: flex; gap: 5px;" data-base-url="{% url 'tasks_control:bugs_list' %}">
+                    <input type="text" name="search" placeholder="Поиск по описанию, станции, организации..."
+                           value="{{ request.GET.search|default:'' }}"
+                           style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 250px;">
+                    <button type="submit" class="btn-create" style="background: #95a5a6; box-shadow: none; padding: 8px 16px;">🔍 Найти</button>
+                    <a href="?" id="reset-search" class="btn-create" style="background: #e74c3c; box-shadow: none; padding: 8px 16px; {% if not request.GET.search %}display: none;{% endif %}">✖️ Сбросить</a>
+                </form>
+                <a href="{% url 'tasks_control:create_bug' %}" class="btn-create">
+                    ✨ Создать новое замечание
+                </a>
+            </div>
         </div>
 
         <div class="table-wrapper">
@@ -54,5 +63,70 @@
             </table>
         </div>
     </div>
+    <script>
+        const searchForm = document.getElementById('search-form');
+        if (searchForm) {
+            const baseUrl = searchForm.getAttribute('data-base-url');
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const searchInput = this.querySelector('input[name="search"]');
+                const searchValue = searchInput.value;
+                const url = baseUrl + '?search=' + encodeURIComponent(searchValue);
+                fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newTableWrapper = doc.querySelector('.table-wrapper');
+                    const contentPanel = document.getElementById('content-panel');
+                    const currentTableWrapper = contentPanel
+                        ? contentPanel.querySelector('.table-wrapper')
+                        : document.querySelector('.table-wrapper');
+                    if (newTableWrapper && currentTableWrapper) {
+                        currentTableWrapper.outerHTML = newTableWrapper.outerHTML;
+                    } else {
+                        console.error('Не найден table-wrapper');
+                    }
+                    history.pushState(null, '', url);
+                    const resetLink = document.getElementById('reset-search');
+                    if (resetLink) {
+                        resetLink.style.display = searchValue ? 'inline-block' : 'none';
+                    }
+                })
+                .catch(error => console.error('Ошибка:', error));
+            });
+        }
+
+        const resetLink = document.getElementById('reset-search');
+        if (resetLink) {
+            const baseUrl = document.getElementById('search-form').getAttribute('data-base-url');
+            resetLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = baseUrl;
+                fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newTableWrapper = doc.querySelector('.table-wrapper');
+                    const contentPanel = document.getElementById('content-panel');
+                    const currentTableWrapper = contentPanel
+                        ? contentPanel.querySelector('.table-wrapper')
+                        : document.querySelector('.table-wrapper');
+                    if (newTableWrapper && currentTableWrapper) {
+                        currentTableWrapper.outerHTML = newTableWrapper.outerHTML;
+                    }
+                    history.pushState(null, '', url);
+                    const searchInput = document.querySelector('input[name="search"]');
+                    if (searchInput) searchInput.value = '';
+                    resetLink.style.display = 'none';
+                });
+            });
+        }
+    </script>
 </body>
 </html>

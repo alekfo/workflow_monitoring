@@ -245,6 +245,40 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* Модальное окно для изображений */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            cursor: pointer;
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal-close:hover {
+            color: #bbb;
+        }
     </style>
 </head>
 <body>
@@ -261,6 +295,10 @@
 
         <div class="bug-content">
             <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">Станция</div>
+                    <a href="{% url 'tasks_control:station_details' pk=bug.station.pk %}">{{ bug.station|default:"—" }}</a>
+                </div>
                 <div class="info-card">
                     <div class="info-label">Статус</div>
                     <div class="info-value" id="status-container">
@@ -292,7 +330,7 @@
                 {% for comment in bug.comments.all %}
                     <li class="comment-item">
                         <div class="comment-header">
-                            <span class="comment-author">👤 {{ comment.user|default:"Аноним" }}</span>
+                            <span class="comment-author">👤 {{ comment.author_name }}</span>
                             <span class="comment-date">{{ comment.created_at|date:"d.m.Y H:i" }}</span>
                         </div>
                         <div class="comment-body">{{ comment.body|default:"—" }}</div>
@@ -304,10 +342,13 @@
                 {% endfor %}
             </ul>
 
-            <!-- Форма добавления комментария (неактивная) -->
+            <!-- Форма добавления комментария -->
             <div class="comment-form">
-                <textarea rows="3" placeholder="Введите ваш комментарий... (функция в разработке)"></textarea>
-                <button class="btn-submit" disabled style="opacity: 0.5;">➕ Добавить комментарий</button>
+                <form method="post" id="comment-form">
+                    {% csrf_token %}
+                    <textarea name="comment_text" rows="3" placeholder="Введите ваш комментарий..."></textarea>
+                    <button type="submit" class="btn-submit">➕ Добавить комментарий</button>
+                </form>
             </div>
 
             <!-- Вложения -->
@@ -315,9 +356,25 @@
             <ul class="attachments-list">
                 {% for attachment in bug.attachments.all %}
                     <li class="attachment-item">
-                        <div class="attachment-icon">📄</div>
+                        <div class="attachment-icon">
+                            {% if attachment.is_image %}
+                                🖼️
+                            {% else %}
+                                📄
+                            {% endif %}
+                        </div>
                         <div class="attachment-info">
-                            <div class="attachment-name">{{ attachment.file.name|cut:"tasks/task_"|cut:"/" }}</div>
+                            <div class="attachment-name">
+                                {% if attachment.is_image %}
+                                    <a href="#" class="view-image-link" data-image-url="{{ attachment.file.url }}">
+                                        {{ attachment.filename }}
+                                    </a>
+                                {% else %}
+                                    <a href="{{ attachment.file.url }}" target="_blank">
+                                        {{ attachment.filename }}
+                                    </a>
+                                {% endif %}
+                            </div>
                             {% if attachment.description %}
                                 <div class="attachment-desc">{{ attachment.description }}</div>
                             {% endif %}
@@ -333,24 +390,29 @@
                 {% endfor %}
             </ul>
 
+            <!-- Форма добавления вложения -->
+            <div class="comment-form">
+                <form method="post" enctype="multipart/form-data" id="attachment-form">
+                    {% csrf_token %}
+                    <label style="display: block; margin-bottom: 5px;">Выберите файл:</label>
+                    <input type="file" name="file" id="file" required style="margin-bottom: 10px;">
+                    <label style="display: block; margin-bottom: 5px;">Описание (необязательно):</label>
+                    <textarea name="description" rows="2" placeholder="Описание файла..."></textarea>
+                    <button type="submit" class="btn-submit">📎 Добавить вложение</button>
+                </form>
+            </div>
+
             <a href="#" id="backButton" class="back-link">← Назад</a>
             {% if user.is_superuser or perms.tasks_control.change_task or bug.responsible_user == user %}
                 <a href="{% url 'tasks_control:bug_update' pk=bug.pk %}" class="back-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">✏️ Редактировать замечание</a>
             {% endif %}
+
+
+
         </div>
     </div>
-    <script>
-        document.getElementById('backButton').addEventListener('click', function(e) {
-            e.preventDefault();
-            if (document.referrer && document.referrer !== '') {
-                window.history.back();
-            } else {
-                // Если нет истории, перенаправляем на главную
-                window.location.href = "{% url 'tasks_control:index' %}";
-            }
-        });
-    </script>
-    <script>
+   <script>
+        // Назад
         document.getElementById('backButton').addEventListener('click', function(e) {
             e.preventDefault();
             if (document.referrer && document.referrer !== '') {
@@ -360,14 +422,14 @@
             }
         });
 
-        document.addEventListener('DOMContentLoaded', function() {
+        // Изменение статуса (без DOMContentLoaded)
+        (function() {
             const changeBtn = document.getElementById('change-status-btn');
             if (!changeBtn) return;
 
             changeBtn.addEventListener('click', function() {
                 const statusBadge = document.getElementById('status-badge');
                 if (!statusBadge) return;
-
                 if (document.querySelector('.status-select')) return; // уже открыт select
 
                 const select = document.createElement('select');
@@ -387,7 +449,6 @@
                     select.appendChild(option);
                 });
 
-                // Устанавливаем текущий статус из data-атрибута (надёжнее)
                 const currentStatus = statusBadge.dataset.status;
                 select.value = currentStatus;
 
@@ -409,7 +470,7 @@
                         if (data.success) {
                             statusBadge.textContent = data.status_display;
                             statusBadge.className = `status-badge status-${data.status.replace('_', '')}`;
-                            statusBadge.dataset.status = data.status; // обновляем data-атрибут
+                            statusBadge.dataset.status = data.status;
                             statusBadge.style.display = 'inline-block';
                             select.remove();
                         } else {
@@ -425,7 +486,7 @@
                     });
                 });
             });
-        });
+        })();
 
         function getCookie(name) {
             let cookieValue = null;
@@ -441,6 +502,53 @@
             }
             return cookieValue;
         }
+    </script>
+
+    <script>
+        // Комментарии – проверка пустого поля
+        const commentForm = document.getElementById('comment-form');
+        if (commentForm) {
+            commentForm.addEventListener('submit', function(event) {
+                const textarea = this.querySelector('textarea[name="comment_text"]');
+                const commentText = textarea.value.trim();
+                if (commentText === '') {
+                    event.preventDefault();
+                    alert('Введите текст комментария');
+                }
+            });
+        }
+    </script>
+
+    <script>
+        // Модальное окно для изображений
+        (function() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <span class="modal-close">&times;</span>
+                <img class="modal-content" id="modal-img">
+            `;
+            document.body.appendChild(modal);
+
+            const modalImg = document.getElementById('modal-img');
+            const closeBtn = modal.querySelector('.modal-close');
+
+            document.querySelectorAll('.view-image-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const imgUrl = this.getAttribute('data-image-url');
+                    modalImg.src = imgUrl;
+                    modal.style.display = 'block';
+                });
+            });
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal || e.target === closeBtn) {
+                    modal.style.display = 'none';
+                    modalImg.src = '';
+                }
+            });
+        })();
     </script>
 </body>
 </html>
