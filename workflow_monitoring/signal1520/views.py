@@ -9,20 +9,36 @@ from django.views.generic import TemplateView, ListView, DetailView, CreateView,
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
-from .models import Station, Task, Comment, Attachment
+from .models import Station, Task, Comment, Attachment, AlarmInfo
 
 class TasksIndexView(LoginRequiredMixin, View):
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        return render(request, 'tasks_control/index.html')
+        return render(request, 'signal1520/index.html')
 
-class StationListView(LoginRequiredMixin, ListView):
+class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        if self.request.user.has_perm('signal1520.view_station'):
+            return True
+        return False
+
     queryset = (
         Station.objects.prefetch_related('tasks')
     )
 
-class StationDetailView(LoginRequiredMixin, DetailView):
-    template_name = 'tasks_control/station_details.html'
+class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        if self.request.user.has_perm('signal1520.view_station'):
+            return True
+        return False
+
+    template_name = 'signal1520/station_details.html'
     queryset = Station.objects.prefetch_related("tasks")
     context_object_name = "station"  # имя, доступное в шаблоне
 
@@ -34,16 +50,24 @@ class StationDetailView(LoginRequiredMixin, DetailView):
     #
     #     can_edit = (
     #             user.is_superuser or
-    #             user.has_perm('tasks_control.change_station') or
+    #             user.has_perm('signal1520.change_station') or
     #             station.created_by == user
     #     )
     #     context['can_edit_station'] = can_edit
     #     return context
 
-class StationCreateView(LoginRequiredMixin, CreateView):
+class StationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        if self.request.user.has_perm('signal1520.add_station'):
+            return True
+        return False
+
     model = Station
     fields = "name", "road", "description", "latitude", "longitude"
-    # success_url = reverse_lazy("tasks_control:index")
+    # success_url = reverse_lazy("signal1520:index")
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -51,38 +75,50 @@ class StationCreateView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         return reverse(
-            "tasks_control:station_details",
+            "signal1520:station_details",
             kwargs={"pk": self.object.pk}
         )
 
-class StationUpdateView(UserPassesTestMixin, UpdateView):
+    def handle_no_permission(self):
+        # Перенаправляем на страницу ошибки вместо 403
+        return redirect(reverse('authentication:error'))
+
+class StationUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     def test_func(self):
         # return self.request.user.groups.filter(name="secret_group").exists()
         if self.request.user.is_superuser:
             return True
-        if self.request.user.has_perm('tasks_control.change_station'):
+        if self.request.user.has_perm('signal1520.change_station'):
             return True
         return False
 
     model = Station
     fields = "name", "road", "description", "latitude", "longitude"
-    template_name = 'tasks_control/station_update_form.html'
+    template_name = 'signal1520/station_update_form.html'
 
     def get_success_url(self):
         return reverse(
-            "tasks_control:station_details",
+            "signal1520:station_details",
             kwargs={"pk": self.object.pk}
         )
 
 
-class BugsListView(LoginRequiredMixin, ListView):
+class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        if self.request.user.has_perm('signal1520.view_task'):
+            return True
+        return False
+
     model = Task
-    template_name = 'tasks_control/bug_list.html'
+    template_name = 'signal1520/bug_list.html'
     # paginate_by = 20  # опционально, если нужна пагинация
 
     # def get_template_names(self):
     #     if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-    #         return ['tasks_control/bug_list_ajax.html']
+    #         return ['signal1520/bug_list_ajax.html']
     #     return [self.template_name]
 
     def get_queryset(self):
@@ -92,12 +128,51 @@ class BugsListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 models.Q(description__icontains=search_query) |
                 models.Q(station__name__icontains=search_query) |
-                models.Q(responsible_organization__icontains=search_query)
+                models.Q(responsible_organization__icontains=search_query) |
+                models.Q(status__icontains=search_query)
             )
         return queryset
 
-class BugDetailView(LoginRequiredMixin, DetailView):
-    template_name = 'tasks_control/bug_details.html'
+class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        if self.request.user.has_perm('signal1520.view_task'):
+            return True
+        return False
+
+    model = Task
+    template_name = 'signal1520/my_bug_list.html'
+    # paginate_by = 20  # опционально, если нужна пагинация
+
+    # def get_template_names(self):
+    #     if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    #         return ['signal1520/bug_list_ajax.html']
+    #     return [self.template_name]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().filter(responsible_user=self.request.user).select_related("responsible_user", "station")
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            queryset = queryset.filter(
+                models.Q(description__icontains=search_query) |
+                models.Q(station__name__icontains=search_query) |
+                models.Q(responsible_organization__icontains=search_query) |
+                models.Q(status__icontains=search_query)
+            )
+        return queryset
+
+class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        if self.request.user.has_perm('signal1520.view_task'):
+            return True
+        return False
+
+    template_name = 'signal1520/bug_details.html'
     queryset = Task.objects.select_related("responsible_user", "station").prefetch_related("comments", "attachments")
     context_object_name = "bug"  # имя, доступное в шаблоне
 
@@ -113,7 +188,7 @@ class BugDetailView(LoginRequiredMixin, DetailView):
                 description=request.POST.get('description', '')
             )
             attachment.save()
-            return redirect('tasks_control:bug_details', pk=self.object.pk)
+            return redirect('signal1520:bug_details', pk=self.object.pk)
 
         # 2. Обработка добавления комментария (обычная форма)
         if 'comment_text' in request.POST:
@@ -126,12 +201,12 @@ class BugDetailView(LoginRequiredMixin, DetailView):
                     body=comment_text
                 )
             # Перенаправляем обратно на страницу с этим же замечанием
-            return redirect('tasks_control:bug_details', pk=self.object.pk)
+            return redirect('signal1520:bug_details', pk=self.object.pk)
 
         # 3. Обработка изменения статуса (JSON-запрос от JavaScript)
         # Проверка прав на изменение статуса
         if not (request.user.is_superuser or
-                request.user.has_perm('tasks_control.change_task') or
+                request.user.has_perm('signal1520.change_task') or
                 self.object.responsible_user == request.user):
             return JsonResponse({'error': 'Недостаточно прав'}, status=403)
 
@@ -153,11 +228,19 @@ class BugDetailView(LoginRequiredMixin, DetailView):
             'status_display': self.object.get_status_display()
         })
 
-class BugCreateView(LoginRequiredMixin, CreateView):
+class BugCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        if self.request.user.has_perm('signal1520.add_task'):
+            return True
+        return False
+
     model = Task
-    template_name = 'tasks_control/bug_form.html'
+    template_name = 'signal1520/bug_form.html'
     fields = "station", "description", "responsible_organization", "due_date"
-    # success_url = reverse_lazy("tasks_control:index")
+    # success_url = reverse_lazy("signal1520:index")
 
     def form_valid(self, form):
         form.instance.responsible_user = self.request.user
@@ -165,18 +248,21 @@ class BugCreateView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         return reverse(
-            "tasks_control:bug_details",
+            "signal1520:bug_details",
             kwargs={"pk": self.object.pk}
         )
 
-class BugUpdateView(UserPassesTestMixin, UpdateView):
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
+
+class BugUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
     def test_func(self):
         # return self.request.user.groups.filter(name="secret_group").exists()
         bug = self.get_object()
         if self.request.user.is_superuser:
             return True
-        if self.request.user.has_perm('tasks_control.change_task'):
+        if self.request.user.has_perm('signal1520.change_task'):
             return True
         if bug.responsible_user == self.request.user:
             return True
@@ -184,12 +270,23 @@ class BugUpdateView(UserPassesTestMixin, UpdateView):
 
     model = Task
     fields = "station", "description", "status", "responsible_organization"
-    template_name = 'tasks_control/bug_update_form.html'
+    template_name = 'signal1520/bug_update_form.html'
 
     def get_success_url(self):
         return reverse(
-            "tasks_control:bug_details",
+            "signal1520:bug_details",
             kwargs={"pk": self.object.pk}
         )
 
+class AlarmListView(LoginRequiredMixin, ListView):
+    model = AlarmInfo
+    template_name = 'signal1520/alarm_list.html'
+    context_object_name = 'alarms'
+    paginate_by = 20  # опционально
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            queryset = queryset.filter(number__icontains=search_query)
+        return queryset

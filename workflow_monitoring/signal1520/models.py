@@ -160,6 +160,30 @@ class Attachment(models.Model):
         """Возвращает чистое имя файла (без пути)"""
         return os.path.basename(self.file.name)
 
+
+class AlarmInfo(models.Model):
+    number = models.CharField(
+        'Номер аларма',
+        max_length=5,
+        primary_key=True
+    )
+    description = models.CharField(
+        'Описание',
+        max_length=600
+    )
+    explanation = models.TextField(
+        'Пояснение',
+        max_length=1000
+    )
+
+    class Meta:
+        verbose_name = 'Аларм'
+        verbose_name_plural = 'Алармы'
+        ordering = ['number']
+
+    def __str__(self):
+        return self.number
+
 def knowledge_file_path(instance, filename):
     return f'knowledge/{filename}'
 
