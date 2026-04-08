@@ -1,0 +1,85 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stations</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <script src="{% static 'signal1520/js/stations.js' %}"></script>
+</head>
+<body>
+    <div class="stations-container">
+        <div class="stations-header">
+            <h2>🚉 Список станций</h2>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <a href="{% url 'signal1520:create_station' %}" class="btn-create">
+                    ✨ Создать новую станцию
+                </a>
+                <a href="#" id="backButton" class="back-link">← В главное меню</a>
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="stations-table">
+                <thead>
+                    <tr>
+                        <th>Наименование</th>
+                        <th>Дорога</th>
+                        <th>Описание</th>
+                        <th>Задачи</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for station in object_list %}
+                    <tr>
+                        <td class="station-name-cell">
+                            <a href="{% url 'signal1520:station_details' pk=station.pk %}" class="station-link">
+                                {{ station.name }}
+                            </a>
+                        </td>
+                        <td class="road-cell">{{ station.road }}</td>
+                        <td class="description-cell">{{ station.description|default:"—" }}</td>
+                        <td class="tasks-cell">
+                            {% with task_count=station.tasks.all|length %}
+                                {% if task_count > 0 %}
+                                    <button class="tasks-toggle-btn" data-station-id="{{ station.pk }}">
+                                        <span class="toggle-icon">▶</span>
+                                        Показать задачи
+                                        <span class="task-count-badge">{{ task_count }}</span>
+                                    </button>
+                                    <ul class="tasks-list" id="tasks-{{ station.pk }}" style="display: none;">
+                                        {% for task in station.tasks.all %}
+                                            <li>
+                                                <span class="task-marker">•</span>
+                                                {{ task.description }}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <span class="no-tasks-message">📭 Нет задач</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr class="empty-table-row">
+                        <td colspan="4">
+                            <div class="empty-state">
+                                📭 Станции не найдены
+                                <br>
+                                <small>Создайте первую станцию, нажав на кнопку выше</small>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        document.getElementById('backButton').addEventListener('click', function(e) {
+            window.location.href = "{% url 'signal1520:index' %}";
+        });
+    </script>
+</body>
+</html>

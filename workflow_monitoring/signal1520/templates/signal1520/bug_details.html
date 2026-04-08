@@ -1,0 +1,549 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Замечание #{{ bug.pk }}</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <style>
+        .bug-detail-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .bug-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px 30px;
+            color: white;
+        }
+
+        .bug-header h1 {
+            margin: 0 0 10px;
+            font-size: 28px;
+            color: white;
+            border: none;
+            padding: 0;
+        }
+
+        .bug-header .bug-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .bug-content {
+            padding: 30px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 3px solid #667eea;
+        }
+
+        .info-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #667eea;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-new { background: #e3f2fd; color: #1976d2; }
+        .status-in_progress { background: #fff3e0; color: #f57c00; }
+        .status-completed { background: #e8f5e9; color: #388e3c; }
+        .status-cancelled { background: #ffebee; color: #d32f2f; }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 30px 0 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .comments-list {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 30px;
+        }
+
+        .comment-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+
+        .comment-item:hover {
+            transform: translateX(5px);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .comment-date {
+            color: #95a5a6;
+            font-size: 12px;
+        }
+
+        .comment-body {
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .comment-form {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .comment-form textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        .comment-form textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-submit {
+            margin-top: 10px;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .attachments-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 15px;
+        }
+
+        .attachment-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s;
+        }
+
+        .attachment-item:hover {
+            transform: translateX(5px);
+        }
+
+        .attachment-icon {
+            font-size: 24px;
+        }
+
+        .attachment-info {
+            flex: 1;
+        }
+
+        .attachment-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+
+        .attachment-desc {
+            font-size: 12px;
+            color: #95a5a6;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 10px 20px;
+            background: #95a5a6;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+        }
+
+        .status-select {
+            padding: 4px 8px;
+            border: 2px solid #667eea;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: white;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .bug-content {
+                padding: 20px;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        /* Модальное окно для изображений */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            cursor: pointer;
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .modal-close:hover {
+            color: #bbb;
+        }
+    </style>
+</head>
+<body>
+    <div class="bug-detail-container">
+        <div class="bug-header">
+            <h1>🔍 Замечание #{{ bug.pk }}</h1>
+            <div class="bug-meta">
+                <span>📅 {{ bug.created_at|date:"d.m.Y" }}</span>
+                {% if bug.due_date %}
+                    <span>⏰ Срок: {{ bug.due_date|date:"d.m.Y" }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bug-content">
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">Станция</div>
+                    <a href="{% url 'signal1520:station_details' pk=bug.station.pk %}">{{ bug.station|default:"—" }}</a>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Статус</div>
+                    <div class="info-value" id="status-container">
+                        <span class="status-badge status-{{ bug.status|lower|cut:'_' }}" id="status-badge" data-status="{{ bug.status }}">
+                            {{ bug.get_status_display }}
+                        </span>
+                        {% if user.is_superuser or perms.signal1520.change_task or bug.responsible_user == user %}
+                            <button id="change-status-btn" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 14px; color: #667eea;" title="Изменить статус">✏️</button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Ответственная организация</div>
+                    <div class="info-value">{{ bug.responsible_organization|default:"—" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Ответственный сотрудник</div>
+                    <div class="info-value">{{ bug.responsible_user|default:"—" }}</div>
+                </div>
+                <div class="info-card" style="grid-column: span 2;">
+                    <div class="info-label">Описание</div>
+                    <div class="info-value">{{ bug.description|default:"—" }}</div>
+                </div>
+            </div>
+
+            <!-- Комментарии -->
+            <div class="section-title">💬 Комментарии</div>
+            <ul class="comments-list">
+                {% for comment in bug.comments.all %}
+                    <li class="comment-item">
+                        <div class="comment-header">
+                            <span class="comment-author">👤 {{ comment.author_name }}</span>
+                            <span class="comment-date">{{ comment.created_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                        <div class="comment-body">{{ comment.body|default:"—" }}</div>
+                    </li>
+                {% empty %}
+                    <li class="comment-item" style="text-align: center; color: #95a5a6;">
+                        📭 Нет комментариев
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <!-- Форма добавления комментария -->
+            <div class="comment-form">
+                <form method="post" id="comment-form">
+                    {% csrf_token %}
+                    <textarea name="comment_text" rows="3" placeholder="Введите ваш комментарий..."></textarea>
+                    <button type="submit" class="btn-submit">➕ Добавить комментарий</button>
+                </form>
+            </div>
+
+            <!-- Вложения -->
+            <div class="section-title">📎 Вложения</div>
+            <ul class="attachments-list">
+                {% for attachment in bug.attachments.all %}
+                    <li class="attachment-item">
+                        <div class="attachment-icon">
+                            {% if attachment.is_image %}
+                                🖼️
+                            {% else %}
+                                📄
+                            {% endif %}
+                        </div>
+                        <div class="attachment-info">
+                            <div class="attachment-name">
+                                {% if attachment.is_image %}
+                                    <a href="#" class="view-image-link" data-image-url="{{ attachment.file.url }}">
+                                        {{ attachment.filename }}
+                                    </a>
+                                {% else %}
+                                    <a href="{{ attachment.file.url }}" target="_blank">
+                                        {{ attachment.filename }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                            {% if attachment.description %}
+                                <div class="attachment-desc">{{ attachment.description }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="attachment-date" style="font-size: 12px; color: #95a5a6;">
+                            {{ attachment.uploaded_at|date:"d.m.Y" }}
+                        </div>
+                    </li>
+                {% empty %}
+                    <li style="text-align: center; color: #95a5a6; padding: 20px;">
+                        📭 Нет вложений
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <!-- Форма добавления вложения -->
+            <div class="comment-form">
+                <form method="post" enctype="multipart/form-data" id="attachment-form">
+                    {% csrf_token %}
+                    <label style="display: block; margin-bottom: 5px;">Выберите файл:</label>
+                    <input type="file" name="file" id="file" required style="margin-bottom: 10px;">
+                    <label style="display: block; margin-bottom: 5px;">Описание (необязательно):</label>
+                    <textarea name="description" rows="2" placeholder="Описание файла..."></textarea>
+                    <button type="submit" class="btn-submit">📎 Добавить вложение</button>
+                </form>
+            </div>
+
+            <a href="#" id="backButton" class="back-link">← В главное меню</a>
+            {% if user.is_superuser or perms.tasks_control.change_task or bug.responsible_user == user %}
+                <a href="{% url 'signal1520:bug_update' pk=bug.pk %}" class="back-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">✏️ Редактировать замечание</a>
+            {% endif %}
+
+
+
+        </div>
+    </div>
+   <script>
+        // Назад
+        document.getElementById('backButton').addEventListener('click', function(e) {
+            window.location.href = "{% url 'signal1520:index' %}";
+        });
+
+        // Изменение статуса (без DOMContentLoaded)
+        (function() {
+            const changeBtn = document.getElementById('change-status-btn');
+            if (!changeBtn) return;
+
+            changeBtn.addEventListener('click', function() {
+                const statusBadge = document.getElementById('status-badge');
+                if (!statusBadge) return;
+                if (document.querySelector('.status-select')) return; // уже открыт select
+
+                const select = document.createElement('select');
+                select.className = 'status-select';
+
+                const statuses = [
+                    {value: 'new', label: 'Новая'},
+                    {value: 'in_progress', label: 'В работе'},
+                    {value: 'completed', label: 'Выполнена'},
+                    {value: 'cancelled', label: 'Отменена'}
+                ];
+
+                statuses.forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = s.value;
+                    option.textContent = s.label;
+                    select.appendChild(option);
+                });
+
+                const currentStatus = statusBadge.dataset.status;
+                select.value = currentStatus;
+
+                statusBadge.style.display = 'none';
+                statusBadge.parentNode.insertBefore(select, statusBadge.nextSibling);
+
+                select.addEventListener('change', function() {
+                    const newStatus = select.value;
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({status: newStatus})
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            statusBadge.textContent = data.status_display;
+                            statusBadge.className = `status-badge status-${data.status.replace('_', '')}`;
+                            statusBadge.dataset.status = data.status;
+                            statusBadge.style.display = 'inline-block';
+                            select.remove();
+                        } else {
+                            alert('Ошибка: ' + data.error);
+                            statusBadge.style.display = 'inline-block';
+                            select.remove();
+                        }
+                    })
+                    .catch(error => {
+                        alert('Ошибка: ' + error);
+                        statusBadge.style.display = 'inline-block';
+                        select.remove();
+                    });
+                });
+            });
+        })();
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+
+    <script>
+        // Комментарии – проверка пустого поля
+        const commentForm = document.getElementById('comment-form');
+        if (commentForm) {
+            commentForm.addEventListener('submit', function(event) {
+                const textarea = this.querySelector('textarea[name="comment_text"]');
+                const commentText = textarea.value.trim();
+                if (commentText === '') {
+                    event.preventDefault();
+                    alert('Введите текст комментария');
+                }
+            });
+        }
+    </script>
+
+    <script>
+        // Модальное окно для изображений
+        (function() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <span class="modal-close">&times;</span>
+                <img class="modal-content" id="modal-img">
+            `;
+            document.body.appendChild(modal);
+
+            const modalImg = document.getElementById('modal-img');
+            const closeBtn = modal.querySelector('.modal-close');
+
+            document.querySelectorAll('.view-image-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const imgUrl = this.getAttribute('data-image-url');
+                    modalImg.src = imgUrl;
+                    modal.style.display = 'block';
+                });
+            });
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal || e.target === closeBtn) {
+                    modal.style.display = 'none';
+                    modalImg.src = '';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
