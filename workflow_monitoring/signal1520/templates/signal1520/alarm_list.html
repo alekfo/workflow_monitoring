@@ -1,0 +1,109 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Алармы</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <style>
+        .search-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .search-form input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 250px;
+        }
+        .search-form button {
+            padding: 8px 16px;
+            background: #95a5a6;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+        }
+        .search-form .reset-btn {
+            background: #e74c3c;
+        }
+        .alarm-table td, .alarm-table th {
+            vertical-align: top;
+        }
+        .explanation-cell {
+            max-width: 400px;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+<div class="stations-container">
+    <div class="stations-header">
+        <h2>🚨 Алармы (справочник)</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <form method="get" action="" class="search-form" id="search-form">
+                <input type="text" name="search" placeholder="Поиск по номеру аларма..."
+                       value="{{ request.GET.search|default:'' }}">
+                <button type="submit">🔍 Найти</button>
+                {% if request.GET.search %}
+                    <a href="?" class="reset-btn" style="background:#e74c3c; padding:8px 16px; border-radius:6px; color:white; text-decoration:none;">✖️ Сбросить</a>
+                {% endif %}
+            </form>
+            <a href="#" id="backButton" class="back-link">← В главное меню</a>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="stations-table alarm-table">
+            <thead>
+                <tr>
+                    <th>Номер</th>
+                    <th>Описание</th>
+                    <th>Пояснение</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alarm in alarms %}
+                <tr>
+                    <td class="road-cell">{{ alarm.number }}</td>
+                    <td class="description-cell">{{ alarm.description|default:"—" }}</td>
+                    <td class="explanation-cell">{{ alarm.explanation|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr class="empty-table-row">
+                    <td colspan="3">
+                        <div class="empty-state">
+                            📭 Алармы не найдены
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="pagination" style="margin-top:20px; text-align:center;">
+        {% if page_obj.has_previous %}
+            <a href="?page=1&search={{ request.GET.search|urlencode }}">« Первая</a>
+            <a href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search|urlencode }}">← Назад</a>
+        {% endif %}
+        <span>Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search|urlencode }}">Вперёд →</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}">Последняя »</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.getElementById('backButton').addEventListener('click', function(e) {
+        window.location.href = "{% url 'signal1520:index' %}";
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+      .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 10px 20px;
+            background: #95a5a6;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .back-link:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+  <p>Нет прав. Обратитесь к разработчикам</p>
+  <a href="#" id="backButton" class="back-link">← В главное меню</a>
+  <script>
+      document.getElementById('backButton').addEventListener('click', function(e) {
+          window.location.href = "{% url 'signal1520:index' %}";
+      });
+  </script>
+</body>
+</html>

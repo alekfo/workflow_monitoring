@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>
+        {% block title %}
+            Base title
+        {% endblock %}
+    </title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles.css' %}">
+    <script src="{% static 'signal1520/js/index.js' %}"></script>
+    <script src="{% static 'signal1520/js/main_header.js' %}"></script>
+</head>
+<body>
+    <header>
+        <nav style="display: flex; gap: 10px; justify-content: flex-end; padding: 10px 20px;">
+            <div class="user-info">
+                <span class="user-icon">👤</span>
+                <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+            </div>
+            <button id="accountBtn" class="button" style="width: auto; padding: 8px 20px;">👤 Профиль</button>
+            <button id="logoutBtn" class="button" style="width: auto; padding: 8px 20px;">🚪 Выйти</button>
+
+        </nav>
+    </header>
+
+    <!-- Основной контейнер для контента -->
+    <div class="main-layout">
+        {% block content %}
+            <!-- Здесь будет основной контент страниц -->
+        {% endblock %}
+    </div>
+
+    <footer>
+        <nav>
+            <button id="contactBtn" class="button"> 📞 Связаться с поддержкой</button>
+        </nav>
+    </footer>
+</body>
+</html>
