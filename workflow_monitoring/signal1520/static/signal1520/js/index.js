@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'tasks_all': '/signal1520/bugs/',
         'tasks_mine': '/signal1520/bugs/my/',
         'objects_all': '/signal1520/stations/',
+        'alarms': '/signal1520/alarms/',
         'warehouses_stock': null,
         'reports_download': null,
         'links_all': null,
@@ -23,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'tasks_add': '/signal1520/bugs/create',
         'objects_seek': null,
         'objects_add': '/signal1520/stations/create',
-        'alarms': '/signal1520/alarms/',
         'links_add': null,
         'charts_add': null,
     };
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Функция для загрузки контента по URL
-    async function loadContent(url) {
+    window.loadContentPanel = async function loadContent(url) {
         const contentPanel = document.getElementById('content-panel');
         contentPanel.innerHTML = '<p>Загрузка...</p>';
         try {
@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Дополнительные инициализации
             if (typeof window.initTasksToggle === 'function') window.initTasksToggle();
             if (typeof window.initStationTasks === 'function') window.initStationTasks();
+            if (typeof window.initBugFilter === 'function') window.initBugFilter();
         } catch (error) {
             contentPanel.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
         }
@@ -120,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 // Загружаем контент в contentPanel
-                await loadContent(url);
+                await window.loadContentPanel(url);
             } else if (section in urlMap_for_redirect) {
                 // Получаем URL из словаря и делаем редирект по URL
                 const url = urlMap_for_redirect[section];

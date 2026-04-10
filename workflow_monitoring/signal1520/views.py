@@ -12,11 +12,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from .models import Station, Task, Comment, Attachment, AlarmInfo
 
 class TasksIndexView(LoginRequiredMixin, View):
+    """Главная страница приложения."""
 
     def get(self, request: HttpRequest) -> HttpResponse:
+        """Отображает главную страницу с боковым меню и панелью контента."""
         return render(request, 'signal1520/index.html')
 
 class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Список всех объектов (станций). Доступен суперпользователям и пользователям с правом view_station."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -30,6 +33,7 @@ class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     )
 
 class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """Детальная страница объекта (станции) с привязанными замечаниями."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -57,6 +61,7 @@ class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     #     return context
 
 class StationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Форма создания нового объекта (станции). Доступна суперпользователям и пользователям с правом add_station."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -84,6 +89,8 @@ class StationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return redirect(reverse('authentication:error'))
 
 class StationUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Форма редактирования существующего объекта (станции)."""
+
     def test_func(self):
         # return self.request.user.groups.filter(name="secret_group").exists()
         if self.request.user.is_superuser:
@@ -104,6 +111,7 @@ class StationUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
 
 class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Список всех замечаний с поиском по описанию, станции, организации и статусу."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -114,7 +122,7 @@ class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
     model = Task
     template_name = 'signal1520/bug_list.html'
-    # paginate_by = 20  # опционально, если нужна пагинация
+    paginate_by = 10
 
     # def get_template_names(self):
     #     if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -134,6 +142,7 @@ class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return queryset
 
 class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Список замечаний, назначенных на текущего пользователя, с поддержкой поиска."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -164,6 +173,15 @@ class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return queryset
 
 class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """
+    Детальная страница замечания.
+
+    GET  — отображает замечание с комментариями и вложениями.
+    POST — обрабатывает три сценария:
+           1. Загрузка файла-вложения.
+           2. Добавление текстового комментария.
+           3. Изменение статуса замечания (JSON-запрос от JavaScript).
+    """
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -229,6 +247,7 @@ class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         })
 
 class BugCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Форма создания нового замечания. Ответственный сотрудник устанавливается автоматически как текущий пользователь."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -256,6 +275,7 @@ class BugCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return redirect(reverse('authentication:error'))
 
 class BugUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Форма редактирования замечания. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику."""
 
     def test_func(self):
         # return self.request.user.groups.filter(name="secret_group").exists()
@@ -279,10 +299,12 @@ class BugUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         )
 
 class AlarmListView(LoginRequiredMixin, ListView):
+    """Список сигнальных событий (тревог) с поиском по номеру. Пагинация по 20 записей."""
+
     model = AlarmInfo
     template_name = 'signal1520/alarm_list.html'
     context_object_name = 'alarms'
-    paginate_by = 20  # опционально
+    paginate_by = 10  # опционально
 
     def get_queryset(self):
         queryset = super().get_queryset()
