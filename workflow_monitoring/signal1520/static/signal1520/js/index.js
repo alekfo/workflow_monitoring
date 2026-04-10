@@ -77,14 +77,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             if (!response.ok) {
-                if ((response.status === 403) && (url in urlMap_for_contentPanel)) {
-                    throw new Error('Недостаточно прав. Обратитесь к разработчикам');
-                } else if ((response.status === 403) && (url in urlMap_for_redirect)) {
-                    window.location.href = '/accounts/login/';
+                if (response.status === 403) {
+                    contentPanel.innerHTML = '<p>Нет прав. Обратитесь к разработчикам.</p>';
+                    return;
                 }
-                else {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
+                throw new Error(`HTTP error ${response.status}`);
             }
             const html = await response.text();
             // Вставляем HTML целиком

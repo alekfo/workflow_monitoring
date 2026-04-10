@@ -25,20 +25,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # --- РАЗРАБОТКА ---
-SECRET_KEY = 'django-insecure-pc%@sq!y#sbnnsqgmd+s6#2(r+ft$2v(sqo+ir3_%c&y41te68'
-# --- ПРОДАКШН (раскомментировать, dev-строку выше удалить) ---
-# SECRET_KEY = os.environ.get('SECRET_KEY')
+# SECRET_KEY = 'django-insecure-pc%@sq!y#sbnnsqgmd+s6#2(r+ft$2v(sqo+ir3_%c&y41te68'
+# --- ПРОДАКШН ---
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # --- РАЗРАБОТКА ---
-DEBUG = True
+# DEBUG = True
 # --- ПРОДАКШН ---
-# DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # --- РАЗРАБОТКА ---
-ALLOWED_HOSTS = []
+# ALLOWED_HOSTS = []
 # --- ПРОДАКШН ---
-# ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 
 # Application definition
@@ -57,7 +57,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     # --- ПРОДАКШН: WhiteNoise для раздачи статики (после SecurityMiddleware) ---
-    # 'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -90,23 +90,23 @@ WSGI_APPLICATION = 'workflow_monitoring.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 # --- РАЗРАБОТКА ---
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-# --- ПРОДАКШН (раскомментировать, блок выше закомментировать) ---
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.environ.get('DB_NAME'),
-#         'USER': os.environ.get('DB_USER'),
-#         'PASSWORD': os.environ.get('DB_PASSWORD'),
-#         'HOST': os.environ.get('DB_HOST', 'db'),
-#         'PORT': os.environ.get('DB_PORT', '5432'),
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+# --- ПРОДАКШН ---
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST', 'db'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+    }
+}
 
 
 # Password validation
@@ -144,12 +144,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 # --- РАЗРАБОТКА ---
-STATIC_URL = 'static/'
-STATIC_ROOT = 'static/'
+# STATIC_URL = 'static/'
+# STATIC_ROOT = 'static/'
 # --- ПРОДАКШН ---
-# STATIC_URL = '/static/'
-# STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # URL для доступа к медиа-файлам (через веб-сервер)
 MEDIA_URL = '/media/'

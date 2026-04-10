@@ -15,9 +15,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем весь проект
 COPY . .
 
-# Собираем статику
-RUN python manage.py collectstatic --noinput
-
 EXPOSE 8000
 
 # Запускаем через gunicorn
