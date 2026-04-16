@@ -65,8 +65,11 @@ window.initBugFilter = function () {
         paginationContainer.addEventListener('click', function (e) {
             const link = e.target.closest('a');
             if (!link) return;
+            const href = link.getAttribute('href');
+            // Пропускаем абсолютные ссылки (например, кнопка "Выгрузить") — браузер обработает сам
+            if (!href || !href.startsWith('?')) return;
             e.preventDefault();
-            const url = baseUrl + link.getAttribute('href');
+            const url = baseUrl + href;
             if (typeof window.loadContentPanel === 'function') {
                 window.loadContentPanel(url);
             }

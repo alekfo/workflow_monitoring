@@ -12,6 +12,13 @@
         <div class="stations-header">
             <h2>🚉 Список станций</h2>
             <div style="display: flex; gap: 10px; align-items: center;">
+                <form method="get" action="" id="search-form" style="display: flex; gap: 5px;" data-base-url="{% url 'signal1520:station_list' %}">
+                    <input type="text" name="search" placeholder="Поиск по названию, дороге, дистанции, системе..."
+                           value="{{ request.GET.search|default:'' }}"
+                           style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 280px;">
+                    <button type="submit" class="btn-create" style="background: #95a5a6; box-shadow: none; padding: 8px 16px;">🔍 Найти</button>
+                    <a href="?" id="reset-search" class="btn-create" style="background: #e74c3c; box-shadow: none; padding: 8px 16px; {% if not request.GET.search %}display: none;{% endif %}">✖️ Сбросить</a>
+                </form>
                 <a href="{% url 'signal1520:create_station' %}" class="btn-create">
                     ✨ Создать новую станцию
                 </a>
@@ -19,61 +26,80 @@
             </div>
         </div>
 
-        <div class="table-wrapper">
-            <table class="stations-table">
-                <thead>
-                    <tr>
-                        <th>Наименование</th>
-                        <th>Дорога</th>
-                        <th>Описание</th>
-                        <th>Задачи</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for station in object_list %}
-                    <tr>
-                        <td class="station-name-cell">
-                            <a href="{% url 'signal1520:station_details' pk=station.pk %}" class="station-link">
-                                {{ station.name }}
-                            </a>
-                        </td>
-                        <td class="road-cell">{{ station.road }}</td>
-                        <td class="description-cell">{{ station.description|default:"—" }}</td>
-                        <td class="tasks-cell">
-                            {% with task_count=station.tasks.all|length %}
-                                {% if task_count > 0 %}
-                                    <button class="tasks-toggle-btn" data-station-id="{{ station.pk }}">
-                                        <span class="toggle-icon">▶</span>
-                                        Показать задачи
-                                        <span class="task-count-badge">{{ task_count }}</span>
-                                    </button>
-                                    <ul class="tasks-list" id="tasks-{{ station.pk }}" style="display: none;">
-                                        {% for task in station.tasks.all %}
-                                            <li>
-                                                <span class="task-marker">•</span>
-                                                {{ task.description }}
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    <span class="no-tasks-message">📭 Нет задач</span>
-                                {% endif %}
-                            {% endwith %}
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr class="empty-table-row">
-                        <td colspan="4">
-                            <div class="empty-state">
-                                📭 Станции не найдены
-                                <br>
-                                <small>Создайте первую станцию, нажав на кнопку выше</small>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="table-and-pagination">
+            <div class="table-wrapper">
+                <table class="stations-table">
+                    <thead>
+                        <tr>
+                            <th>Наименование</th>
+                            <th>Дорога</th>
+                            <th>Дистанция</th>
+                            <th>Система</th>
+                            <th>Задачи</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for station in object_list %}
+                        <tr>
+                            <td class="station-name-cell">
+                                <a href="{% url 'signal1520:station_details' pk=station.pk %}" class="station-link">
+                                    {{ station.name }}
+                                </a>
+                            </td>
+                            <td class="road-cell">{{ station.road }}</td>
+                            <td>{{ station.distance|default:"—" }}</td>
+                            <td>{{ station.system|default:"—" }}</td>
+                            <td class="tasks-cell">
+                                {% with task_count=station.tasks.all|length %}
+                                    {% if task_count > 0 %}
+                                        <button class="tasks-toggle-btn" data-station-id="{{ station.pk }}">
+                                            <span class="toggle-icon">▶</span>
+                                            Показать задачи
+                                            <span class="task-count-badge">{{ task_count }}</span>
+                                        </button>
+                                        <ul class="tasks-list" id="tasks-{{ station.pk }}" style="display: none;">
+                                            {% for task in station.tasks.all %}
+                                                <li>
+                                                    <span class="task-marker">•</span>
+                                                    {{ task.description }}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <span class="no-tasks-message">📭 Нет задач</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr class="empty-table-row">
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    📭 Станции не найдены
+                                    <br>
+                                    <small>Создайте первую станцию, нажав на кнопку выше</small>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                {% if is_paginated %}
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1&search={{ request.GET.search|urlencode }}" class="pagination-btn">« Первая</a>
+                        <a href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">← Назад</a>
+                    {% endif %}
+                    <span class="pagination-info">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Вперёд →</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Последняя »</a>
+                    {% endif %}
+                {% endif %}
+                <a href="{% url 'signal1520:stations_export' %}" class="pagination-btn" style="background: #27ae60; color: white;">⬇ Выгрузить</a>
+            </div>
         </div>
     </div>
     <script>

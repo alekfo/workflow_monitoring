@@ -67,19 +67,20 @@
                 </table>
             </div>
 
-            {% if is_paginated %}
             <div class="pagination">
-                {% if page_obj.has_previous %}
-                    <a href="?page=1&search={{ request.GET.search|urlencode }}" class="pagination-btn">« Первая</a>
-                    <a href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">← Назад</a>
+                {% if is_paginated %}
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1&search={{ request.GET.search|urlencode }}" class="pagination-btn">« Первая</a>
+                        <a href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">← Назад</a>
+                    {% endif %}
+                    <span class="pagination-info">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Вперёд →</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Последняя »</a>
+                    {% endif %}
                 {% endif %}
-                <span class="pagination-info">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
-                {% if page_obj.has_next %}
-                    <a href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Вперёд →</a>
-                    <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Последняя »</a>
-                {% endif %}
+                <a href="{% url 'signal1520:bugs_export' %}" class="pagination-btn" style="background: #27ae60; color: white;">⬇ Выгрузить</a>
             </div>
-            {% endif %}
         </div>
     </div>
     <script>

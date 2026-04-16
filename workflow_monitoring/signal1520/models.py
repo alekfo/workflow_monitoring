@@ -7,6 +7,8 @@ class Station(models.Model):
     name = models.CharField('Название станции/объекта', max_length=200)
     road = models.CharField('Дорога/линия/район', max_length=100)
     description = models.TextField('Описание', blank=True)
+    distance = models.CharField('Дистанция', max_length=20, blank=True, default='')
+    system = models.CharField('Система', max_length=50, blank=True, default='')
     # Координаты для карты
     latitude = models.FloatField('Широта', null=True, blank=True)
     longitude = models.FloatField('Долгота', null=True, blank=True)

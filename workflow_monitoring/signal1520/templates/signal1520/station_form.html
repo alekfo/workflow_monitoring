@@ -209,6 +209,37 @@
                     {% endif %}
                 </div>
 
+                <!-- Поля distance и system в одной строке -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="{{ form.distance.id_for_label }}">
+                            {{ form.distance.label }}
+                        </label>
+                        {{ form.distance }}
+                        {% if form.distance.errors %}
+                            <span class="error-message">
+                                {% for error in form.distance.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.system.id_for_label }}">
+                            {{ form.system.label }}
+                        </label>
+                        {{ form.system }}
+                        {% if form.system.errors %}
+                            <span class="error-message">
+                                {% for error in form.system.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <!-- Поле description -->
                 <div class="form-group">
                     <label for="{{ form.description.id_for_label }}">

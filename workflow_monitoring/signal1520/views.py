@@ -1,5 +1,7 @@
+import io
 import json
 
+import openpyxl
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.contrib.auth.models import Group
@@ -28,9 +30,20 @@ class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             return True
         return False
 
-    queryset = (
-        Station.objects.prefetch_related('tasks')
-    )
+    model = Station
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = Station.objects.prefetch_related('tasks')
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            queryset = queryset.filter(
+                models.Q(name__icontains=search_query) |
+                models.Q(road__icontains=search_query) |
+                models.Q(distance__icontains=search_query) |
+                models.Q(system__icontains=search_query)
+            )
+        return queryset
 
 class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     """Детальная страница объекта (станции) с привязанными замечаниями."""
@@ -71,7 +84,7 @@ class StationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return False
 
     model = Station
-    fields = "name", "road", "description", "latitude", "longitude"
+    fields = "name", "road", "distance", "system", "description", "latitude", "longitude"
     # success_url = reverse_lazy("signal1520:index")
 
     def form_valid(self, form):
@@ -100,7 +113,7 @@ class StationUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return False
 
     model = Station
-    fields = "name", "road", "description", "latitude", "longitude"
+    fields = "name", "road", "distance", "system", "description", "latitude", "longitude"
     template_name = 'signal1520/station_update_form.html'
 
     def get_success_url(self):
@@ -312,3 +325,74 @@ class AlarmListView(LoginRequiredMixin, ListView):
         if search_query:
             queryset = queryset.filter(number__icontains=search_query)
         return queryset
+
+
+class StationsExportView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Выгрузка списка станций в .xlsx."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_station')
+
+    def get(self, request):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Станции'
+
+        headers = ['ID', 'Наименование', 'Дорога/линия/район', 'Дистанция', 'Система', 'Описание', 'Широта', 'Долгота', 'Дата создания', 'Создал']
+        ws.append(headers)
+
+        for station in Station.objects.select_related('created_by').order_by('pk'):
+            ws.append([
+                station.pk,
+                station.name,
+                station.road,
+                station.distance,
+                station.system,
+                station.description,
+                station.latitude,
+                station.longitude,
+                station.created_at.strftime('%d.%m.%Y %H:%M') if station.created_at else '',
+                station.created_by.get_full_name() or station.created_by.username,
+            ])
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="stations.xlsx"'
+        return response
+
+
+class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """Выгрузка списка замечаний в .xlsx."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_task')
+
+    def get(self, request):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Замечания'
+
+        headers = ['ID', 'Станция', 'Описание', 'Статус', 'Ответственная организация', 'Ответственный сотрудник', 'Срок выполнения', 'Дата создания', 'Дата обновления']
+        ws.append(headers)
+
+        for task in Task.objects.select_related('station', 'responsible_user').order_by('pk'):
+            ws.append([
+                task.pk,
+                str(task.station),
+                task.description,
+                task.get_status_display(),
+                task.responsible_organization,
+                task.responsible_user.get_full_name() or task.responsible_user.username if task.responsible_user else '',
+                task.due_date.strftime('%d.%m.%Y') if task.due_date else '',
+                task.created_at.strftime('%d.%m.%Y %H:%M') if task.created_at else '',
+                task.updated_at.strftime('%d.%m.%Y %H:%M') if task.updated_at else '',
+            ])
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="tasks.xlsx"'
+        return response

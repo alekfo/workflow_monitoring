@@ -247,6 +247,14 @@
                     <div class="info-label">Дорога/линия/район</div>
                     <div class="info-value">{{ station.road }}</div>
                 </div>
+                <div class="info-card">
+                    <div class="info-label">Дистанция</div>
+                    <div class="info-value">{{ station.distance|default:"—" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Система</div>
+                    <div class="info-value">{{ station.system|default:"—" }}</div>
+                </div>
                 <div class="info-card" style="grid-column: span 2;">
                     <div class="info-label">Описание</div>
                     <div class="info-value">{{ station.description|default:"—" }}</div>

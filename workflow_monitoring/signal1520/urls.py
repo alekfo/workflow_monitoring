@@ -10,6 +10,8 @@ from .views import (TasksIndexView,
                     StationUpdateView,
                     MyBugsListView,
                     AlarmListView,
+                    StationsExportView,
+                    TasksExportView,
                     )
 
 app_name = "signal1520"
@@ -21,9 +23,11 @@ urlpatterns = [
     path("bugs/<int:pk>/", BugDetailView.as_view(), name="bug_details"),
     path("bugs/create/", BugCreateView.as_view(), name="create_bug"),
     path("bugs/<int:pk>/update/", BugUpdateView.as_view(), name="bug_update"),
+    path("bugs/export/", TasksExportView.as_view(), name="bugs_export"),
     path("stations/", StationListView.as_view(), name="station_list"),
     path("stations/<int:pk>/", StationDetailView.as_view(), name="station_details"),
     path("stations/create/", StationCreateView.as_view(), name="create_station"),
     path("stations/<int:pk>/update/", StationUpdateView.as_view(), name="station_update"),
+    path("stations/export/", StationsExportView.as_view(), name="stations_export"),
     path("alarms/", AlarmListView.as_view(), name="alarm_list"),
 ]
