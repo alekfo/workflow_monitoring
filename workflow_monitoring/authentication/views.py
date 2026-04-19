@@ -28,13 +28,16 @@ class AboutMeView(LoginRequiredMixin, TemplateView):
 
     template_name = "authentication/about_me.html"
 
-class UsersListView(ListView):
+class UsersListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     """"Посмотреть список всех пользователей"""
 
     model = User
     template_name = 'authentication/users_list.html'
     context_object_name = 'users'
     ordering = ['username']
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('authentication.can_view_users_list')
 
 class UserDetailView(LoginRequiredMixin, DetailView):
     """"Посмотреть детальную инфу о любом пользователе"""

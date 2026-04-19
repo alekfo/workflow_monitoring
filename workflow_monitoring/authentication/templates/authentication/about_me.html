@@ -257,9 +257,11 @@
                     <a href="{% url 'authentication:profile_update' %}" class="btn-action">
                         ✏️ Редактировать профиль
                     </a>
+                    {% if user.is_superuser or perms.authentication.can_view_users_list %}
                     <a href="{% url 'authentication:users_list' %}" class="btn-action">
                         👥 Все пользователи
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
