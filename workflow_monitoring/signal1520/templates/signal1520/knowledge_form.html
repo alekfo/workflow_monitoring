@@ -1,0 +1,231 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Добавить инструкцию</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <style>
+        .form-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px 30px;
+            color: white;
+        }
+        .form-header h1 {
+            margin: 0 0 8px;
+            font-size: 26px;
+            color: white;
+            border: none;
+            padding: 0;
+        }
+        .form-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .form-body {
+            padding: 30px;
+        }
+        .form-group {
+            margin-bottom: 22px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .form-group label .required {
+            color: #e74c3c;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+        .non-field-errors {
+            background: #fee;
+            border-left: 3px solid #e74c3c;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #c0392b;
+            font-size: 14px;
+        }
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 28px 0;
+            color: #95a5a6;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .section-divider::before,
+        .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e0e0e0;
+        }
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .btn-submit {
+            flex: 1;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+        .btn-cancel {
+            flex: 1;
+            padding: 12px 24px;
+            background: #95a5a6;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+        .btn-cancel:hover {
+            background: #7f8c8d;
+            transform: translateY(-2px);
+            color: white;
+        }
+        .help-text {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<div class="form-container">
+    <div class="form-header">
+        <h1>📖 Добавить инструкцию</h1>
+        <p>Загрузите документ или добавьте ссылку на ресурс</p>
+    </div>
+
+    <div class="form-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="non-field-errors">
+                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Название -->
+            <div class="form-group">
+                <label for="{{ form.title.id_for_label }}">
+                    {{ form.title.label }} <span class="required">*</span>
+                </label>
+                <input type="text"
+                       name="{{ form.title.html_name }}"
+                       id="{{ form.title.id_for_label }}"
+                       value="{{ form.title.value|default:'' }}"
+                       class="form-control"
+                       placeholder="Название документа или ссылки">
+                {% if form.title.errors %}
+                    <span class="error-message">{{ form.title.errors|join:", " }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Описание -->
+            <div class="form-group">
+                <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                <textarea name="{{ form.description.html_name }}"
+                          id="{{ form.description.id_for_label }}"
+                          class="form-control"
+                          placeholder="Краткое описание (необязательно)">{{ form.description.value|default:'' }}</textarea>
+                {% if form.description.errors %}
+                    <span class="error-message">{{ form.description.errors|join:", " }}</span>
+                {% endif %}
+            </div>
+
+            <div class="section-divider">Документ</div>
+
+            <!-- Файл -->
+            <div class="form-group">
+                <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+                <input type="file"
+                       name="{{ form.file.html_name }}"
+                       id="{{ form.file.id_for_label }}"
+                       class="form-control">
+                <span class="help-text">PDF, Word, Excel, изображения и другие форматы</span>
+                {% if form.file.errors %}
+                    <span class="error-message">{{ form.file.errors|join:", " }}</span>
+                {% endif %}
+            </div>
+
+            <div class="section-divider">или ссылка</div>
+
+            <!-- Внешняя ссылка -->
+            <div class="form-group">
+                <label for="{{ form.external_link.id_for_label }}">{{ form.external_link.label }}</label>
+                <input type="url"
+                       name="{{ form.external_link.html_name }}"
+                       id="{{ form.external_link.id_for_label }}"
+                       value="{{ form.external_link.value|default:'' }}"
+                       class="form-control"
+                       placeholder="https://...">
+                {% if form.external_link.errors %}
+                    <span class="error-message">{{ form.external_link.errors|join:", " }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">✅ Сохранить</button>
+                <a href="{% url 'signal1520:index' %}" class="btn-cancel">← Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

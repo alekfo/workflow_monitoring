@@ -48,7 +48,7 @@
                             </td>
                             <td class="road-cell">{{ bug.status }}</td>
                             <td class="road-cell">{{ bug.station }}</td>
-                            <td class="road-cell">{{ bug.description }}</td>
+                            <td class="road-cell">{{ bug.description|truncatechars:30 }}</td>
                             <td class="description-cell">{{ bug.responsible_organization|default:"—" }}</td>
                             <td class="description-cell">{{ bug.responsible_user|default:"—" }}</td>
                         </tr>

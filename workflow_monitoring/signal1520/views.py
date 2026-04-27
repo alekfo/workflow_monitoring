@@ -2,6 +2,7 @@ import io
 import json
 
 import openpyxl
+from django.contrib import messages
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.contrib.auth.models import Group
@@ -11,7 +12,8 @@ from django.views.generic import TemplateView, ListView, DetailView, CreateView,
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
-from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System
+from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge
+from .forms import KnowledgeForm
 
 class TasksIndexView(LoginRequiredMixin, View):
     """Главная страница приложения."""
@@ -396,3 +398,48 @@ class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
         response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="tasks.xlsx"'
         return response
+
+
+class KnowledgeListView(LoginRequiredMixin, ListView):
+    """Список инструкций текущего пользователя. Загружается в contentPanel через AJAX."""
+
+    model = Knowledge
+    template_name = 'signal1520/knowledge_list.html'
+    context_object_name = 'items'
+
+    def get_queryset(self):
+        return Knowledge.objects.filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        qs = self.get_queryset()
+        context['docs'] = qs.exclude(file='').exclude(file__isnull=True)
+        context['links'] = qs.filter(external_link__gt='')
+        return context
+
+
+class KnowledgeCreateView(LoginRequiredMixin, CreateView):
+    """Форма добавления инструкции (документ или ссылка). После сохранения — на главную."""
+
+    model = Knowledge
+    form_class = KnowledgeForm
+    template_name = 'signal1520/knowledge_form.html'
+    success_url = reverse_lazy('signal1520:index')
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        response = super().form_valid(form)
+        messages.success(self.request, 'Инструкция успешно добавлена.')
+        return response
+
+
+class KnowledgeDeleteView(LoginRequiredMixin, View):
+    """AJAX-удаление инструкции. Только владелец записи может её удалить."""
+
+    def post(self, request, pk):
+        item = get_object_or_404(Knowledge, pk=pk, user=request.user)
+        #файл удаляется в том числе и локально save=False
+        if item.file:
+            item.file.delete(save=False)
+        item.delete()
+        return JsonResponse({'success': True})

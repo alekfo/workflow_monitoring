@@ -217,28 +217,36 @@ class AlarmInfo(models.Model):
         return self.number
 
 def knowledge_file_path(instance, filename):
-    return f'knowledge/{filename}'
+    return f'knowledge/user_{instance.user.id}/{filename}'
 
 class Knowledge(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='knowledge',
+        verbose_name='Пользователь',
+    )
     title = models.CharField('Заголовок', max_length=200)
     description = models.TextField('Описание', blank=True)
     file = models.FileField(
         'Файл',
         upload_to=knowledge_file_path,
         blank=True,
-        null=True
+        null=True,
     )
     external_link = models.URLField('Ссылка на ресурс', blank=True)
     created_at = models.DateTimeField('Дата добавления', auto_now_add=True)
-    updated_at = models.DateTimeField('Дата изменения', auto_now=True)
 
     class Meta:
-        verbose_name = 'Материал базы знаний'
-        verbose_name_plural = 'База знаний'
+        verbose_name = 'Инструкция'
+        verbose_name_plural = 'Инструкции'
         ordering = ['-created_at']
 
     def __str__(self):
         return self.title
+
+    def filename(self):
+        return os.path.basename(self.file.name) if self.file else ''
 
 class Link(models.Model):
     user = models.ForeignKey(
