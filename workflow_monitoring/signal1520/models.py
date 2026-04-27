@@ -217,36 +217,58 @@ class AlarmInfo(models.Model):
         return self.number
 
 def knowledge_file_path(instance, filename):
-    return f'knowledge/user_{instance.user.id}/{filename}'
+    return f'knowledge/{filename}'
 
 class Knowledge(models.Model):
-    user = models.ForeignKey(
+    created_by = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
-        related_name='knowledge',
-        verbose_name='Пользователь',
-    )
-    title = models.CharField('Заголовок', max_length=200)
-    description = models.TextField('Описание', blank=True)
-    file = models.FileField(
-        'Файл',
-        upload_to=knowledge_file_path,
-        blank=True,
+        on_delete=models.SET_NULL,
         null=True,
+        blank=True,
+        related_name='created_knowledge',
+        verbose_name='Добавил',
     )
+    file = models.FileField('Файл', upload_to=knowledge_file_path, blank=True, null=True)
     external_link = models.URLField('Ссылка на ресурс', blank=True)
     created_at = models.DateTimeField('Дата добавления', auto_now_add=True)
 
     class Meta:
-        verbose_name = 'Инструкция'
-        verbose_name_plural = 'Инструкции'
+        verbose_name = 'Файл/ссылка базы знаний'
+        verbose_name_plural = 'Файлы/ссылки базы знаний'
         ordering = ['-created_at']
 
     def __str__(self):
-        return self.title
+        return self.filename() or self.external_link or f'#{self.pk}'
 
     def filename(self):
         return os.path.basename(self.file.name) if self.file else ''
+
+
+class UserKnowledge(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='user_knowledge',
+        verbose_name='Пользователь',
+    )
+    knowledge = models.ForeignKey(
+        Knowledge,
+        on_delete=models.CASCADE,
+        related_name='user_knowledge',
+        verbose_name='Материал',
+    )
+    title = models.CharField('Название', max_length=200)
+    description = models.TextField('Описание', blank=True)
+    created_at = models.DateTimeField('Дата добавления', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Инструкция пользователя'
+        verbose_name_plural = 'Инструкции пользователей'
+        ordering = ['-created_at']
+        unique_together = [('user', 'knowledge')]
+
+    def __str__(self):
+        return f'{self.user.username}: {self.title}'
 
 class Link(models.Model):
     user = models.ForeignKey(

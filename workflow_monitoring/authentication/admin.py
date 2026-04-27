@@ -9,7 +9,7 @@ class ProfileInline(admin.StackedInline):
     model = Profile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fields = ['bio', 'agreement_accepted', 'avatar_preview', 'avatar']
+    fields = ['bio', 'agreement_accepted', 'avatar_preview', 'avatar', 'knowledge_file_limit']
     readonly_fields = ['avatar_preview']
 
     def avatar_preview(self, obj):

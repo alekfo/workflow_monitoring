@@ -24,17 +24,9 @@
             border: none;
             padding: 0;
         }
-        .form-header p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        .form-body {
-            padding: 30px;
-        }
-        .form-group {
-            margin-bottom: 22px;
-        }
+        .form-header p { margin: 0; opacity: 0.9; font-size: 14px; }
+        .form-body { padding: 30px; }
+        .form-group { margin-bottom: 22px; }
         .form-group label {
             display: block;
             margin-bottom: 8px;
@@ -42,9 +34,7 @@
             color: #2c3e50;
             font-size: 14px;
         }
-        .form-group label .required {
-            color: #e74c3c;
-        }
+        .required { color: #e74c3c; }
         .form-control {
             width: 100%;
             padding: 12px 15px;
@@ -60,16 +50,9 @@
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        textarea.form-control {
-            resize: vertical;
-            min-height: 100px;
-        }
-        .error-message {
-            color: #e74c3c;
-            font-size: 12px;
-            margin-top: 5px;
-            display: block;
-        }
+        textarea.form-control { resize: vertical; min-height: 90px; }
+        select.form-control { cursor: pointer; background: white; }
+        .error-message { color: #e74c3c; font-size: 12px; margin-top: 5px; display: block; }
         .non-field-errors {
             background: #fee;
             border-left: 3px solid #e74c3c;
@@ -90,19 +73,14 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .section-divider::before,
-        .section-divider::after {
+        .section-divider::before, .section-divider::after {
             content: '';
             flex: 1;
             height: 1px;
             background: #e0e0e0;
         }
-        .form-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-            flex-wrap: wrap;
-        }
+        .help-text { color: #7f8c8d; font-size: 12px; margin-top: 5px; display: block; }
+        .form-actions { display: flex; gap: 15px; margin-top: 30px; flex-wrap: wrap; }
         .btn-submit {
             flex: 1;
             padding: 12px 24px;
@@ -131,28 +109,19 @@
             transition: all 0.3s ease;
             display: inline-block;
         }
-        .btn-cancel:hover {
-            background: #7f8c8d;
-            transform: translateY(-2px);
-            color: white;
-        }
-        .help-text {
-            color: #7f8c8d;
-            font-size: 12px;
-            margin-top: 5px;
-            display: block;
-        }
+        .btn-cancel:hover { background: #7f8c8d; transform: translateY(-2px); color: white; }
+        .field-disabled { opacity: 0.4; pointer-events: none; }
     </style>
 </head>
 <body>
 <div class="form-container">
     <div class="form-header">
         <h1>📖 Добавить инструкцию</h1>
-        <p>Загрузите документ или добавьте ссылку на ресурс</p>
+        <p>Загрузите документ, выберите из существующих или добавьте ссылку</p>
     </div>
 
     <div class="form-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" id="knowledge-form">
             {% csrf_token %}
 
             {% if form.non_field_errors %}
@@ -166,12 +135,11 @@
                 <label for="{{ form.title.id_for_label }}">
                     {{ form.title.label }} <span class="required">*</span>
                 </label>
-                <input type="text"
-                       name="{{ form.title.html_name }}"
+                <input type="text" name="{{ form.title.html_name }}"
                        id="{{ form.title.id_for_label }}"
                        value="{{ form.title.value|default:'' }}"
                        class="form-control"
-                       placeholder="Название документа или ссылки">
+                       placeholder="Как вы назовёте этот материал">
                 {% if form.title.errors %}
                     <span class="error-message">{{ form.title.errors|join:", " }}</span>
                 {% endif %}
@@ -184,18 +152,14 @@
                           id="{{ form.description.id_for_label }}"
                           class="form-control"
                           placeholder="Краткое описание (необязательно)">{{ form.description.value|default:'' }}</textarea>
-                {% if form.description.errors %}
-                    <span class="error-message">{{ form.description.errors|join:", " }}</span>
-                {% endif %}
             </div>
 
             <div class="section-divider">Документ</div>
 
-            <!-- Файл -->
-            <div class="form-group">
+            <!-- Загрузить новый файл -->
+            <div class="form-group" id="group-file">
                 <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
-                <input type="file"
-                       name="{{ form.file.html_name }}"
+                <input type="file" name="{{ form.file.html_name }}"
                        id="{{ form.file.id_for_label }}"
                        class="form-control">
                 <span class="help-text">PDF, Word, Excel, изображения и другие форматы</span>
@@ -204,13 +168,33 @@
                 {% endif %}
             </div>
 
+            <!-- Выбрать из существующих -->
+            <div class="form-group" id="group-existing">
+                <label for="{{ form.existing_knowledge.id_for_label }}">
+                    {{ form.existing_knowledge.label }}
+                </label>
+                <select name="{{ form.existing_knowledge.html_name }}"
+                        id="{{ form.existing_knowledge.id_for_label }}"
+                        class="form-control">
+                    <option value="">— не выбрано —</option>
+                    {% for k in form.existing_knowledge.field.queryset %}
+                    <option value="{{ k.pk }}"
+                        {% if form.existing_knowledge.value == k.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ k.filename }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if form.existing_knowledge.errors %}
+                    <span class="error-message">{{ form.existing_knowledge.errors|join:", " }}</span>
+                {% endif %}
+            </div>
+
             <div class="section-divider">или ссылка</div>
 
             <!-- Внешняя ссылка -->
-            <div class="form-group">
+            <div class="form-group" id="group-link">
                 <label for="{{ form.external_link.id_for_label }}">{{ form.external_link.label }}</label>
-                <input type="url"
-                       name="{{ form.external_link.html_name }}"
+                <input type="url" name="{{ form.external_link.html_name }}"
                        id="{{ form.external_link.id_for_label }}"
                        value="{{ form.external_link.value|default:'' }}"
                        class="form-control"
@@ -227,5 +211,41 @@
         </form>
     </div>
 </div>
+
+<script>
+    const fileInput = document.getElementById('{{ form.file.id_for_label }}');
+    const existingSelect = document.getElementById('{{ form.existing_knowledge.id_for_label }}');
+    const linkInput = document.getElementById('{{ form.external_link.id_for_label }}');
+    const groupFile = document.getElementById('group-file');
+    const groupExisting = document.getElementById('group-existing');
+    const groupLink = document.getElementById('group-link');
+
+    function updateState() {
+        const hasFile = fileInput.files && fileInput.files.length > 0;
+        const hasExisting = existingSelect.value !== '';
+        const hasLink = linkInput.value.trim() !== '';
+
+        // Файл и выпадающий — взаимоисключающие
+        if (hasFile) {
+            groupExisting.classList.add('field-disabled');
+            existingSelect.value = '';
+        } else {
+            groupExisting.classList.remove('field-disabled');
+        }
+
+        if (hasExisting) {
+            groupFile.classList.add('field-disabled');
+            groupLink.classList.add('field-disabled');
+            fileInput.value = '';
+            linkInput.value = '';
+        } else {
+            groupFile.classList.remove('field-disabled');
+            groupLink.classList.remove('field-disabled');
+        }
+    }
+
+    fileInput.addEventListener('change', updateState);
+    existingSelect.addEventListener('change', updateState);
+</script>
 </body>
 </html>

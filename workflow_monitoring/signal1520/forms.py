@@ -2,15 +2,33 @@ from django import forms
 from .models import Knowledge
 
 
-class KnowledgeForm(forms.ModelForm):
-    class Meta:
-        model = Knowledge
-        fields = ['title', 'description', 'file', 'external_link']
+class KnowledgeForm(forms.Form):
+    title = forms.CharField(label='Название', max_length=200)
+    description = forms.CharField(
+        label='Описание', required=False,
+        widget=forms.Textarea(attrs={'rows': 3}),
+    )
+    file = forms.FileField(label='Файл', required=False)
+    existing_knowledge = forms.ModelChoiceField(
+        queryset=Knowledge.objects.none(),
+        required=False,
+        label='Выбрать из существующих',
+        empty_label='— не выбрано —',
+    )
+    external_link = forms.URLField(label='Ссылка на ресурс', required=False)
 
     def clean(self):
         cleaned_data = super().clean()
         file = cleaned_data.get('file')
+        existing = cleaned_data.get('existing_knowledge')
         link = cleaned_data.get('external_link', '').strip()
-        if not file and not link:
-            raise forms.ValidationError('Добавьте файл или ссылку — хотя бы одно поле обязательно.')
+
+        if file and existing:
+            raise forms.ValidationError(
+                'Нельзя одновременно загрузить файл и выбрать из существующих.'
+            )
+        if not file and not existing and not link:
+            raise forms.ValidationError(
+                'Добавьте файл, выберите из существующих или укажите ссылку.'
+            )
         return cleaned_data

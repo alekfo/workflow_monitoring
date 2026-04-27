@@ -1,0 +1,83 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лимит файлов</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <style>
+        .limit-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .limit-header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            padding: 25px 30px;
+            color: white;
+        }
+        .limit-header h1 {
+            margin: 0 0 8px;
+            font-size: 24px;
+            color: white;
+            border: none;
+            padding: 0;
+        }
+        .limit-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .limit-body {
+            padding: 35px 30px;
+            text-align: center;
+        }
+        .limit-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+        }
+        .limit-message {
+            font-size: 17px;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .limit-hint {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .btn-back {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+        .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<div class="limit-container">
+    <div class="limit-header">
+        <h1>⛔ Лимит файлов исчерпан</h1>
+        <p>Добавление новых файлов недоступно</p>
+    </div>
+    <div class="limit-body">
+        <div class="limit-icon">📁</div>
+        <div class="limit-message">Превышен лимит по добавлению файлов.</div>
+        <div class="limit-hint">Обратитесь к разработчикам.</div>
+        <a href="{% url 'signal1520:index' %}" class="btn-back">← Вернуться в главное меню</a>
+    </div>
+</div>
+</body>
+</html>

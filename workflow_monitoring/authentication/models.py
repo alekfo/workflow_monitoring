@@ -13,6 +13,10 @@ class Profile(models.Model):
     agreement_accepted = models.BooleanField(default=False)
 
     avatar = models.ImageField(null=True, blank=True, upload_to=avatar_directory_path)
+    knowledge_file_limit = models.PositiveSmallIntegerField(
+        'Лимит файлов инструкций',
+        default=10,
+    )
 
     class Meta:
         permissions = [
