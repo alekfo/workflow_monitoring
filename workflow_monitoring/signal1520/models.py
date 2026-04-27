@@ -3,28 +3,58 @@ import os
 from django.db import models
 from django.contrib.auth.models import User
 
+
+class Road(models.Model):
+    title = models.CharField('Название', max_length=100)
+
+    class Meta:
+        verbose_name = 'Дорога/линия/район'
+        verbose_name_plural = 'Дороги/линии/районы'
+        ordering = ['title']
+
+    def __str__(self):
+        return self.title
+
+
+class System(models.Model):
+    title = models.CharField('Название', max_length=50)
+
+    class Meta:
+        verbose_name = 'Система'
+        verbose_name_plural = 'Системы'
+        ordering = ['title']
+
+    def __str__(self):
+        return self.title
+
+
 class Station(models.Model):
     name = models.CharField('Название станции/объекта', max_length=200)
-    road = models.CharField('Дорога/линия/район', max_length=100)
+    road = models.ForeignKey(
+        Road,
+        on_delete=models.PROTECT,
+        related_name='stations',
+        verbose_name='Дорога/линия/район',
+    )
     description = models.TextField('Описание', blank=True)
     distance = models.CharField('Дистанция', max_length=20, blank=True, default='')
-    system = models.CharField('Система', max_length=50, blank=True, default='')
-    # Координаты для карты
+    system = models.ForeignKey(
+        System,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='stations',
+        verbose_name='Система',
+    )
     latitude = models.FloatField('Широта', null=True, blank=True)
     longitude = models.FloatField('Долгота', null=True, blank=True)
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    #Класс Meta — это встроенная возможность Django для задания метаданных модели;
-    #Управляет поведением модели в административной панели, сортировкой, именованием и другими параметрами.
     class Meta:
-        #verbose_name — задаёт «человеческое» имя модели в единственном числе.
-        # В админке Django вместо технического названия Station будет отображаться «Станция».
         verbose_name = 'Станция'
-        #то же, но во множественном числе
         verbose_name_plural = 'Станции'
-        #определяет порядок сортировки по умолчанию при выборках из базы
-        ordering = ['road', 'name']
+        ordering = ['road__title', 'name']
 
     def __str__(self):
         return f"{self.name} ({self.road})"

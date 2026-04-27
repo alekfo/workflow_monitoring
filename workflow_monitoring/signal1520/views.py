@@ -11,7 +11,7 @@ from django.views.generic import TemplateView, ListView, DetailView, CreateView,
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
-from .models import Station, Task, Comment, Attachment, AlarmInfo
+from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System
 
 class TasksIndexView(LoginRequiredMixin, View):
     """Главная страница приложения."""
@@ -34,14 +34,14 @@ class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        queryset = Station.objects.prefetch_related('tasks')
+        queryset = Station.objects.select_related('road', 'system').prefetch_related('tasks')
         search_query = self.request.GET.get('search', '').strip()
         if search_query:
             queryset = queryset.filter(
                 models.Q(name__icontains=search_query) |
-                models.Q(road__icontains=search_query) |
+                models.Q(road__title__icontains=search_query) |
                 models.Q(distance__icontains=search_query) |
-                models.Q(system__icontains=search_query)
+                models.Q(system__title__icontains=search_query)
             )
         return queryset
 
@@ -56,7 +56,7 @@ class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         return False
 
     template_name = 'signal1520/station_details.html'
-    queryset = Station.objects.prefetch_related("tasks")
+    queryset = Station.objects.select_related('road', 'system').prefetch_related("tasks")
     context_object_name = "station"  # имя, доступное в шаблоне
 
     # def get_context_data(self, **kwargs):
@@ -341,13 +341,13 @@ class StationsExportView(LoginRequiredMixin, UserPassesTestMixin, View):
         headers = ['ID', 'Наименование', 'Дорога/линия/район', 'Дистанция', 'Система', 'Описание', 'Широта', 'Долгота', 'Дата создания', 'Создал']
         ws.append(headers)
 
-        for station in Station.objects.select_related('created_by').order_by('pk'):
+        for station in Station.objects.select_related('created_by', 'road', 'system').order_by('pk'):
             ws.append([
                 station.pk,
                 station.name,
-                station.road,
+                station.road.title if station.road else '',
                 station.distance,
-                station.system,
+                station.system.title if station.system else '',
                 station.description,
                 station.latitude,
                 station.longitude,
