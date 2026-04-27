@@ -912,3 +912,13 @@ class TasksExportViewTest(ViewTestBase):
         ws = wb.active
         values = [str(cell.value) for row in ws.iter_rows() for cell in row]
         self.assertIn('Тестовое замечание', values)
+
+
+# ---------------------------------------------------------------------------
+# Intentionally failing test — CI gate check
+# ---------------------------------------------------------------------------
+
+class IntentionallyFailingTest(TestCase):
+    def test_this_must_fail(self):
+        """Этот тест намеренно провальный — используется для проверки CI-блокировки PR."""
+        self.assertEqual(2, 2, "Намеренная ошибка: 1 != 2")
