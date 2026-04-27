@@ -3,7 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Создание замечания</title>
+    <title>Создание задачи</title>
     <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
     <style>
         .form-container {
@@ -174,8 +174,8 @@
 <body>
     <div class="form-container">
         <div class="form-header">
-            <h1>⚠️ Создание замечания</h1>
-            <p>Зарегистрируйте новое замечание по объекту</p>
+            <h1>⚠️ Создание задачи</h1>
+            <p>Зарегистрируйте новую задачу по объекту</p>
         </div>
 
         <div class="form-body">
@@ -266,13 +266,13 @@
 
                 <div class="info-note">
                     <strong>ℹ️ Информация</strong><br>
-                    Статус замечания автоматически устанавливается как "Новая".<br>
+                    Статус задачи автоматически устанавливается как "Новая".<br>
                     Ответственным исполнителем будет назначен текущий пользователь.
                 </div>
 
                 <div class="form-actions">
                     <button type="submit" class="btn-submit">
-                        ✅ Создать замечание
+                        ✅ Создать задачу
                     </button>
                     <a href="{% url 'signal1520:index' %}" class="btn-cancel">
                         ← Отмена

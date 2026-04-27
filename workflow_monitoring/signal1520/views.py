@@ -48,7 +48,7 @@ class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return queryset
 
 class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
-    """Детальная страница объекта (станции) с привязанными замечаниями."""
+    """Детальная страница объекта (станции) с привязанными задачами."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -126,7 +126,7 @@ class StationUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 
 
 class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    """Список всех замечаний с поиском по описанию, станции, организации и статусу."""
+    """Список всех задач с поиском по описанию, станции, организации и статусу."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -157,7 +157,7 @@ class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return queryset
 
 class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    """Список замечаний, назначенных на текущего пользователя, с поддержкой поиска."""
+    """Список задач, назначенных на текущего пользователя, с поддержкой поиска."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -189,13 +189,13 @@ class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
 class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     """
-    Детальная страница замечания.
+    Детальная страница задачи.
 
-    GET  — отображает замечание с комментариями и вложениями.
+    GET  — отображает задачу с комментариями и вложениями.
     POST — обрабатывает три сценария:
            1. Загрузка файла-вложения.
            2. Добавление текстового комментария.
-           3. Изменение статуса замечания (JSON-запрос от JavaScript).
+           3. Изменение статуса задачи (JSON-запрос от JavaScript).
     """
 
     def test_func(self):
@@ -233,7 +233,7 @@ class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                     user=request.user,
                     body=comment_text
                 )
-            # Перенаправляем обратно на страницу с этим же замечанием
+            # Перенаправляем обратно на страницу с этой же задачей
             return redirect('signal1520:bug_details', pk=self.object.pk)
 
         # 3. Обработка изменения статуса (JSON-запрос от JavaScript)
@@ -262,7 +262,7 @@ class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         })
 
 class BugCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    """Форма создания нового замечания. Ответственный сотрудник устанавливается автоматически как текущий пользователь."""
+    """Форма создания новой задачи. Ответственный сотрудник устанавливается автоматически как текущий пользователь."""
 
     def test_func(self):
         if self.request.user.is_superuser:
@@ -290,7 +290,7 @@ class BugCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         return redirect(reverse('authentication:error'))
 
 class BugUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    """Форма редактирования замечания. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику."""
+    """Форма редактирования задачи. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику."""
 
     def test_func(self):
         # return self.request.user.groups.filter(name="secret_group").exists()
@@ -366,7 +366,7 @@ class StationsExportView(LoginRequiredMixin, UserPassesTestMixin, View):
 
 
 class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
-    """Выгрузка списка замечаний в .xlsx."""
+    """Выгрузка списка задач в .xlsx."""
 
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_task')
@@ -374,7 +374,7 @@ class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
     def get(self, request):
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = 'Замечания'
+        ws.title = 'Задачи'
 
         headers = ['ID', 'Станция', 'Описание', 'Статус', 'Ответственная организация', 'Ответственный сотрудник', 'Срок выполнения', 'Дата создания', 'Дата обновления']
         ws.append(headers)

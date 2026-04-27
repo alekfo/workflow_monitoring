@@ -3,7 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Замечание #{{ bug.pk }}</title>
+    <title>Задача #{{ bug.pk }}</title>
     <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
     <style>
         .bug-detail-container {
@@ -284,7 +284,7 @@
 <body>
     <div class="bug-detail-container">
         <div class="bug-header">
-            <h1>🔍 Замечание #{{ bug.pk }}</h1>
+            <h1>🔍 Задача #{{ bug.pk }}</h1>
             <div class="bug-meta">
                 <span>📅 {{ bug.created_at|date:"d.m.Y" }}</span>
                 {% if bug.due_date %}
@@ -404,7 +404,7 @@
 
             <a href="#" id="backButton" class="back-link">← В главное меню</a>
             {% if user.is_superuser or perms.tasks_control.change_task or bug.responsible_user == user %}
-                <a href="{% url 'signal1520:bug_update' pk=bug.pk %}" class="back-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">✏️ Редактировать замечание</a>
+                <a href="{% url 'signal1520:bug_update' pk=bug.pk %}" class="back-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">✏️ Редактировать задачу</a>
             {% endif %}
 
 

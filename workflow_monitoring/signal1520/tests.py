@@ -91,12 +91,12 @@ class TaskModelTest(TestCase):
 
     def test_default_status_is_new(self):
         """Новая задача получает статус 'new' по умолчанию без явного указания."""
-        task = Task.objects.create(station=self.station, description='Замечание')
+        task = Task.objects.create(station=self.station, description='Задача')
         self.assertEqual(task.status, Task.Status.NEW)
 
     def test_str(self):
         """__str__ содержит id задачи и имя станции для удобной идентификации в admin."""
-        task = Task.objects.create(station=self.station, description='Замечание')
+        task = Task.objects.create(station=self.station, description='Задача')
         self.assertIn(str(task.id), str(task))
         self.assertIn(self.station.name, str(task))
 
@@ -196,7 +196,7 @@ class ViewTestBase(TestCase):
         )
         cls.task = Task.objects.create(
             station=cls.station,
-            description='Тестовое замечание',
+            description='Тестовая задача',
             status=Task.Status.NEW,
             responsible_user=cls.plain_user,
         )
@@ -329,7 +329,7 @@ class StationDetailViewTest(ViewTestBase):
         """Страница детали станции показывает привязанные к ней задачи."""
         self.client.force_login(self.station_user)
         r = self.client.get(self.url)
-        self.assertContains(r, 'Тестовое замечание')
+        self.assertContains(r, 'Тестовая задача')
 
     def test_404_for_nonexistent_station(self):
         """Запрос на несуществующий pk станции возвращает 404."""
@@ -458,7 +458,7 @@ class BugsListViewTest(ViewTestBase):
         self.url = reverse('signal1520:bugs_list')
 
     def test_redirect_anon(self):
-        """Анонимный GET на список замечаний перенаправляет на логин с параметром next."""
+        """Анонимный GET на список задач перенаправляет на логин с параметром next."""
         r = self.client.get(self.url)
         self.assertRedirects(r, f'/accounts/login/?next={self.url}')
 
@@ -469,34 +469,34 @@ class BugsListViewTest(ViewTestBase):
         self.assertEqual(r.status_code, 403)
 
     def test_with_permission_returns_200(self):
-        """Пользователь с view_task видит список замечаний."""
+        """Пользователь с view_task видит список задач."""
         self.client.force_login(self.task_user)
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
 
     def test_task_appears_in_list(self):
-        """Существующее замечание отображается в таблице списка."""
+        """Существующая задача отображается в таблице списка."""
         self.client.force_login(self.task_user)
         r = self.client.get(self.url)
-        self.assertContains(r, 'Тестовое замечание')
+        self.assertContains(r, 'Тестовая задача')
 
     def test_search_by_description(self):
-        """Поиск по тексту описания замечания находит нужную запись."""
+        """Поиск по тексту описания задачи находит нужную запись."""
         self.client.force_login(self.task_user)
-        r = self.client.get(self.url, {'search': 'Тестовое замечание'})
-        self.assertContains(r, 'Тестовое замечание')
+        r = self.client.get(self.url, {'search': 'Тестовая задача'})
+        self.assertContains(r, 'Тестовая задача')
 
     def test_search_by_station_name(self):
-        """Поиск по имени станции (station__name) находит замечания этой станции."""
+        """Поиск по имени станции (station__name) находит задачи этой станции."""
         self.client.force_login(self.task_user)
         r = self.client.get(self.url, {'search': 'Тест Станция'})
-        self.assertContains(r, 'Тестовое замечание')
+        self.assertContains(r, 'Тестовая задача')
 
     def test_search_no_result(self):
-        """Поиск по несуществующей строке не возвращает замечаний."""
+        """Поиск по несуществующей строке не возвращает задач."""
         self.client.force_login(self.task_user)
         r = self.client.get(self.url, {'search': 'нет_такого_xyz'})
-        self.assertNotContains(r, 'Тестовое замечание')
+        self.assertNotContains(r, 'Тестовая задача')
 
 
 # ---------------------------------------------------------------------------
@@ -515,7 +515,7 @@ class MyBugsListViewTest(ViewTestBase):
         )
 
     def test_redirect_anon(self):
-        """Анонимный GET на «мои замечания» перенаправляет на логин."""
+        """Анонимный GET на «мои задачи» перенаправляет на логин."""
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 302)
 
@@ -531,7 +531,7 @@ class MyBugsListViewTest(ViewTestBase):
         self.client.force_login(self.responsible_user)
         r = self.client.get(self.url)
         # cls.task назначен plain_user, а не responsible_user
-        self.assertNotContains(r, 'Тестовое замечание')
+        self.assertNotContains(r, 'Тестовая задача')
 
     def test_task_user_sees_only_own(self):
         """Пользователь без назначенных задач видит пустой список (не чужие задачи)."""
@@ -550,7 +550,7 @@ class BugDetailViewGetTest(ViewTestBase):
         self.url = reverse('signal1520:bug_details', kwargs={'pk': self.task.pk})
 
     def test_redirect_anon(self):
-        """Анонимный GET на страницу замечания перенаправляет на логин."""
+        """Анонимный GET на страницу задачи перенаправляет на логин."""
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 302)
 
@@ -561,19 +561,19 @@ class BugDetailViewGetTest(ViewTestBase):
         self.assertEqual(r.status_code, 403)
 
     def test_with_permission_returns_200(self):
-        """Пользователь с view_task открывает детальную страницу замечания."""
+        """Пользователь с view_task открывает детальную страницу задачи."""
         self.client.force_login(self.task_user)
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
 
     def test_shows_task_description(self):
-        """Страница содержит описание замечания."""
+        """Страница содержит описание задачи."""
         self.client.force_login(self.task_user)
         r = self.client.get(self.url)
-        self.assertContains(r, 'Тестовое замечание')
+        self.assertContains(r, 'Тестовая задача')
 
     def test_404_nonexistent_task(self):
-        """Запрос на несуществующий pk замечания возвращает 404."""
+        """Запрос на несуществующий pk задачи возвращает 404."""
         self.client.force_login(self.task_user)
         r = self.client.get(reverse('signal1520:bug_details', kwargs={'pk': 99999}))
         self.assertEqual(r.status_code, 404)
@@ -697,7 +697,7 @@ class BugCreateViewTest(ViewTestBase):
         self.url = reverse('signal1520:create_bug')
 
     def test_redirect_anon(self):
-        """Анонимный GET на форму создания замечания перенаправляет на логин."""
+        """Анонимный GET на форму создания задачи перенаправляет на логин."""
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 302)
 
@@ -709,33 +709,33 @@ class BugCreateViewTest(ViewTestBase):
         self.assertIn('error', r['Location'])
 
     def test_form_renders_for_permitted_user(self):
-        """Пользователь с add_task видит форму создания замечания (GET 200)."""
+        """Пользователь с add_task видит форму создания задачи (GET 200)."""
         self.client.force_login(self.task_user)
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
 
     def test_create_bug_post(self):
-        """POST с валидными данными создаёт новое замечание и редиректит на его страницу."""
+        """POST с валидными данными создаёт новую задачу и редиректит на её страницу."""
         self.client.force_login(self.task_user)
         r = self.client.post(self.url, {
             'station': self.station.pk,
-            'description': 'Новое замечание из теста',
+            'description': 'Новая задача из теста',
             'responsible_organization': 'Тест Орг',
             'due_date': '',
         })
         self.assertEqual(r.status_code, 302)
-        self.assertTrue(Task.objects.filter(description='Новое замечание из теста').exists())
+        self.assertTrue(Task.objects.filter(description='Новая задача из теста').exists())
 
     def test_create_bug_sets_responsible_user(self):
         """form_valid() автоматически записывает в responsible_user текущего пользователя."""
         self.client.force_login(self.task_user)
         self.client.post(self.url, {
             'station': self.station.pk,
-            'description': 'Замечание для проверки автора',
+            'description': 'Задача для проверки автора',
             'responsible_organization': '',
             'due_date': '',
         })
-        task = Task.objects.get(description='Замечание для проверки автора')
+        task = Task.objects.get(description='Задача для проверки автора')
         self.assertEqual(task.responsible_user, self.task_user)
 
     def test_create_bug_missing_required_field(self):
@@ -754,7 +754,7 @@ class BugUpdateViewTest(ViewTestBase):
         self.url = reverse('signal1520:bug_update', kwargs={'pk': self.task.pk})
 
     def test_redirect_anon(self):
-        """Анонимный GET на форму редактирования замечания перенаправляет на логин."""
+        """Анонимный GET на форму редактирования задачи перенаправляет на логин."""
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 302)
 
@@ -773,17 +773,17 @@ class BugUpdateViewTest(ViewTestBase):
         self.assertEqual(r.status_code, 200)
 
     def test_permitted_user_can_update(self):
-        """POST с новыми данными обновляет замечание в БД для пользователя с change_task."""
+        """POST с новыми данными обновляет задачу в БД для пользователя с change_task."""
         self.client.force_login(self.task_user)
         r = self.client.post(self.url, {
             'station': self.station.pk,
-            'description': 'Обновлённое замечание',
+            'description': 'Обновлённая задача',
             'status': Task.Status.IN_PROGRESS,
             'responsible_organization': '',
         })
         self.assertEqual(r.status_code, 302)
         self.task.refresh_from_db()
-        self.assertEqual(self.task.description, 'Обновлённое замечание')
+        self.assertEqual(self.task.description, 'Обновлённая задача')
 
     def test_superuser_can_update(self):
         """Суперпользователь проходит test_func и получает форму редактирования."""
@@ -881,7 +881,7 @@ class TasksExportViewTest(ViewTestBase):
         self.url = reverse('signal1520:bugs_export')
 
     def test_redirect_anon(self):
-        """Анонимный GET на экспорт замечаний перенаправляет на логин."""
+        """Анонимный GET на экспорт задач перенаправляет на логин."""
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 302)
 
@@ -903,7 +903,7 @@ class TasksExportViewTest(ViewTestBase):
         self.assertIn('tasks.xlsx', r['Content-Disposition'])
 
     def test_xlsx_contains_task_data(self):
-        """Скачанный xlsx содержит описание существующего замечания — файл не пустой."""
+        """Скачанный xlsx содержит описание существующей задачи — файл не пустой."""
         import io
         import openpyxl
         self.client.force_login(self.task_user)
@@ -911,7 +911,7 @@ class TasksExportViewTest(ViewTestBase):
         wb = openpyxl.load_workbook(io.BytesIO(r.content))
         ws = wb.active
         values = [str(cell.value) for row in ws.iter_rows() for cell in row]
-        self.assertIn('Тестовое замечание', values)
+        self.assertIn('Тестовая задача', values)
 
 
 # ---------------------------------------------------------------------------
