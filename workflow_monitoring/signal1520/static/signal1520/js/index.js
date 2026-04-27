@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'reports_download': null,
         'links_all': null,
         'charts_download': null,
-        'instructions': null,
+        'instructions': '/signal1520/knowledge/',
         'others': null
     };
 
@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'objects_add': '/signal1520/stations/create',
         'links_add': null,
         'charts_add': null,
+        'instructions_add': '/signal1520/knowledge/create/',
     };
 
     // ---------- Аккордеон для главных кнопок ----------
@@ -93,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.initTasksToggle === 'function') window.initTasksToggle();
             if (typeof window.initStationTasks === 'function') window.initStationTasks();
             if (typeof window.initBugFilter === 'function') window.initBugFilter();
+            if (typeof window.initInstructions === 'function') window.initInstructions();
         } catch (error) {
             contentPanel.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
         }

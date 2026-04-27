@@ -1,0 +1,190 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Инструкции</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <style>
+        .knowledge-section {
+            padding: 20px 24px;
+        }
+        .knowledge-section + .knowledge-section {
+            border-top: 1px solid #e0e0e0;
+        }
+        .knowledge-section h3 {
+            margin: 0 0 14px;
+            color: #2c3e50;
+            font-size: 1.05em;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .knowledge-empty {
+            color: #95a5a6;
+            font-size: 0.9em;
+            padding: 4px 0 8px;
+        }
+        .btn-delete {
+            background: none;
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+            border-radius: 4px;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-delete:hover {
+            background: #e74c3c;
+            color: white;
+        }
+        .file-link {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+        .file-link:hover {
+            text-decoration: underline;
+        }
+        .btn-download {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 10px;
+            font-size: 0.8em;
+            border: 1px solid #3498db;
+            border-radius: 4px;
+            color: #3498db;
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-download:hover {
+            background: #3498db;
+            color: white;
+        }
+        .links-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .links-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .links-list li:last-child {
+            border-bottom: none;
+        }
+        .link-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .link-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 2px;
+        }
+        .link-desc {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+        .link-url {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.9em;
+            word-break: break-all;
+        }
+        .link-url:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="stations-container">
+    <div class="stations-header">
+        <h2>📖 Инструкции</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <a href="{% url 'signal1520:knowledge_create' %}" class="btn-create">➕ Добавить</a>
+            <a href="{% url 'signal1520:index' %}" class="back-link">← В главное меню</a>
+        </div>
+    </div>
+
+    <!-- Документы -->
+    <div class="knowledge-section">
+        <h3>📄 Документы</h3>
+        {% if docs %}
+        <table class="stations-table">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Описание</th>
+                    <th>Файл</th>
+                    <th>Добавлен</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in docs %}
+                <tr data-row-pk="{{ item.pk }}">
+                    <td><strong>{{ item.title }}</strong></td>
+                    <td>{{ item.description|default:"—" }}</td>
+                    <td>
+                        <a href="{{ item.file.url }}" target="_blank" class="file-link">
+                            📎 {{ item.filename }}
+                        </a>
+                        <a href="{{ item.file.url }}" download="{{ item.filename }}" class="btn-download" title="Скачать">
+                            ⬇️ Скачать
+                        </a>
+                    </td>
+                    <td>{{ item.created_at|date:"d.m.Y" }}</td>
+                    <td>
+                        <button class="btn-delete"
+                                data-pk="{{ item.pk }}"
+                                data-url="{% url 'signal1520:knowledge_delete' item.pk %}">
+                            🗑️ Удалить
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="knowledge-empty">Нет загруженных документов</p>
+        {% endif %}
+    </div>
+
+    <!-- Ссылки -->
+    <div class="knowledge-section">
+        <h3>🔗 Ссылки</h3>
+        {% if links %}
+        <ul class="links-list">
+            {% for item in links %}
+            <li data-row-pk="{{ item.pk }}">
+                <div class="link-info">
+                    <div class="link-title">{{ item.title }}</div>
+                    {% if item.description %}
+                    <div class="link-desc">{{ item.description }}</div>
+                    {% endif %}
+                    <a href="{{ item.external_link }}" target="_blank" rel="noopener" class="link-url">
+                        {{ item.external_link }}
+                    </a>
+                </div>
+                <button class="btn-delete"
+                        data-pk="{{ item.pk }}"
+                        data-url="{% url 'signal1520:knowledge_delete' item.pk %}">
+                    🗑️ Удалить
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="knowledge-empty">Нет добавленных ссылок</p>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

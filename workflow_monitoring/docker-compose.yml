@@ -1,3 +1,5 @@
+name: workflow_monitoring
+
 services:
 
   db:

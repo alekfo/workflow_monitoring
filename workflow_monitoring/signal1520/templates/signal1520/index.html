@@ -23,8 +23,7 @@
                 <button class="button main-btn">🏢 Объекты</button>
                 <div class="submenu">
                     <button class="sub-button" data-section="objects_all">🏗️ Все объекты</button>
-                    <button class="sub-button" data-section="objects_seek">🔎 Поиск объекта</button>
-                    <button class="sub-button" data-section="objects_add">➕ Добавить объект</button>
+<button class="sub-button" data-section="objects_add">➕ Добавить объект</button>
                 </div>
             </div>
             <!-- Склады -->
@@ -58,7 +57,7 @@
                 <div class="submenu">
                     <button class="sub-button" data-section="alarms">🚨 Алармы</button>
                     <button class="sub-button" data-section="instructions">📖 Инструкции</button>
-                    <button class="sub-button" data-section="others">📁 Разное</button>
+                    <button class="sub-button" data-section="instructions_add">➕ Добавить инструкцию</button>
                 </div>
             </div>
         </div>
@@ -66,6 +65,48 @@
     <div id="content-panel" class="content-panel">
         <p>Выберите раздел</p>
     </div>
+
+    {% if messages %}
+    <div id="toast-container">
+        {% for message in messages %}
+        <div class="toast toast-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <style>
+        #toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 22px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            color: white;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        .toast-success { background: linear-gradient(135deg, #27ae60, #229954); }
+        .toast-error   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .toast-warning { background: linear-gradient(135deg, #f39c12, #d68910); }
+        .toast-info    { background: linear-gradient(135deg, #3498db, #2980b9); }
+    </style>
+    <script>
+        document.querySelectorAll('.toast').forEach(function(toast) {
+            setTimeout(function() {
+                toast.style.opacity = '0';
+                setTimeout(function() { toast.remove(); }, 500);
+            }, 3500);
+        });
+    </script>
 
     <style>
         /* Стили для меню в фиолетовой теме */
