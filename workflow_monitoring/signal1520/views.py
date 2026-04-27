@@ -12,7 +12,7 @@ from django.views.generic import TemplateView, ListView, DetailView, CreateView,
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
-from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge
+from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge
 from .forms import KnowledgeForm
 
 class TasksIndexView(LoginRequiredMixin, View):
@@ -403,43 +403,93 @@ class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
 class KnowledgeListView(LoginRequiredMixin, ListView):
     """Список инструкций текущего пользователя. Загружается в contentPanel через AJAX."""
 
-    model = Knowledge
+    model = UserKnowledge
     template_name = 'signal1520/knowledge_list.html'
     context_object_name = 'items'
 
     def get_queryset(self):
-        return Knowledge.objects.filter(user=self.request.user)
+        return (UserKnowledge.objects
+                .filter(user=self.request.user)
+                .select_related('knowledge'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         qs = self.get_queryset()
-        context['docs'] = qs.exclude(file='').exclude(file__isnull=True)
-        context['links'] = qs.filter(external_link__gt='')
+        context['docs'] = qs.filter(knowledge__file__gt='')
+        context['links'] = qs.filter(knowledge__external_link__gt='')
         return context
 
 
-class KnowledgeCreateView(LoginRequiredMixin, CreateView):
-    """Форма добавления инструкции (документ или ссылка). После сохранения — на главную."""
+class KnowledgeCreateView(LoginRequiredMixin, View):
+    """Форма добавления инструкции: новый файл, существующий файл или ссылка."""
 
-    model = Knowledge
-    form_class = KnowledgeForm
     template_name = 'signal1520/knowledge_form.html'
-    success_url = reverse_lazy('signal1520:index')
 
-    def form_valid(self, form):
-        form.instance.user = self.request.user
-        response = super().form_valid(form)
-        messages.success(self.request, 'Инструкция успешно добавлена.')
-        return response
+    def _get_file_limit(self):
+        try:
+            return self.request.user.profile.knowledge_file_limit
+        except Exception:
+            return 10
+
+    def _file_count(self):
+        return Knowledge.objects.filter(created_by=self.request.user, file__gt='').count()
+
+    def _existing_qs(self):
+        used_ids = UserKnowledge.objects.filter(
+            user=self.request.user
+        ).values_list('knowledge_id', flat=True)
+        return Knowledge.objects.filter(file__gt='').exclude(pk__in=used_ids)
+
+    def _build_form(self, data=None, files=None):
+        form = KnowledgeForm(data, files)
+        form.fields['existing_knowledge'].queryset = self._existing_qs()
+        return form
+
+    def get(self, request):
+        return render(request, self.template_name, {'form': self._build_form()})
+
+    def post(self, request):
+        form = self._build_form(request.POST, request.FILES)
+        if not form.is_valid():
+            return render(request, self.template_name, {'form': form})
+
+        existing = form.cleaned_data.get('existing_knowledge')
+        new_file = form.cleaned_data.get('file')
+        new_link = form.cleaned_data.get('external_link', '').strip()
+        title = form.cleaned_data['title']
+        description = form.cleaned_data.get('description', '')
+
+        if existing:
+            UserKnowledge.objects.create(
+                user=request.user, knowledge=existing,
+                title=title, description=description,
+            )
+        else:
+            if new_file and self._file_count() >= self._get_file_limit():
+                return render(request, 'signal1520/knowledge_limit.html')
+            knowledge = Knowledge.objects.create(
+                created_by=request.user,
+                file=new_file or None,
+                external_link=new_link,
+            )
+            UserKnowledge.objects.create(
+                user=request.user, knowledge=knowledge,
+                title=title, description=description,
+            )
+
+        messages.success(request, 'Инструкция успешно добавлена.')
+        return redirect(reverse('signal1520:index'))
 
 
 class KnowledgeDeleteView(LoginRequiredMixin, View):
-    """AJAX-удаление инструкции. Только владелец записи может её удалить."""
+    """AJAX-удаление инструкции пользователя. Файл удаляется физически только если больше никем не используется."""
 
     def post(self, request, pk):
-        item = get_object_or_404(Knowledge, pk=pk, user=request.user)
-        #файл удаляется в том числе и локально save=False
-        if item.file:
-            item.file.delete(save=False)
-        item.delete()
+        uk = get_object_or_404(UserKnowledge, pk=pk, user=request.user)
+        knowledge = uk.knowledge
+        uk.delete()
+        if not knowledge.user_knowledge.exists():
+            if knowledge.file:
+                knowledge.file.delete(save=False)
+            knowledge.delete()
         return JsonResponse({'success': True})

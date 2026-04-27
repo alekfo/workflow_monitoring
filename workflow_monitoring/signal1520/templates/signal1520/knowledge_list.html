@@ -44,9 +44,7 @@
             text-decoration: none;
             font-size: 0.9em;
         }
-        .file-link:hover {
-            text-decoration: underline;
-        }
+        .file-link:hover { text-decoration: underline; }
         .btn-download {
             display: inline-block;
             margin-left: 8px;
@@ -75,32 +73,17 @@
             padding: 12px 0;
             border-bottom: 1px solid #f0f0f0;
         }
-        .links-list li:last-child {
-            border-bottom: none;
-        }
-        .link-info {
-            flex: 1;
-            min-width: 0;
-        }
-        .link-title {
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 2px;
-        }
-        .link-desc {
-            color: #7f8c8d;
-            font-size: 0.85em;
-            margin-bottom: 4px;
-        }
+        .links-list li:last-child { border-bottom: none; }
+        .link-info { flex: 1; min-width: 0; }
+        .link-title { font-weight: 600; color: #2c3e50; margin-bottom: 2px; }
+        .link-desc { color: #7f8c8d; font-size: 0.85em; margin-bottom: 4px; }
         .link-url {
             color: #3498db;
             text-decoration: none;
             font-size: 0.9em;
             word-break: break-all;
         }
-        .link-url:hover {
-            text-decoration: underline;
-        }
+        .link-url:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -128,23 +111,23 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in docs %}
-                <tr data-row-pk="{{ item.pk }}">
-                    <td><strong>{{ item.title }}</strong></td>
-                    <td>{{ item.description|default:"—" }}</td>
+                {% for uk in docs %}
+                <tr data-row-pk="{{ uk.pk }}">
+                    <td><strong>{{ uk.title }}</strong></td>
+                    <td>{{ uk.description|default:"—" }}</td>
                     <td>
-                        <a href="{{ item.file.url }}" target="_blank" class="file-link">
-                            📎 {{ item.filename }}
+                        <a href="{{ uk.knowledge.file.url }}" target="_blank" class="file-link">
+                            📎 {{ uk.knowledge.filename }}
                         </a>
-                        <a href="{{ item.file.url }}" download="{{ item.filename }}" class="btn-download" title="Скачать">
+                        <a href="{{ uk.knowledge.file.url }}" download="{{ uk.knowledge.filename }}" class="btn-download">
                             ⬇️ Скачать
                         </a>
                     </td>
-                    <td>{{ item.created_at|date:"d.m.Y" }}</td>
+                    <td>{{ uk.created_at|date:"d.m.Y" }}</td>
                     <td>
                         <button class="btn-delete"
-                                data-pk="{{ item.pk }}"
-                                data-url="{% url 'signal1520:knowledge_delete' item.pk %}">
+                                data-pk="{{ uk.pk }}"
+                                data-url="{% url 'signal1520:knowledge_delete' uk.pk %}">
                             🗑️ Удалить
                         </button>
                     </td>
@@ -162,20 +145,20 @@
         <h3>🔗 Ссылки</h3>
         {% if links %}
         <ul class="links-list">
-            {% for item in links %}
-            <li data-row-pk="{{ item.pk }}">
+            {% for uk in links %}
+            <li data-row-pk="{{ uk.pk }}">
                 <div class="link-info">
-                    <div class="link-title">{{ item.title }}</div>
-                    {% if item.description %}
-                    <div class="link-desc">{{ item.description }}</div>
+                    <div class="link-title">{{ uk.title }}</div>
+                    {% if uk.description %}
+                    <div class="link-desc">{{ uk.description }}</div>
                     {% endif %}
-                    <a href="{{ item.external_link }}" target="_blank" rel="noopener" class="link-url">
-                        {{ item.external_link }}
+                    <a href="{{ uk.knowledge.external_link }}" target="_blank" rel="noopener" class="link-url">
+                        {{ uk.knowledge.external_link }}
                     </a>
                 </div>
                 <button class="btn-delete"
-                        data-pk="{{ item.pk }}"
-                        data-url="{% url 'signal1520:knowledge_delete' item.pk %}">
+                        data-pk="{{ uk.pk }}"
+                        data-url="{% url 'signal1520:knowledge_delete' uk.pk %}">
                     🗑️ Удалить
                 </button>
             </li>
