@@ -36,7 +36,9 @@ workflow_monitoring/        ← корень, здесь лежит manage.py
 
 | Модель | Описание |
 |--------|----------|
-| `Station` | Объект/станция. Поля: name, road, description, latitude, longitude, created_by |
+| `Road` | Справочник дорог/линий/районов. Поля: id, title. FK из Station.road |
+| `System` | Справочник систем. Поля: id, title. FK из Station.system (nullable) |
+| `Station` | Объект/станция. Поля: name, road(FK Road), distance, system(FK System, nullable), description, latitude, longitude, created_by |
 | `Task` | Замечание. Поля: station(FK), description, status(new/in_progress/completed/cancelled), responsible_organization, responsible_user(FK User), due_date |
 | `Comment` | Комментарий к замечанию. Поля: task(FK), user(FK), body |
 | `Attachment` | Вложение к замечанию. Файлы хранятся в `tasks/task_<id>/` |

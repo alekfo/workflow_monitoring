@@ -2,7 +2,21 @@ from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
-from .models import Task, Station, Comment, Attachment, Knowledge, Link
+from .models import Task, Station, Comment, Attachment, Knowledge, Link, Road, System
+
+
+@admin.register(Road)
+class RoadAdmin(admin.ModelAdmin):
+    list_display = 'pk', 'title'
+    search_fields = ('title',)
+    ordering = ('title',)
+
+
+@admin.register(System)
+class SystemAdmin(admin.ModelAdmin):
+    list_display = 'pk', 'title'
+    search_fields = ('title',)
+    ordering = ('title',)
 
 class TaskInline(admin.TabularInline):
     """Inline для отображения задач на странице станции"""
@@ -30,7 +44,7 @@ class StationAdmin(admin.ModelAdmin):
         TaskInline
     ]
 
-    list_display = "pk", "name", "road", "description", "latitude", "longitude", "created_at", "created_by"
+    list_display = "pk", "name", "road", "distance", "system", "latitude", "longitude", "created_at", "created_by"
     list_display_links = "pk", "name"
     ordering = "pk",
-    search_fields = "name", "road"
+    search_fields = "name", "road__title", "system__title"
