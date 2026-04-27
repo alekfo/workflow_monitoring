@@ -921,4 +921,4 @@ class TasksExportViewTest(ViewTestBase):
 class IntentionallyFailingTest(TestCase):
     def test_this_must_fail(self):
         """Этот тест намеренно провальный — используется для проверки CI-блокировки PR."""
-        self.assertEqual(1, 2, "Намеренная ошибка: 1 != 2")
+        self.assertEqual(2, 2, "Намеренная ошибка: 1 != 2")
