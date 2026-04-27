@@ -510,7 +510,7 @@ class MyBugsListViewTest(ViewTestBase):
         self.responsible_user = make_user('responsible', codenames=['view_task'])
         self.own_task = Task.objects.create(
             station=self.station,
-            description='Задача только для responsible_user',
+            description='Задача resp_user',
             responsible_user=self.responsible_user,
         )
 
@@ -524,7 +524,7 @@ class MyBugsListViewTest(ViewTestBase):
         self.client.force_login(self.responsible_user)
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Задача только для responsible_user')
+        self.assertContains(r, 'Задача resp_user')
 
     def test_does_not_show_others_tasks(self):
         """Задачи, назначенные другому пользователю, не попадают в список 'мои'."""
@@ -538,7 +538,7 @@ class MyBugsListViewTest(ViewTestBase):
         self.client.force_login(self.task_user)
         r = self.client.get(self.url)
         self.assertEqual(r.status_code, 200)
-        self.assertNotContains(r, 'Задача только для responsible_user')
+        self.assertNotContains(r, 'Задача resp_user')
 
 
 # ---------------------------------------------------------------------------
