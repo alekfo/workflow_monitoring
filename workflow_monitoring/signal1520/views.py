@@ -36,7 +36,7 @@ class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        queryset = Station.objects.select_related('road', 'system').prefetch_related('tasks')
+        queryset = Station.objects.select_related('road', 'system').prefetch_related('tasks').order_by('-pk')
         search_query = self.request.GET.get('search', '').strip()
         if search_query:
             queryset = queryset.filter(

@@ -36,6 +36,7 @@
                             <th>Описание</th>
                             <th>Ответственная организация</th>
                             <th>Ответственный сотрудник</th>
+                            <th>Срок выполнения</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -51,10 +52,11 @@
                             <td class="road-cell">{{ bug.description|truncatechars:30 }}</td>
                             <td class="description-cell">{{ bug.responsible_organization|default:"—" }}</td>
                             <td class="description-cell">{{ bug.responsible_user|default:"—" }}</td>
+                            <td class="road-cell">{{ bug.due_date|date:"d.m.Y"|default:"—" }}</td>
                         </tr>
                         {% empty %}
                         <tr class="empty-table-row">
-                            <td colspan="6">
+                            <td colspan="7">
                                 <div class="empty-state">
                                     📭 Задачи не найдены
                                     <br>
