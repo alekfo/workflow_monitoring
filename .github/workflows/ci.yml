@@ -35,3 +35,23 @@ jobs:
       - name: Run tests
         working-directory: workflow_monitoring
         run: python manage.py test signal1520 --verbosity=2
+
+  deploy:
+    needs: test  # deploy запустится только если test прошёл
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'  # только на реальный пуш в main (после мерджа PR), не на сам PR
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd /home/alek_fo/workflow_monitoring_git  # корень git-репозитория
+            git pull origin main
+            cd workflow_monitoring  # сюда, где лежит docker-compose.yml
+            docker compose build --no-cache web
+            docker compose up -d
