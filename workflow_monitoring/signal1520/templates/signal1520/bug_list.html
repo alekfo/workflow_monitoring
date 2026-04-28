@@ -40,7 +40,7 @@
                     </thead>
                     <tbody>
                         {% for bug in object_list %}
-                        <tr>
+                        <tr class="{{ bug.row_color_class }}">
                             <td class="road-cell">
                                 <a href="{% url 'signal1520:bug_details' pk=bug.pk %}" class="station-link">
                                     {{ bug.pk }}
@@ -80,6 +80,21 @@
                     {% endif %}
                 {% endif %}
                 <a href="{% url 'signal1520:bugs_export' %}" class="pagination-btn" style="background: #27ae60; color: white;">⬇ Выгрузить</a>
+            </div>
+
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; padding: 10px 4px; font-size: 13px; color: #555;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #d5f5e3; border-radius: 3px; border: 1px solid #aad4b8;"></span>
+                    Выполнена
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #fadbd8; border-radius: 3px; border: 1px solid #e8b4b0;"></span>
+                    Срок истёк
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #fff176; border-radius: 3px; border: 1px solid #d4c43a;"></span>
+                    Срок менее 30 дней
+                </span>
             </div>
         </div>
     </div>

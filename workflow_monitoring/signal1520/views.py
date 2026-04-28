@@ -168,7 +168,7 @@ class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
     model = Task
     template_name = 'signal1520/my_bug_list.html'
-    # paginate_by = 20  # опционально, если нужна пагинация
+    paginate_by = 10
 
     # def get_template_names(self):
     #     if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -304,7 +304,7 @@ class BugUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return False
 
     model = Task
-    fields = "station", "description", "status", "responsible_organization"
+    fields = "station", "description", "status", "responsible_organization", "due_date"
     template_name = 'signal1520/bug_update_form.html'
 
     def get_success_url(self):

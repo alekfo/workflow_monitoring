@@ -251,6 +251,22 @@
                 {% endif %}
             </div>
 
+            <!-- Поле due_date -->
+            <div class="form-group">
+                <label for="{{ form.due_date.id_for_label }}">
+                    {{ form.due_date.label }}
+                </label>
+                {{ form.due_date }}
+                {% if form.due_date.errors %}
+                    <span class="error-message">
+                        {% for error in form.due_date.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </span>
+                {% endif %}
+                <span class="help-text">Формат: ГГГГ-ММ-ДД (например, 2026-05-31)</span>
+            </div>
+
             <div class="info-note">
                 <strong>ℹ️ Информация</strong><br>
                 Поля, отмеченные звездочкой (*), обязательны для заполнения.
