@@ -106,6 +106,16 @@
             transform: translateX(5px);
         }
 
+        .task-item.row-completed { background: #d5f5e3; }
+        .task-item.row-completed .task-header { background: #eafaf1; }
+        .task-item.row-completed .task-header:hover { background: #d5f5e3; }
+        .task-item.row-overdue { background: #fadbd8; }
+        .task-item.row-overdue .task-header { background: #fef0ee; }
+        .task-item.row-overdue .task-header:hover { background: #fadbd8; }
+        .task-item.row-due-soon { background: #fff176; }
+        .task-item.row-due-soon .task-header { background: #fff9c4; }
+        .task-item.row-due-soon .task-header:hover { background: #fff176; }
+
         .task-header {
             padding: 15px;
             cursor: pointer;
@@ -282,7 +292,7 @@
 
             <div class="tasks-list">
                 {% for task in station.tasks.all %}
-                    <div class="task-item">
+                    <div class="task-item {{ task.row_color_class }}">
                         <div class="task-header" onclick="toggleTask(this)">
                             <div class="task-title">
                                 <span class="task-icon">▶</span>

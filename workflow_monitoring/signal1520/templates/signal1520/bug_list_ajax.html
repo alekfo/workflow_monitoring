@@ -12,7 +12,7 @@
         </thead>
         <tbody>
             {% for bug in object_list %}
-            <tr>
+            <tr class="{{ bug.row_color_class }}">
                 <td class="road-cell">
                     <a href="{% url 'signal1520:bug_details' pk=bug.pk %}" class="station-link">
                         {{ bug.pk }}

@@ -1,4 +1,5 @@
 import os
+from datetime import date
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -108,6 +109,18 @@ class Task(models.Model):
         verbose_name = 'Задача'
         verbose_name_plural = 'Задачи'
         ordering = ['-created_at']
+
+    @property
+    def row_color_class(self):
+        if self.status == self.Status.COMPLETED:
+            return 'row-completed'
+        if self.due_date:
+            today = date.today()
+            if self.due_date < today:
+                return 'row-overdue'
+            if (self.due_date - today).days < 30:
+                return 'row-due-soon'
+        return ''
 
     def __str__(self):
         return f"Задача #{self.id} на станции {self.station.name}"

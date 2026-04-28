@@ -30,10 +30,16 @@ class TaskInline(admin.TabularInline):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
 
-    list_display = "pk", "station", "description", "status", "responsible_organization", "responsible_user", "created_at", "due_date", "updated_at"
+    list_display = "pk", "station", "short_description", "status", "responsible_organization", "responsible_user", "created_at", "due_date", "updated_at"
     list_display_links = "pk", "station"
     ordering = "-pk",
     search_fields = "station__name", "status"
+
+    @admin.display(description='Описание')
+    def short_description(self, obj):
+        if len(obj.description) > 50:
+            return obj.description[:50] + '...'
+        return obj.description
 
     def get_queryset(self, request):
         return Task.objects.select_related('responsible_user', 'station')

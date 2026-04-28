@@ -84,6 +84,13 @@
     background-color: #f8f9ff;
 }
 
+.stations-table tbody tr.row-completed td { background-color: #d5f5e3; }
+.stations-table tbody tr.row-completed:hover td { background-color: #c1f0d3; }
+.stations-table tbody tr.row-overdue td { background-color: #fadbd8; }
+.stations-table tbody tr.row-overdue:hover td { background-color: #f5c6c2; }
+.stations-table tbody tr.row-due-soon td { background-color: #fff176; }
+.stations-table tbody tr.row-due-soon:hover td { background-color: #ffee58; }
+
 /* Ячейка с названием станции */
 .station-name-cell {
     font-weight: 600;

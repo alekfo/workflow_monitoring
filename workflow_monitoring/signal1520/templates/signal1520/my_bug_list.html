@@ -25,116 +25,82 @@
             </div>
         </div>
 
-        <div class="table-wrapper">
-            <table class="stations-table">
-                <thead>
-                    <tr>
-                        <th>№</th>
-                        <th>Статус</th>
-                        <th>Станция</th>
-                        <th>Описание</th>
-                        <th>Ответственная организация</th>
-                        <th>Ответственный сотрудник</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for bug in object_list %}
-                    <tr>
-                        <td class="road-cell">
-                            <a href="{% url 'signal1520:bug_details' pk=bug.pk %}" class="station-link">
-                                {{ bug.pk }}
-                            </a>
-                        </td>
-                        <td class="road-cell">{{ bug.status }}</td>
-                        <td class="road-cell">{{ bug.station }}</td>
-                        <td class="road-cell">{{ bug.description|truncatechars:30 }}</td>
-                        <td class="description-cell">{{ bug.responsible_organization|default:"—" }}</td>
-                        <td class="description-cell">{{ bug.responsible_user|default:"—" }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr class="empty-table-row">
-                        <td colspan="4">
-                            <div class="empty-state">
-                                📭 Задачи не найдены
-                                <br>
-                                <small>Создайте первую задачу, нажав на кнопку выше</small>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="table-and-pagination">
+            <div class="table-wrapper">
+                <table class="stations-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Статус</th>
+                            <th>Станция</th>
+                            <th>Описание</th>
+                            <th>Ответственная организация</th>
+                            <th>Ответственный сотрудник</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bug in object_list %}
+                        <tr class="{{ bug.row_color_class }}">
+                            <td class="road-cell">
+                                <a href="{% url 'signal1520:bug_details' pk=bug.pk %}" class="station-link">
+                                    {{ bug.pk }}
+                                </a>
+                            </td>
+                            <td class="road-cell">{{ bug.status }}</td>
+                            <td class="road-cell">{{ bug.station }}</td>
+                            <td class="road-cell">{{ bug.description|truncatechars:30 }}</td>
+                            <td class="description-cell">{{ bug.responsible_organization|default:"—" }}</td>
+                            <td class="description-cell">{{ bug.responsible_user|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr class="empty-table-row">
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    📭 Задачи не найдены
+                                    <br>
+                                    <small>Создайте первую задачу, нажав на кнопку выше</small>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                {% if is_paginated %}
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1&search={{ request.GET.search|urlencode }}" class="pagination-btn">« Первая</a>
+                        <a href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">← Назад</a>
+                    {% endif %}
+                    <span class="pagination-info">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Вперёд →</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Последняя »</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; padding: 10px 4px; font-size: 13px; color: #555;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #d5f5e3; border-radius: 3px; border: 1px solid #aad4b8;"></span>
+                    Выполнена
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #fadbd8; border-radius: 3px; border: 1px solid #e8b4b0;"></span>
+                    Срок истёк
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #fff176; border-radius: 3px; border: 1px solid #d4c43a;"></span>
+                    Срок менее 30 дней
+                </span>
+            </div>
         </div>
     </div>
     <script>
         document.getElementById('backButton').addEventListener('click', function(e) {
             window.location.href = "{% url 'signal1520:index' %}";
         });
-    </script>
-    <script>
-        const searchForm = document.getElementById('search-form');
-        if (searchForm) {
-            const baseUrl = searchForm.getAttribute('data-base-url');
-            searchForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const searchInput = this.querySelector('input[name="search"]');
-                const searchValue = searchInput.value;
-                const url = baseUrl + '?search=' + encodeURIComponent(searchValue);
-                fetch(url, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const newTableWrapper = doc.querySelector('.table-wrapper');
-                    const contentPanel = document.getElementById('content-panel');
-                    const currentTableWrapper = contentPanel
-                        ? contentPanel.querySelector('.table-wrapper')
-                        : document.querySelector('.table-wrapper');
-                    if (newTableWrapper && currentTableWrapper) {
-                        currentTableWrapper.outerHTML = newTableWrapper.outerHTML;
-                    } else {
-                        console.error('Не найден table-wrapper');
-                    }
-                    history.pushState(null, '', url);
-                    const resetLink = document.getElementById('reset-search');
-                    if (resetLink) {
-                        resetLink.style.display = searchValue ? 'inline-block' : 'none';
-                    }
-                })
-                .catch(error => console.error('Ошибка:', error));
-            });
-        }
-
-        const resetLink = document.getElementById('reset-search');
-        if (resetLink) {
-            const baseUrl = document.getElementById('search-form').getAttribute('data-base-url');
-            resetLink.addEventListener('click', function(e) {
-                e.preventDefault();
-                const url = baseUrl;
-                fetch(url, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const newTableWrapper = doc.querySelector('.table-wrapper');
-                    const contentPanel = document.getElementById('content-panel');
-                    const currentTableWrapper = contentPanel
-                        ? contentPanel.querySelector('.table-wrapper')
-                        : document.querySelector('.table-wrapper');
-                    if (newTableWrapper && currentTableWrapper) {
-                        currentTableWrapper.outerHTML = newTableWrapper.outerHTML;
-                    }
-                    history.pushState(null, '', url);
-                    const searchInput = document.querySelector('input[name="search"]');
-                    if (searchInput) searchInput.value = '';
-                    resetLink.style.display = 'none';
-                });
-            });
-        }
     </script>
 </body>
 </html>
