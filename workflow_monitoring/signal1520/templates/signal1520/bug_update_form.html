@@ -209,7 +209,7 @@
     </div>
 
     <div class="form-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" id="bug-form">
             {% csrf_token %}
 
             {% if form.non_field_errors %}
@@ -326,4 +326,10 @@
         </form>
     </div>
 </div>
+<script>
+validateForm('bug-form', [
+    { id: 'id_station', required: true, message: 'Выберите объект' },
+    { id: 'id_description', required: true, message: 'Введите описание задачи' },
+]);
+</script>
 {% endblock %}

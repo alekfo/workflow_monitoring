@@ -141,6 +141,14 @@
         }
         .btn-cancel:hover { background: #7f8c8d; transform: translateY(-2px); color: white; }
         .field-disabled { opacity: 0.4; pointer-events: none; }
+        .input-error {
+            border-color: #e74c3c !important;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
+        }
+        .file-input-label.input-error {
+            background: #fce4e4;
+            border: 2px solid #e74c3c;
+        }
     </style>
 </head>
 <body>
@@ -285,6 +293,45 @@
 
     fileInput.addEventListener('change', updateState);
     existingSelect.addEventListener('change', updateState);
+
+    document.getElementById('knowledge-form').addEventListener('submit', function(e) {
+        this.querySelectorAll('.js-validation-error').forEach(el => el.remove());
+        this.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+
+        let valid = true;
+
+        function addError(container, message) {
+            const span = document.createElement('span');
+            span.className = 'error-message js-validation-error';
+            span.textContent = message;
+            container.appendChild(span);
+            valid = false;
+        }
+
+        // Название обязательно
+        const titleField = document.getElementById('{{ form.title.id_for_label }}');
+        if (titleField && !titleField.value.trim()) {
+            titleField.classList.add('input-error');
+            addError(titleField.closest('.form-group'), 'Введите название');
+        }
+
+        // Должен быть выбран хотя бы один источник
+        const hasFile = fileInput.files && fileInput.files.length > 0;
+        const hasExisting = existingSelect.value !== '';
+        const hasLink = linkInput.value.trim() !== '';
+
+        if (!hasFile && !hasExisting && !hasLink) {
+            addError(document.getElementById('group-file'), 'Выберите файл, существующий документ или введите ссылку');
+        }
+
+        // Размер файла не более 10 МБ
+        if (hasFile && fileInput.files[0].size > 10 * 1024 * 1024) {
+            document.querySelector('.file-input-label').classList.add('input-error');
+            addError(document.getElementById('group-file'), 'Файл не должен превышать 10 МБ');
+        }
+
+        if (!valid) e.preventDefault();
+    });
 </script>
 </body>
 </html>

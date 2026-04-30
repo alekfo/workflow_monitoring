@@ -204,7 +204,7 @@
     </div>
 
     <div class="form-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" id="station-form">
             {% csrf_token %}
 
             {% if form.non_field_errors %}
@@ -350,4 +350,10 @@
         </form>
     </div>
 </div>
+<script>
+validateForm('station-form', [
+    { id: 'id_name', required: true, message: 'Введите название станции' },
+    { id: 'id_road', required: true, message: 'Выберите дорогу' },
+]);
+</script>
 {% endblock %}
