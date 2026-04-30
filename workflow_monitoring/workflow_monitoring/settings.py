@@ -167,3 +167,12 @@ LOGIN_URL = '/accounts/login/'  # URL для перенаправления не
 LOGIN_REDIRECT_URL = '/signal1520/'  # Куда перенаправлять после успешного входа
 
 LOGOUT_REDIRECT_URL = '/accounts/login/'  # Куда перенаправлять после выхода
+
+# Email (SMTP)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.yandex.ru')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 465))
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', '')

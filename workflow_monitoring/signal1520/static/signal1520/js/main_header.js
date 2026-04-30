@@ -7,7 +7,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('accountBtn')?.addEventListener('click', () => {
-        // Перенаправляем на страницу профиля
         window.location.href = '/accounts/about_me/';
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('contactBtn')?.addEventListener('click', () => {
+        window.location.href = '/' + (window.ORG_SLUG || 'signal1520') + '/contact/';
     });
 });
