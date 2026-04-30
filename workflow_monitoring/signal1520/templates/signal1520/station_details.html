@@ -14,7 +14,7 @@
         }
 
         .station-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
             padding: 25px 30px;
             color: white;
         }
@@ -47,13 +47,13 @@
             background: #f8f9fa;
             padding: 15px;
             border-radius: 10px;
-            border-left: 3px solid #667eea;
+            border-left: 3px solid #00B7B7;
         }
 
         .info-label {
             font-size: 12px;
             text-transform: uppercase;
-            color: #667eea;
+            color: #00B7B7;
             font-weight: 600;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -72,7 +72,7 @@
             color: #2c3e50;
             margin: 30px 0 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid #00B7B7;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -82,8 +82,8 @@
 
         .tasks-count {
             font-size: 14px;
-            color: #667eea;
-            background: #f0f0ff;
+            color: #00B7B7;
+            background: #e0f7f7;
             padding: 4px 12px;
             border-radius: 20px;
         }
@@ -189,7 +189,7 @@
 
         .task-info-label {
             font-weight: 600;
-            color: #667eea;
+            color: #00B7B7;
             font-size: 11px;
             text-transform: uppercase;
             margin-bottom: 4px;
@@ -347,7 +347,7 @@
 
             <a href="#" id="backButton" class="back-link">← В главное меню</a>
             {% if user.is_superuser or signal1520.change_station or station.created_by == user %}
-                <a href="{% url 'signal1520:station_update' pk=station.pk %}" class="back-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <a href="{% url 'signal1520:station_update' pk=station.pk %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">
                     ✏️ Редактировать станцию
                 </a>
             {% endif %}

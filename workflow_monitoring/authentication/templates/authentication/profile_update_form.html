@@ -8,7 +8,7 @@
     <style>
         .profile-update-container {
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
             padding: 40px 20px;
         }
 
@@ -23,7 +23,7 @@
         }
 
         .update-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
             color: white;
             padding: 30px 40px;
             text-align: center;
@@ -72,11 +72,40 @@
 
         .form-control:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #00B7B7;
+            box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
         }
 
         textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Стили для нативных Django-виджетов */
+        .update-body textarea,
+        .update-body input[type="text"],
+        .update-body input[type="email"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            font-family: inherit;
+            background: white;
+            color: #2c3e50;
+        }
+
+        .update-body textarea:focus,
+        .update-body input[type="text"]:focus,
+        .update-body input[type="email"]:focus {
+            outline: none;
+            border-color: #00B7B7;
+            box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
+        }
+
+        .update-body textarea {
             resize: vertical;
             min-height: 100px;
         }
@@ -121,14 +150,14 @@
             height: 120px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid #667eea;
+            border: 3px solid #00B7B7;
         }
 
         .avatar-placeholder {
             width: 120px;
             height: 120px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -379,7 +408,7 @@
                     if (oldPreview) {
                         const newPreview = document.createElement('div');
                         newPreview.className = 'avatar-preview';
-                        newPreview.innerHTML = `<img src="${e.target.result}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #667eea;">`;
+                        newPreview.innerHTML = `<img src="${e.target.result}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00B7B7;">`;
                         oldPreview.replaceWith(newPreview);
                     }
                 }

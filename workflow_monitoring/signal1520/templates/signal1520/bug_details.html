@@ -14,7 +14,7 @@
         }
 
         .bug-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
             padding: 25px 30px;
             color: white;
         }
@@ -50,13 +50,13 @@
             background: #f8f9fa;
             padding: 15px;
             border-radius: 10px;
-            border-left: 3px solid #667eea;
+            border-left: 3px solid #00B7B7;
         }
 
         .info-label {
             font-size: 12px;
             text-transform: uppercase;
-            color: #667eea;
+            color: #00B7B7;
             font-weight: 600;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -87,7 +87,7 @@
             color: #2c3e50;
             margin: 30px 0 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid #00B7B7;
         }
 
         .comments-list {
@@ -117,7 +117,7 @@
 
         .comment-author {
             font-weight: 600;
-            color: #667eea;
+            color: #00B7B7;
         }
 
         .comment-date {
@@ -150,13 +150,13 @@
 
         .comment-form textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #00B7B7;
         }
 
         .btn-submit {
             margin-top: 10px;
             padding: 10px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
             color: white;
             border: none;
             border-radius: 8px;
@@ -167,7 +167,7 @@
 
         .btn-submit:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 183, 183, 0.4);
         }
 
         .attachments-list {
@@ -229,12 +229,47 @@
 
         .status-select {
             padding: 4px 8px;
-            border: 2px solid #667eea;
+            border: 2px solid #00B7B7;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
             background: white;
             cursor: pointer;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #ecf0f1;
+            color: #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #bdc3c7;
+            transform: translateY(-2px);
+        }
+
+        .file-name {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
         }
 
         @media (max-width: 768px) {
@@ -306,7 +341,7 @@
                             {{ bug.get_status_display }}
                         </span>
                         {% if user.is_superuser or perms.signal1520.change_task or bug.responsible_user == user %}
-                            <button id="change-status-btn" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 14px; color: #667eea;" title="Изменить статус">✏️</button>
+                            <button id="change-status-btn" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 14px; color: #00B7B7;" title="Изменить статус">✏️</button>
                         {% endif %}
                     </div>
                 </div>
@@ -394,17 +429,25 @@
             <div class="comment-form">
                 <form method="post" enctype="multipart/form-data" id="attachment-form">
                     {% csrf_token %}
-                    <label style="display: block; margin-bottom: 5px;">Выберите файл:</label>
-                    <input type="file" name="file" id="file" required style="margin-bottom: 10px;">
-                    <label style="display: block; margin-bottom: 5px;">Описание (необязательно):</label>
-                    <textarea name="description" rows="2" placeholder="Описание файла..."></textarea>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 14px;">Выберите файл:</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" name="file" id="attachment-file" required onchange="updateAttachmentFileName(this)">
+                            <label for="attachment-file" class="file-input-label">📁 Выбрать файл</label>
+                            <span class="file-name" id="attachment-file-name">Файл не выбран</span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 14px;">Описание (необязательно):</label>
+                        <textarea name="description" rows="2" placeholder="Описание файла..." style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; transition: border-color 0.3s; resize: vertical;" onfocus="this.style.borderColor='#00B7B7'; this.style.boxShadow='0 0 0 3px rgba(0,183,183,0.1)'" onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'"></textarea>
+                    </div>
                     <button type="submit" class="btn-submit">📎 Добавить вложение</button>
                 </form>
             </div>
 
             <a href="#" id="backButton" class="back-link">← В главное меню</a>
             {% if user.is_superuser or perms.tasks_control.change_task or bug.responsible_user == user %}
-                <a href="{% url 'signal1520:bug_update' pk=bug.pk %}" class="back-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">✏️ Редактировать задачу</a>
+                <a href="{% url 'signal1520:bug_update' pk=bug.pk %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">✏️ Редактировать задачу</a>
             {% endif %}
 
 
@@ -500,6 +543,11 @@
     </script>
 
     <script>
+        function updateAttachmentFileName(input) {
+            const label = document.getElementById('attachment-file-name');
+            label.textContent = input.files[0] ? input.files[0].name : 'Файл не выбран';
+        }
+
         // Комментарии – проверка пустого поля
         const commentForm = document.getElementById('comment-form');
         if (commentForm) {

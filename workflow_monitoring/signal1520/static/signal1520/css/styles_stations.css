@@ -30,19 +30,19 @@
     align-items: center;
     gap: 8px;
     padding: 10px 24px;
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    background: linear-gradient(135deg, #00B7B7 0%, #009999 100%);
     color: white;
     text-decoration: none;
     border-radius: 6px;
     font-weight: 600;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 2px 5px rgba(0, 183, 183, 0.3);
 }
 
 .btn-create:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
-    background: linear-gradient(135deg, #2980b9 0%, #1f6392 100%);
+    box-shadow: 0 4px 12px rgba(0, 183, 183, 0.4);
+    background: linear-gradient(135deg, #009999 0%, #007a7a 100%);
     color: white;
     text-decoration: none;
 }
@@ -61,7 +61,7 @@
 
 .stations-table thead tr {
     background: #f8f9fa;
-    border-bottom: 2px solid #3498db;
+    border-bottom: 2px solid #00B7B7;
 }
 
 .stations-table th {
@@ -98,13 +98,13 @@
 }
 
 .station-link {
-    color: #3498db;
+    color: #00B7B7;
     text-decoration: none;
     transition: color 0.2s;
 }
 
 .station-link:hover {
-    color: #2980b9;
+    color: #009999;
     text-decoration: underline;
 }
 
@@ -156,7 +156,7 @@
 }
 
 .task-count-badge {
-    background: #3498db;
+    background: #00B7B7;
     color: white;
     border-radius: 12px;
     padding: 2px 8px;
@@ -175,7 +175,7 @@
     padding: 8px 10px;
     margin: 4px 0;
     background: #f8f9fa;
-    border-left: 3px solid #3498db;
+    border-left: 3px solid #00B7B7;
     border-radius: 4px;
     font-size: 0.9em;
     color: #555;
@@ -186,12 +186,12 @@
 }
 
 .tasks-list li:hover {
-    background: #eef2ff;
+    background: #e0f7f7;
     transform: translateX(3px);
 }
 
 .task-marker {
-    color: #3498db;
+    color: #00B7B7;
     font-weight: bold;
     font-size: 1.1em;
 }
@@ -260,27 +260,27 @@
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    background: linear-gradient(135deg, #00B7B7 0%, #009999 100%);
     color: white;
     text-decoration: none;
     border-radius: 6px;
     font-size: 0.9em;
     font-weight: 600;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 5px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 2px 5px rgba(0, 183, 183, 0.3);
 }
 
 .pagination-btn:hover {
-    background: linear-gradient(135deg, #2980b9 0%, #1f6392 100%);
+    background: linear-gradient(135deg, #009999 0%, #007a7a 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.4);
+    box-shadow: 0 4px 10px rgba(0, 183, 183, 0.4);
     color: white;
     text-decoration: none;
 }
 
 .pagination-btn:active {
     transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 1px 3px rgba(0, 183, 183, 0.3);
 }
 
 .pagination-info {
