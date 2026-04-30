@@ -4,7 +4,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
     padding: 20px;
 }
 
@@ -30,7 +30,7 @@
 }
 
 .auth-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
     color: white;
     padding: 30px;
     text-align: center;
@@ -77,8 +77,8 @@
 
 .form-control:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #00B7B7;
+    box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
 }
 
 .form-control.error {
@@ -102,7 +102,7 @@
 .btn-auth {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
     color: white;
     border: none;
     border-radius: 10px;
@@ -115,7 +115,7 @@
 
 .btn-auth:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 5px 15px rgba(0, 183, 183, 0.4);
 }
 
 .btn-auth:active {
@@ -145,14 +145,14 @@
 }
 
 .auth-footer a {
-    color: #667eea;
+    color: #00B7B7;
     text-decoration: none;
     font-weight: 600;
     transition: color 0.3s;
 }
 
 .auth-footer a:hover {
-    color: #764ba2;
+    color: #009999;
     text-decoration: underline;
 }
 

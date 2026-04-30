@@ -13,7 +13,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .form-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
             padding: 25px 30px;
             color: white;
         }
@@ -47,8 +47,8 @@
         }
         .form-control:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #00B7B7;
+            box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
         }
         textarea.form-control { resize: vertical; min-height: 90px; }
         select.form-control { cursor: pointer; background: white; }
@@ -80,6 +80,36 @@
             background: #e0e0e0;
         }
         .help-text { color: #7f8c8d; font-size: 12px; margin-top: 5px; display: block; }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #ecf0f1;
+            color: #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .file-input-label:hover {
+            background: #bdc3c7;
+            transform: translateY(-2px);
+        }
+        .file-name {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
         .form-actions { display: flex; gap: 15px; margin-top: 30px; flex-wrap: wrap; }
         .btn-submit {
             flex: 1;
@@ -159,9 +189,13 @@
             <!-- Загрузить новый файл -->
             <div class="form-group" id="group-file">
                 <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
-                <input type="file" name="{{ form.file.html_name }}"
-                       id="{{ form.file.id_for_label }}"
-                       class="form-control">
+                <div class="file-input-wrapper">
+                    <input type="file" name="{{ form.file.html_name }}"
+                           id="{{ form.file.id_for_label }}"
+                           onchange="updateKnowledgeFileName(this)">
+                    <label for="{{ form.file.id_for_label }}" class="file-input-label">📁 Выбрать файл</label>
+                    <span class="file-name" id="knowledge-file-name">Файл не выбран</span>
+                </div>
                 <span class="help-text">PDF, Word, Excel, изображения и другие форматы</span>
                 {% if form.file.errors %}
                     <span class="error-message">{{ form.file.errors|join:", " }}</span>
@@ -213,6 +247,11 @@
 </div>
 
 <script>
+    function updateKnowledgeFileName(input) {
+        const label = document.getElementById('knowledge-file-name');
+        label.textContent = input.files[0] ? input.files[0].name : 'Файл не выбран';
+    }
+
     const fileInput = document.getElementById('{{ form.file.id_for_label }}');
     const existingSelect = document.getElementById('{{ form.existing_knowledge.id_for_label }}');
     const linkInput = document.getElementById('{{ form.external_link.id_for_label }}');
