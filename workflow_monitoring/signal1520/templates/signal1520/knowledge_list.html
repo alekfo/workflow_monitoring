@@ -91,8 +91,8 @@
     <div class="stations-header">
         <h2>📖 Инструкции</h2>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <a href="{% url 'signal1520:knowledge_create' %}" class="btn-create">➕ Добавить</a>
-            <a href="{% url 'signal1520:index' %}" class="back-link">← В главное меню</a>
+            <a href="{% url 'signal1520:knowledge_create' org_slug=org_slug %}" class="btn-create">➕ Добавить</a>
+            <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="back-link">← В главное меню</a>
         </div>
     </div>
 
@@ -127,7 +127,7 @@
                     <td>
                         <button class="btn-delete"
                                 data-pk="{{ uk.pk }}"
-                                data-url="{% url 'signal1520:knowledge_delete' uk.pk %}">
+                                data-url="{% url 'signal1520:knowledge_delete' pk=uk.pk org_slug=org_slug %}">
                             🗑️ Удалить
                         </button>
                     </td>
@@ -158,7 +158,7 @@
                 </div>
                 <button class="btn-delete"
                         data-pk="{{ uk.pk }}"
-                        data-url="{% url 'signal1520:knowledge_delete' uk.pk %}">
+                        data-url="{% url 'signal1520:knowledge_delete' pk=uk.pk org_slug=org_slug %}">
                     🗑️ Удалить
                 </button>
             </li>

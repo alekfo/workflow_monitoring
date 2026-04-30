@@ -11,14 +11,14 @@
         <div class="stations-header">
             <h2>🚉 Список задач</h2>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <form method="get" action="" id="search-form" style="display: flex; gap: 5px;" data-base-url="{% url 'signal1520:bugs_list' %}">
+                <form method="get" action="" id="search-form" style="display: flex; gap: 5px;" data-base-url="{% url 'signal1520:bugs_list' org_slug=org_slug %}">
                     <input type="text" name="search" placeholder="Поиск по описанию, станции, организации..."
                            value="{{ request.GET.search|default:'' }}"
                            style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 250px;">
                     <button type="submit" class="btn-create" style="background: #95a5a6; box-shadow: none; padding: 8px 16px;">🔍 Найти</button>
                     <a href="?" id="reset-search" class="btn-create" style="background: #e74c3c; box-shadow: none; padding: 8px 16px; {% if not request.GET.search %}display: none;{% endif %}">✖️ Сбросить</a>
                 </form>
-                <a href="{% url 'signal1520:create_bug' %}" class="btn-create">
+                <a href="{% url 'signal1520:create_bug' org_slug=org_slug %}" class="btn-create">
                     ✨ Создать новую задачу
                 </a>
                 <a href="#" id="backButton" class="back-link">← В главное меню</a>
@@ -43,7 +43,7 @@
                         {% for bug in object_list %}
                         <tr class="{{ bug.row_color_class }}">
                             <td class="road-cell">
-                                <a href="{% url 'signal1520:bug_details' pk=bug.pk %}" class="station-link">
+                                <a href="{% url 'signal1520:bug_details' pk=bug.pk org_slug=org_slug %}" class="station-link">
                                     {{ bug.pk }}
                                 </a>
                             </td>
@@ -81,7 +81,7 @@
                         <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Последняя »</a>
                     {% endif %}
                 {% endif %}
-                <a href="{% url 'signal1520:bugs_export' %}" class="pagination-btn" style="background: #27ae60; color: white;">⬇ Выгрузить</a>
+                <a href="{% url 'signal1520:bugs_export' org_slug=org_slug %}" class="pagination-btn" style="background: #27ae60; color: white;">⬇ Выгрузить</a>
             </div>
 
             <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; padding: 10px 4px; font-size: 13px; color: #555;">
@@ -102,7 +102,7 @@
     </div>
     <script>
         document.getElementById('backButton').addEventListener('click', function(e) {
-            window.location.href = "{% url 'signal1520:index' %}";
+            window.location.href = "{% url 'signal1520:index' org_slug=org_slug %}";
         });
     </script>
 </body>

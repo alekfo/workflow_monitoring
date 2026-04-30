@@ -26,7 +26,7 @@
   <a href="#" id="backButton" class="back-link">← В главное меню</a>
   <script>
       document.getElementById('backButton').addEventListener('click', function(e) {
-          window.location.href = "{% url 'signal1520:index' %}";
+          window.location.href = "{% if user.profile.organization %}{% url 'signal1520:index' org_slug=user.profile.organization.slug %}{% else %}#{% endif %}";
       });
   </script>
 </body>

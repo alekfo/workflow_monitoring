@@ -5,28 +5,30 @@
 // код выполнится после полной загрузки HTML-документа
 document.addEventListener('DOMContentLoaded', () => {
 
+    const _base = '/' + (window.ORG_SLUG || 'signal1520') + '/';
+
     // Словарь соответствия data-section и URL
     const urlMap_for_contentPanel = {
-        'tasks_all': '/signal1520/bugs/',
-        'tasks_mine': '/signal1520/bugs/my/',
-        'objects_all': '/signal1520/stations/',
-        'alarms': '/signal1520/alarms/',
+        'tasks_all': _base + 'bugs/',
+        'tasks_mine': _base + 'bugs/my/',
+        'objects_all': _base + 'stations/',
+        'alarms': _base + 'alarms/',
         'warehouses_stock': null,
         'reports_download': null,
         'links_all': null,
         'charts_download': null,
-        'instructions': '/signal1520/knowledge/',
+        'instructions': _base + 'knowledge/',
         'others': null
     };
 
     const urlMap_for_redirect = {
         'tasks_seek': null,
-        'tasks_add': '/signal1520/bugs/create',
+        'tasks_add': _base + 'bugs/create/',
         'objects_seek': null,
-        'objects_add': '/signal1520/stations/create',
+        'objects_add': _base + 'stations/create/',
         'links_add': null,
         'charts_add': null,
-        'instructions_add': '/signal1520/knowledge/create/',
+        'instructions_add': _base + 'knowledge/create/',
     };
 
     // ---------- Аккордеон для главных кнопок ----------

@@ -332,7 +332,7 @@
             <div class="info-grid">
                 <div class="info-card">
                     <div class="info-label">Станция</div>
-                    <a href="{% url 'signal1520:station_details' pk=bug.station.pk %}">{{ bug.station|default:"—" }}</a>
+                    <a href="{% url 'signal1520:station_details' pk=bug.station.pk org_slug=org_slug %}">{{ bug.station|default:"—" }}</a>
                 </div>
                 <div class="info-card">
                     <div class="info-label">Статус</div>
@@ -447,7 +447,7 @@
 
             <a href="#" id="backButton" class="back-link">← В главное меню</a>
             {% if user.is_superuser or perms.tasks_control.change_task or bug.responsible_user == user %}
-                <a href="{% url 'signal1520:bug_update' pk=bug.pk %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">✏️ Редактировать задачу</a>
+                <a href="{% url 'signal1520:bug_update' pk=bug.pk org_slug=org_slug %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">✏️ Редактировать задачу</a>
             {% endif %}
 
 
@@ -457,7 +457,7 @@
    <script>
         // Назад
         document.getElementById('backButton').addEventListener('click', function(e) {
-            window.location.href = "{% url 'signal1520:index' %}";
+            window.location.href = "{% url 'signal1520:index' org_slug=org_slug %}";
         });
 
         // Изменение статуса (без DOMContentLoaded)

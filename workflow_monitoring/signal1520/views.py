@@ -14,15 +14,15 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 
 from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge
 from .forms import KnowledgeForm
+from .mixins import OrgMixin
 
-class TasksIndexView(LoginRequiredMixin, View):
+class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
     """Главная страница приложения."""
 
-    def get(self, request: HttpRequest) -> HttpResponse:
-        """Отображает главную страницу с боковым меню и панелью контента."""
+    def get(self, request: HttpRequest, org_slug: str) -> HttpResponse:
         return render(request, 'signal1520/index.html')
 
-class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+class StationListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
     """Список всех объектов (станций). Доступен суперпользователям и пользователям с правом view_station."""
 
     def test_func(self):
@@ -36,7 +36,7 @@ class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        queryset = Station.objects.select_related('road', 'system').prefetch_related('tasks').order_by('-pk')
+        queryset = super().get_queryset().select_related('road', 'system').prefetch_related('tasks').order_by('-pk')
         search_query = self.request.GET.get('search', '').strip()
         if search_query:
             queryset = queryset.filter(
@@ -47,7 +47,7 @@ class StationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             )
         return queryset
 
-class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+class StationDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailView):
     """Детальная страница объекта (станции) с привязанными задачами."""
 
     def test_func(self):
@@ -75,7 +75,7 @@ class StationDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     #     context['can_edit_station'] = can_edit
     #     return context
 
-class StationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+class StationCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateView):
     """Форма создания нового объекта (станции). Доступна суперпользователям и пользователям с правом add_station."""
 
     def test_func(self):
@@ -87,27 +87,29 @@ class StationCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
 
     model = Station
     fields = "name", "road", "distance", "system", "description", "latitude", "longitude"
-    # success_url = reverse_lazy("signal1520:index")
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        org = self.get_org()
+        form.fields['road'].queryset = Road.objects.filter(organization=org)
+        form.fields['system'].queryset = System.objects.filter(organization=org)
+        return form
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
+        form.instance.organization = self.get_org()
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse(
-            "signal1520:station_details",
-            kwargs={"pk": self.object.pk}
-        )
+        return reverse("signal1520:station_details", kwargs=self.org_kwargs(pk=self.object.pk))
 
     def handle_no_permission(self):
-        # Перенаправляем на страницу ошибки вместо 403
         return redirect(reverse('authentication:error'))
 
-class StationUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class StationUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """Форма редактирования существующего объекта (станции)."""
 
     def test_func(self):
-        # return self.request.user.groups.filter(name="secret_group").exists()
         if self.request.user.is_superuser:
             return True
         if self.request.user.has_perm('signal1520.change_station'):
@@ -118,14 +120,19 @@ class StationUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     fields = "name", "road", "distance", "system", "description", "latitude", "longitude"
     template_name = 'signal1520/station_update_form.html'
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        org = self.get_org()
+        form.fields['road'].queryset = Road.objects.filter(organization=org)
+        form.fields['system'].queryset = System.objects.filter(organization=org)
+        return form
+
     def get_success_url(self):
-        return reverse(
-            "signal1520:station_details",
-            kwargs={"pk": self.object.pk}
-        )
+        return reverse("signal1520:station_details", kwargs=self.org_kwargs(pk=self.object.pk))
 
 
-class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+class BugsListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
+
     """Список всех задач с поиском по описанию, станции, организации и статусу."""
 
     def test_func(self):
@@ -138,11 +145,7 @@ class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = Task
     template_name = 'signal1520/bug_list.html'
     paginate_by = 10
-
-    # def get_template_names(self):
-    #     if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-    #         return ['signal1520/bug_list_ajax.html']
-    #     return [self.template_name]
+    org_filter_field = 'station__organization'
 
     def get_queryset(self):
         queryset = super().get_queryset().select_related("responsible_user", "station")
@@ -156,7 +159,7 @@ class BugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             )
         return queryset
 
-class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+class MyBugsListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
     """Список задач, назначенных на текущего пользователя, с поддержкой поиска."""
 
     def test_func(self):
@@ -169,11 +172,7 @@ class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = Task
     template_name = 'signal1520/my_bug_list.html'
     paginate_by = 10
-
-    # def get_template_names(self):
-    #     if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-    #         return ['signal1520/bug_list_ajax.html']
-    #     return [self.template_name]
+    org_filter_field = 'station__organization'
 
     def get_queryset(self):
         queryset = super().get_queryset().filter(responsible_user=self.request.user).select_related("responsible_user", "station")
@@ -187,7 +186,7 @@ class MyBugsListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             )
         return queryset
 
-class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailView):
     """
     Детальная страница задачи.
 
@@ -207,7 +206,8 @@ class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
 
     template_name = 'signal1520/bug_details.html'
     queryset = Task.objects.select_related("responsible_user", "station").prefetch_related("comments", "attachments")
-    context_object_name = "bug"  # имя, доступное в шаблоне
+    context_object_name = "bug"
+    org_filter_field = 'station__organization'
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -221,7 +221,7 @@ class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                 description=request.POST.get('description', '')
             )
             attachment.save()
-            return redirect('signal1520:bug_details', pk=self.object.pk)
+            return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
         # 2. Обработка добавления комментария (обычная форма)
         if 'comment_text' in request.POST:
@@ -234,7 +234,7 @@ class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                     body=comment_text
                 )
             # Перенаправляем обратно на страницу с этой же задачей
-            return redirect('signal1520:bug_details', pk=self.object.pk)
+            return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
         # 3. Обработка изменения статуса (JSON-запрос от JavaScript)
         # Проверка прав на изменение статуса
@@ -261,7 +261,7 @@ class BugDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
             'status_display': self.object.get_status_display()
         })
 
-class BugCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+class BugCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateView):
     """Форма создания новой задачи. Ответственный сотрудник устанавливается автоматически как текущий пользователь."""
 
     def test_func(self):
@@ -274,26 +274,26 @@ class BugCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Task
     template_name = 'signal1520/bug_form.html'
     fields = "station", "description", "responsible_organization", "due_date"
-    # success_url = reverse_lazy("signal1520:index")
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['station'].queryset = Station.objects.filter(organization=self.get_org())
+        return form
 
     def form_valid(self, form):
         form.instance.responsible_user = self.request.user
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse(
-            "signal1520:bug_details",
-            kwargs={"pk": self.object.pk}
-        )
+        return reverse("signal1520:bug_details", kwargs=self.org_kwargs(pk=self.object.pk))
 
     def handle_no_permission(self):
         return redirect(reverse('authentication:error'))
 
-class BugUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class BugUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """Форма редактирования задачи. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику."""
 
     def test_func(self):
-        # return self.request.user.groups.filter(name="secret_group").exists()
         bug = self.get_object()
         if self.request.user.is_superuser:
             return True
@@ -306,36 +306,40 @@ class BugUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Task
     fields = "station", "description", "status", "responsible_organization", "due_date"
     template_name = 'signal1520/bug_update_form.html'
+    org_filter_field = 'station__organization'
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['station'].queryset = Station.objects.filter(organization=self.get_org())
+        return form
 
     def get_success_url(self):
-        return reverse(
-            "signal1520:bug_details",
-            kwargs={"pk": self.object.pk}
-        )
+        return reverse("signal1520:bug_details", kwargs=self.org_kwargs(pk=self.object.pk))
 
-class AlarmListView(LoginRequiredMixin, ListView):
+class AlarmListView(OrgMixin, LoginRequiredMixin, ListView):
     """Список сигнальных событий (тревог) с поиском по номеру. Пагинация по 20 записей."""
 
     model = AlarmInfo
     template_name = 'signal1520/alarm_list.html'
     context_object_name = 'alarms'
-    paginate_by = 10  # опционально
+    paginate_by = 10
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # AlarmInfo — глобальный справочник, org-фильтрация не применяется
+        queryset = AlarmInfo.objects.all()
         search_query = self.request.GET.get('search', '').strip()
         if search_query:
             queryset = queryset.filter(number__icontains=search_query)
         return queryset
 
 
-class StationsExportView(LoginRequiredMixin, UserPassesTestMixin, View):
+class StationsExportView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View):
     """Выгрузка списка станций в .xlsx."""
 
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_station')
 
-    def get(self, request):
+    def get(self, request, **kwargs):
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'Станции'
@@ -343,7 +347,7 @@ class StationsExportView(LoginRequiredMixin, UserPassesTestMixin, View):
         headers = ['ID', 'Наименование', 'Дорога/линия/район', 'Дистанция', 'Система', 'Описание', 'Широта', 'Долгота', 'Дата создания', 'Создал']
         ws.append(headers)
 
-        for station in Station.objects.select_related('created_by', 'road', 'system').order_by('pk'):
+        for station in Station.objects.filter(organization=self.get_org()).select_related('created_by', 'road', 'system').order_by('pk'):
             ws.append([
                 station.pk,
                 station.name,
@@ -365,13 +369,13 @@ class StationsExportView(LoginRequiredMixin, UserPassesTestMixin, View):
         return response
 
 
-class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
+class TasksExportView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View):
     """Выгрузка списка задач в .xlsx."""
 
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_task')
 
-    def get(self, request):
+    def get(self, request, **kwargs):
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'Задачи'
@@ -379,7 +383,7 @@ class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
         headers = ['ID', 'Станция', 'Описание', 'Статус', 'Ответственная организация', 'Ответственный сотрудник', 'Срок выполнения', 'Дата создания', 'Дата обновления']
         ws.append(headers)
 
-        for task in Task.objects.select_related('station', 'responsible_user').order_by('pk'):
+        for task in Task.objects.filter(station__organization=self.get_org()).select_related('station', 'responsible_user').order_by('pk'):
             ws.append([
                 task.pk,
                 str(task.station),
@@ -400,7 +404,7 @@ class TasksExportView(LoginRequiredMixin, UserPassesTestMixin, View):
         return response
 
 
-class KnowledgeListView(LoginRequiredMixin, ListView):
+class KnowledgeListView(OrgMixin, LoginRequiredMixin, ListView):
     """Список инструкций текущего пользователя. Загружается в contentPanel через AJAX."""
 
     model = UserKnowledge
@@ -408,9 +412,7 @@ class KnowledgeListView(LoginRequiredMixin, ListView):
     context_object_name = 'items'
 
     def get_queryset(self):
-        return (UserKnowledge.objects
-                .filter(user=self.request.user)
-                .select_related('knowledge'))
+        return UserKnowledge.objects.filter(user=self.request.user).select_related('knowledge')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -420,10 +422,18 @@ class KnowledgeListView(LoginRequiredMixin, ListView):
         return context
 
 
-class KnowledgeCreateView(LoginRequiredMixin, View):
+class KnowledgeCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View):
     """Форма добавления инструкции: новый файл, существующий файл или ссылка."""
 
     template_name = 'signal1520/knowledge_form.html'
+
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        return self.request.user.has_perm('signal1520.add_userknowledge')
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
 
     def _get_file_limit(self):
         try:
@@ -445,10 +455,10 @@ class KnowledgeCreateView(LoginRequiredMixin, View):
         form.fields['existing_knowledge'].queryset = self._existing_qs()
         return form
 
-    def get(self, request):
+    def get(self, request, **kwargs):
         return render(request, self.template_name, {'form': self._build_form()})
 
-    def post(self, request):
+    def post(self, request, **kwargs):
         form = self._build_form(request.POST, request.FILES)
         if not form.is_valid():
             return render(request, self.template_name, {'form': form})
@@ -478,13 +488,21 @@ class KnowledgeCreateView(LoginRequiredMixin, View):
             )
 
         messages.success(request, 'Инструкция успешно добавлена.')
-        return redirect(reverse('signal1520:index'))
+        return redirect(reverse('signal1520:index', kwargs={'org_slug': self.kwargs['org_slug']}))
 
 
-class KnowledgeDeleteView(LoginRequiredMixin, View):
+class KnowledgeDeleteView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View):
     """AJAX-удаление инструкции пользователя. Файл удаляется физически только если больше никем не используется."""
 
-    def post(self, request, pk):
+    def test_func(self):
+        if self.request.user.is_superuser:
+            return True
+        return self.request.user.has_perm('signal1520.delete_userknowledge')
+
+    def handle_no_permission(self):
+        return JsonResponse({'error': 'Недостаточно прав'}, status=403)
+
+    def post(self, request, pk, **kwargs):
         uk = get_object_or_404(UserKnowledge, pk=pk, user=request.user)
         knowledge = uk.knowledge
         uk.delete()

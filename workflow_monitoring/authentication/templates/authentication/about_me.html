@@ -174,6 +174,35 @@
             box-shadow: 0 5px 15px rgba(127, 140, 141, 0.4);
         }
 
+        .pending-banner {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            background: #fff8e1;
+            border-left: 4px solid #f5a623;
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 28px;
+            color: #7a5800;
+        }
+
+        .pending-banner-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+            line-height: 1.4;
+        }
+
+        .pending-banner-text strong {
+            display: block;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .pending-banner-text span {
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
         @media (max-width: 768px) {
             .profile-body {
                 padding: 20px;
@@ -207,7 +236,9 @@
                 <!-- Контейнер для кнопок -->
                 <div class="header-buttons">
                     <a href="{% url 'authentication:logout' %}" class="header-btn">🚪 Выйти</a>
-                    <a href="{% url 'signal1520:index' %}" class="header-btn">🏠 Меню</a>
+                    {% if user.profile.organization %}
+                    <a href="{% url 'signal1520:index' org_slug=user.profile.organization.slug %}" class="header-btn">🏠 Меню</a>
+                    {% endif %}
                 </div>
 
                 {% if user.profile.avatar %}
@@ -223,6 +254,16 @@
             </div>
 
             <div class="profile-body">
+                {% if not user.profile.organization %}
+                <div class="pending-banner">
+                    <div class="pending-banner-icon">⏳</div>
+                    <div class="pending-banner-text">
+                        <strong>Ожидайте подтверждения регистрации и определения необходимых прав</strong>
+                        <span>Администратор назначит вам организацию и права доступа. После этого вы сможете перейти в меню.</span>
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="info-section">
                     <h2>📋 Личная информация</h2>
                     <div class="info-grid">
