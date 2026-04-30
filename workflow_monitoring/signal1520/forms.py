@@ -2,6 +2,15 @@ from django import forms
 from .models import Knowledge
 
 
+class ContactForm(forms.Form):
+    name = forms.CharField(label='Имя', max_length=150)
+    email = forms.EmailField(label='Email')
+    message = forms.CharField(
+        label='Описание проблемы',
+        widget=forms.Textarea(attrs={'rows': 5}),
+    )
+
+
 class KnowledgeForm(forms.Form):
     title = forms.CharField(label='Название', max_length=200)
     description = forms.CharField(

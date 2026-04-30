@@ -12,8 +12,11 @@ from django.views.generic import TemplateView, ListView, DetailView, CreateView,
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
+from django.conf import settings
+from django.core.mail import send_mail
+
 from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge
-from .forms import KnowledgeForm
+from .forms import KnowledgeForm, ContactForm
 from .mixins import OrgMixin
 
 class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
@@ -511,3 +514,41 @@ class KnowledgeDeleteView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Vie
                 knowledge.file.delete(save=False)
             knowledge.delete()
         return JsonResponse({'success': True})
+
+
+class ContactView(OrgMixin, LoginRequiredMixin, View):
+    """Форма обратной связи. Отправляет письмо на SUPPORT_EMAIL."""
+
+    def _initial(self, user):
+        return {
+            'name': user.get_full_name() or user.username,
+            'email': user.email,
+        }
+
+    def get(self, request, **kwargs):
+        form = ContactForm(initial=self._initial(request.user))
+        return render(request, 'signal1520/contact.html', {'form': form})
+
+    def post(self, request, **kwargs):
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            name = form.cleaned_data['name']
+            email = form.cleaned_data['email']
+            message = form.cleaned_data['message']
+            body = (
+                f"Имя: {name}\n"
+                f"Email: {email}\n"
+                f"Пользователь: {request.user.username}\n"
+                f"Организация: {getattr(request.user.profile.organization, 'name', '—')}\n"
+                f"\n{message}"
+            )
+            send_mail(
+                subject=f"Обращение от {name}",
+                message=body,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[settings.SUPPORT_EMAIL],
+                fail_silently=False,
+            )
+            fresh_form = ContactForm(initial=self._initial(request.user))
+            return render(request, 'signal1520/contact.html', {'form': fresh_form, 'success': True})
+        return render(request, 'signal1520/contact.html', {'form': form})
