@@ -19,13 +19,19 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.i18n import i18n_patterns
+from django.views.defaults import permission_denied
+from django.views.generic import RedirectView
+
+
+def handler403(request, exception=None):
+    return permission_denied(request, exception, template_name='403.html')
 
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='/accounts/login/', permanent=False)),
     path('admin/', admin.site.urls),
-    path('signal1520/', include('signal1520.urls')),
+    path('<slug:org_slug>/', include('signal1520.urls')),
     path('accounts/', include('authentication.urls')),
-    # path('accounts/', include('auth.urls')),
 ]
 
 if settings.DEBUG:

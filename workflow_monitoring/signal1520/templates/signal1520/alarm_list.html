@@ -63,7 +63,7 @@
     <div class="stations-header">
         <h2>🚨 Алармы (справочник)</h2>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <form method="get" action="" class="search-form" id="search-form" data-base-url="{% url 'signal1520:alarm_list' %}">
+            <form method="get" action="" class="search-form" id="search-form" data-base-url="{% url 'signal1520:alarm_list' org_slug=org_slug %}">
                 <input type="text" name="search" placeholder="Поиск по номеру аларма..."
                        value="{{ request.GET.search|default:'' }}">
                 <button type="submit">🔍 Найти</button>

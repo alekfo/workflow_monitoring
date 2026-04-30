@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Нет доступа</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 48px 40px;
+            text-align: center;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .icon { font-size: 56px; margin-bottom: 20px; }
+        h1 { font-size: 24px; color: #2c3e50; margin-bottom: 12px; }
+        p { color: #7f8c8d; font-size: 15px; line-height: 1.6; margin-bottom: 8px; }
+        .org-hint {
+            background: #e0f7f7;
+            border-left: 3px solid #00B7B7;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #2c3e50;
+            text-align: left;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            text-decoration: none;
+            transition: all 0.3s;
+            margin: 6px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,183,183,0.4); }
+        .btn-secondary { background: #ecf0f1; color: #2c3e50; }
+        .btn-secondary:hover { background: #dfe6e9; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🚫</div>
+        <h1>Нет доступа к этому разделу</h1>
+        <p>Вы вошли в систему, но у вашего аккаунта нет доступа к этой организации.</p>
+
+        {% if user.is_authenticated and user.profile.organization %}
+        <div class="org-hint">
+            Ваша организация: <strong>{{ user.profile.organization.name }}</strong>
+        </div>
+        <a href="{% url 'signal1520:index' org_slug=user.profile.organization.slug %}" class="btn btn-primary">
+            🏠 Перейти в свою организацию
+        </a>
+        {% else %}
+        <div class="org-hint">
+            Обратитесь к администратору для назначения организации.
+        </div>
+        {% endif %}
+
+        <a href="{% url 'authentication:logout' %}" class="btn btn-secondary">
+            🚪 Выйти
+        </a>
+    </div>
+</body>
+</html>

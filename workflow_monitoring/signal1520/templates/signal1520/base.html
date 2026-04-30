@@ -11,6 +11,7 @@
     <link rel="icon" type="image/x-icon" href="{% static 'signal1520/favicon.ico' %}">
     <link rel="stylesheet" href="{% static 'signal1520/css/styles.css' %}">
     <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <script>window.ORG_SLUG = '{{ org_slug }}';</script>
     <script src="{% static 'signal1520/js/index.js' %}"></script>
     <script src="{% static 'signal1520/js/main_header.js' %}"></script>
     <script src="{% static 'signal1520/js/bug_filter.js' %}"></script>
@@ -22,6 +23,10 @@
             <div class="user-info">
                 <span class="user-icon">👤</span>
                 <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
+                {% if user.profile.organization %}
+                <span class="user-org-divider">|</span>
+                <span class="user-org">🏢 {{ user.profile.organization.name }}</span>
+                {% endif %}
             </div>
             <button id="accountBtn" class="button" style="width: auto; padding: 8px 20px;">👤 Профиль</button>
             <button id="logoutBtn" class="button" style="width: auto; padding: 8px 20px;">🚪 Выйти</button>

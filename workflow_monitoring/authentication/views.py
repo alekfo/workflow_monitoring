@@ -2,11 +2,11 @@ from http.client import responses
 
 from django.contrib.auth.decorators import login_required, permission_required, user_passes_test
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.views import LogoutView
+from django.contrib.auth.views import LogoutView, LoginView
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, reverse
 from django.contrib.auth import authenticate, login, logout
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse as url_reverse
 from django.views import View
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.models import User
@@ -15,6 +15,21 @@ from django.shortcuts import get_object_or_404
 
 from .models import Profile
 from .forms import ProfileForm, CustomUserCreationForm
+
+class OrgLoginView(LoginView):
+    """После успешного логина редиректит на организацию из профиля, игнорируя ?next."""
+    template_name = 'authentication/login.html'
+    redirect_authenticated_user = True
+
+    def get_success_url(self):
+        try:
+            org = self.request.user.profile.organization
+            if org:
+                return url_reverse('signal1520:index', kwargs={'org_slug': org.slug})
+        except Exception:
+            pass
+        return reverse_lazy('authentication:about_me')
+
 
 class ErrorView(View):
 
@@ -73,7 +88,16 @@ class RegisterView(CreateView):
     #для юзера уже есть форма с необходимой валидацией, в тч двойная проверка пароля
     form_class = CustomUserCreationForm
     template_name = "authentication/register.html"
-    success_url = reverse_lazy("signal1520:index")
+
+    def get_success_url(self):
+        try:
+            org = self.object.profile.organization
+            if org:
+                from django.urls import reverse
+                return reverse('signal1520:index', kwargs={'org_slug': org.slug})
+        except Exception:
+            pass
+        return reverse_lazy('authentication:about_me')
 
     #для того, чтобы после создания формы происходила еще и аутентификация
     # нужно переопределить метод form_valid (в нем поумолчанию происходит сохранение сущности

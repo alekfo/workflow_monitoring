@@ -5,7 +5,27 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
+class Organization(models.Model):
+    name = models.CharField('Название', max_length=200)
+    slug = models.SlugField('Slug', unique=True)
+
+    class Meta:
+        verbose_name = 'Организация'
+        verbose_name_plural = 'Организации'
+
+    def __str__(self):
+        return self.name
+
+
 class Road(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='roads',
+        verbose_name='Организация',
+        null=True,
+        blank=True,
+    )
     title = models.CharField('Название', max_length=100)
 
     class Meta:
@@ -18,6 +38,14 @@ class Road(models.Model):
 
 
 class System(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='systems',
+        verbose_name='Организация',
+        null=True,
+        blank=True,
+    )
     title = models.CharField('Название', max_length=50)
 
     class Meta:
@@ -30,6 +58,14 @@ class System(models.Model):
 
 
 class Station(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='stations',
+        verbose_name='Организация',
+        null=True,
+        blank=True,
+    )
     name = models.CharField('Название станции/объекта', max_length=200)
     road = models.ForeignKey(
         Road,

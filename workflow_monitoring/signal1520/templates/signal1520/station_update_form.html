@@ -343,7 +343,7 @@
                 <button type="submit" class="btn-submit">
                     💾 Сохранить изменения
                 </button>
-                <a href="{% url 'signal1520:station_details' pk=object.pk %}" class="btn-cancel">
+                <a href="{% url 'signal1520:station_details' pk=object.pk org_slug=org_slug %}" class="btn-cancel">
                     ← Отмена
                 </a>
             </div>

@@ -1,8 +1,8 @@
 from django.urls import path
-from django.contrib.auth.views import LoginView
 
 from .views import (MyLogoutView,
                     MyLogoutPage,
+                    OrgLoginView,
                     AboutMeView,
                     ProfileUpdateView,
                     RegisterView,
@@ -13,13 +13,7 @@ from .views import (MyLogoutView,
 app_name = "authentication"
 
 urlpatterns = [
-    path(
-        "login/",
-        LoginView.as_view(
-            template_name="authentication/login.html",
-            redirect_authenticated_user=True),
-        # необходимо для перенаправления пользователя по redirect логина если пользователь уже аутентифицирован
-        name="login"),
+    path("login/", OrgLoginView.as_view(), name="login"),
     # path("logout/", logout_view, name="logout"),
     path("logout/", MyLogoutPage.as_view(), name="logout"),
     path("about_me/", AboutMeView.as_view(), name="about_me"),
