@@ -319,6 +319,86 @@ class UserKnowledge(models.Model):
     def __str__(self):
         return f'{self.user.username}: {self.title}'
 
+class EquipmentType(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='equipment_types',
+        verbose_name='Организация',
+    )
+    title = models.CharField('Тип оборудования', max_length=100)
+
+    class Meta:
+        verbose_name = 'Тип оборудования'
+        verbose_name_plural = 'Типы оборудования'
+        ordering = ['title']
+
+    def __str__(self):
+        return self.title
+
+
+class Warehouse(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='warehouses',
+        verbose_name='Организация',
+    )
+    title = models.CharField('Название', max_length=200)
+    responsible_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='warehouses',
+        verbose_name='Ответственный',
+    )
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Склад'
+        verbose_name_plural = 'Склады'
+        ordering = ['title']
+
+    def __str__(self):
+        return self.title
+
+
+class Equipment(models.Model):
+    warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.CASCADE,
+        related_name='equipment',
+        verbose_name='Склад',
+    )
+    station = models.ForeignKey(
+        Station,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='equipment',
+        verbose_name='Объект/станция',
+    )
+    type = models.ForeignKey(
+        EquipmentType,
+        on_delete=models.PROTECT,
+        related_name='equipment',
+        verbose_name='Тип оборудования',
+    )
+    factory_number = models.CharField('Заводской номер', max_length=100, blank=True, default='')
+    manufacturer = models.CharField('Изготовитель', max_length=200, blank=True, default='')
+    date_of_manufacture = models.DateField('Дата изготовления', null=True, blank=True)
+    added_at = models.DateTimeField('Дата добавления', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Оборудование'
+        verbose_name_plural = 'Оборудование'
+        ordering = ['-added_at']
+
+    def __str__(self):
+        return f"{self.type} → {self.warehouse}"
+
+
 class Link(models.Model):
     user = models.ForeignKey(
         User,

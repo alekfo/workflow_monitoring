@@ -3,7 +3,7 @@
 ## Что это за проект
 
 Django-приложение для мониторинга рабочих процессов на объектах (станциях).
-Основные сущности: объекты (станции), задачи, алармы (справочник), пользователи.
+Основные сущности: объекты (станции), задачи, алармы (справочник), склады, оборудование, пользователи.
 Интерфейс — одностраничное SPA-подобное приложение: контент грузится в `contentPanel` через AJAX, без перезагрузки страницы.
 Поддерживает несколько организаций (мультиарендность) через URL-префикс `/<org_slug>/`.
 
@@ -55,8 +55,11 @@ class Organization(models.Model):
 - `Road.organization` — FK → Organization (nullable)
 - `System.organization` — FK → Organization (nullable)
 - `Station.organization` — FK → Organization
+- `EquipmentType.organization` — FK → Organization (обязательный)
+- `Warehouse.organization` — FK → Organization (обязательный)
 - `Profile.organization` (authentication/models.py) — FK → Organization (через строковую ссылку `'signal1520.Organization'` во избежание circular import)
 - Task не имеет прямого FK — фильтруется через `station__organization`
+- Equipment не имеет прямого FK — фильтруется через `warehouse__organization`
 
 **3. URL-конфиг (workflow_monitoring/urls.py)**
 ```python
@@ -164,7 +167,7 @@ Vasya видит только задачи своей организации.
 
 ### Фильтрация выпадающих списков в формах
 
-`get_form()` переопределён в четырёх view, чтобы пользователь видел в дропдаунах
+`get_form()` переопределён в view, чтобы пользователь видел в дропдаунах
 только объекты своей организации:
 
 | View | Поле формы | Фильтр |
@@ -173,6 +176,10 @@ Vasya видит только задачи своей организации.
 | `StationUpdateView` | `road`, `system` | то же |
 | `BugCreateView` | `station` | `Station.objects.filter(organization=org)` |
 | `BugUpdateView` | `station` | то же |
+| `WarehouseCreateView` | `responsible_user` | `User.objects.filter(profile__organization=org)` |
+| `WarehouseUpdateView` | `responsible_user` | то же |
+| `EquipmentCreateView` | `warehouse`, `station`, `type` | `Warehouse/Station/EquipmentType.objects.filter(organization=org)` |
+| `EquipmentUpdateView` | `warehouse`, `station`, `type` | то же |
 
 ---
 
@@ -183,7 +190,9 @@ Vasya видит только задачи своей организации.
 3. Назначить системы: `System.objects.filter(...).update(organization=new_org)`
 4. Назначить станции: `Station.objects.filter(...).update(organization=new_org)`
 5. Назначить пользователей: `profile.organization = new_org; profile.save()`
-6. Готово — `/<metro2024>/` работает без изменений кода
+6. Создать типы оборудования: `EquipmentType.objects.create(organization=new_org, title='...')`
+7. Создать склады: `Warehouse.objects.create(organization=new_org, title='...')`
+8. Готово — `/<metro2024>/` работает без изменений кода
 
 ---
 
@@ -201,6 +210,9 @@ Vasya видит только задачи своей организации.
 | `AlarmInfo` | Справочник алармов. Поля: number(PK), description, explanation. Данные загружаются скриптом migrate_alarms.py |
 | `Knowledge` | Единица базы знаний: файл (`file`, путь `knowledge/<filename>`) или внешняя ссылка (`external_link`). Один объект может быть привязан к нескольким пользователям через `UserKnowledge` |
 | `UserKnowledge` | Связь User ↔ Knowledge с пользовательскими метаданными: title, description. `unique_together = [('user', 'knowledge')]` |
+| `EquipmentType` | Справочник типов оборудования. Поля: organization(FK), title. Фильтруется по орг |
+| `Warehouse` | Склад. Поля: organization(FK), title, responsible_user(FK User, nullable), created_at |
+| `Equipment` | Единица оборудования. Поля: warehouse(FK), station(FK, nullable), type(FK EquipmentType), factory_number, manufacturer, date_of_manufacture, added_at |
 | `Link` | Ссылки пользователей (в разработке) |
 
 ## Модель Profile (authentication/models.py)
@@ -241,6 +253,17 @@ Vasya видит только задачи своей организации.
 | `/<org_slug>/knowledge/` | KnowledgeListView | `signal1520:knowledge_list` |
 | `/<org_slug>/knowledge/create/` | KnowledgeCreateView | `signal1520:knowledge_create` |
 | `/<org_slug>/knowledge/<pk>/delete/` | KnowledgeDeleteView | `signal1520:knowledge_delete` |
+| `/<org_slug>/warehouses/` | WarehouseListView | `signal1520:warehouse_list` |
+| `/<org_slug>/warehouses/create/` | WarehouseCreateView | `signal1520:warehouse_create` |
+| `/<org_slug>/warehouses/<pk>/` | WarehouseDetailView | `signal1520:warehouse_detail` |
+| `/<org_slug>/warehouses/<pk>/update/` | WarehouseUpdateView | `signal1520:warehouse_update` |
+| `/<org_slug>/warehouses/<pk>/export/` | WarehouseEquipmentExportView | `signal1520:warehouse_equipment_export` |
+| `/<org_slug>/equipment/` | EquipmentListView | `signal1520:equipment_list` |
+| `/<org_slug>/equipment/create/` | EquipmentCreateView | `signal1520:equipment_create` |
+| `/<org_slug>/equipment/<pk>/` | EquipmentDetailView | `signal1520:equipment_detail` |
+| `/<org_slug>/equipment/<pk>/update/` | EquipmentUpdateView | `signal1520:equipment_update` |
+| `/<org_slug>/equipment/types/create/` | EquipmentTypeCreateView | `signal1520:equipment_type_create` |
+| `/<org_slug>/equipment/export/` | EquipmentExportView | `signal1520:equipment_export` |
 | `/accounts/...` | authentication app | login, logout, register, profile |
 
 ---
@@ -254,11 +277,27 @@ Vasya видит только задачи своей организации.
 1. Делает `fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })`
 2. Вставляет ответ в `contentPanel.innerHTML`
 3. Вызывает `executeScripts()` — вырезает `<script>` теги из contentPanel и добавляет в `document.head`
-4. Вызывает инициализаторы: `initTasksToggle()`, `initStationTasks()`, `initBugFilter()`
+4. Вызывает инициализаторы: `initTasksToggle()`, `initStationTasks()`, `initBugFilter()`, `initInstructions()`
 
 ### Словари маршрутов в index.js
 - `urlMap_for_contentPanel` — секции, которые грузятся в contentPanel
 - `urlMap_for_redirect` — секции, которые делают полный переход
+
+| Ключ (data-section) | Тип | URL |
+|---------------------|-----|-----|
+| `tasks_all` | contentPanel | `bugs/` |
+| `tasks_mine` | contentPanel | `bugs/my/` |
+| `objects_all` | contentPanel | `stations/` |
+| `alarms` | contentPanel | `alarms/` |
+| `warehouses_list` | contentPanel | `warehouses/` |
+| `equipment_list` | contentPanel | `equipment/` |
+| `instructions` | contentPanel | `knowledge/` |
+| `tasks_add` | redirect | `bugs/create/` |
+| `objects_add` | redirect | `stations/create/` |
+| `instructions_add` | redirect | `knowledge/create/` |
+| `warehouses_create` | redirect | `warehouses/create/` |
+| `equipment_create` | redirect | `equipment/create/` |
+| `equipment_type_create` | redirect | `equipment/types/create/` |
 
 URL-ы строятся динамически через `window.ORG_SLUG`, который инжектируется из `base.html`:
 ```html
@@ -285,6 +324,8 @@ URL-ы строятся динамически через `window.ORG_SLUG`, к�
 **Шаблоны, где работает фильтр:**
 - `bug_list.html` — `data-base-url="{% url 'signal1520:bugs_list' org_slug=org_slug %}"`, контейнер `.table-and-pagination`
 - `alarm_list.html` — `data-base-url="{% url 'signal1520:alarm_list' org_slug=org_slug %}"`, контейнер `.table-wrapper`
+- `warehouse_list.html` — `data-base-url="{% url 'signal1520:warehouse_list' org_slug=org_slug %}"`, контейнер `.table-and-pagination`
+- `equipment_list.html` — `data-base-url="{% url 'signal1520:equipment_list' org_slug=org_slug %}"`, контейнер `.table-and-pagination`
 
 ---
 
@@ -295,6 +336,9 @@ URL-ы строятся динамически через `window.ORG_SLUG`, к�
 | `BugsListView` | 10 |
 | `AlarmListView` | 10 |
 | `MyBugsListView` | не включена |
+| `WarehouseListView` | 10 |
+| `EquipmentListView` | 10 |
+| `WarehouseDetailView` | 10 (equipment_page через Paginator вручную) |
 
 Кнопки пагинации используют классы `.pagination-btn` и `.pagination-info` из `styles_stations.css`.
 
@@ -328,10 +372,55 @@ URL-ы строятся динамически через `window.ORG_SLUG`, к�
 
 ---
 
+## Раздел Учёт оборудования (Warehouses & Equipment)
+
+### Модели
+
+`EquipmentType` — справочник типов оборудования, привязан к организации. Заполняется через `EquipmentTypeCreateView` или Django admin. Нельзя удалить, если есть привязанное оборудование (`on_delete=PROTECT`).
+
+`Warehouse` — склад. Привязан к организации. Может иметь ответственного пользователя. В дропдауне `responsible_user` показываются только пользователи той же орг.
+
+`Equipment` — единица оборудования. Привязана к складу (обязательно) и к объекту/станции (опционально). Имеет заводской номер, изготовителя, дату изготовления. Org-фильтрация идёт через `warehouse__organization`.
+
+### View-архитектура
+
+`WarehouseListView` — список складов, грузится в contentPanel через AJAX. `org_filter_field='organization'` (дефолтное). Поиск по названию, имени ответственного.
+
+`WarehouseDetailView` — карточка склада. Пагинированный список оборудования (10 шт.) реализован вручную через `Paginator` в `get_context_data`, а не через `paginate_by` (View — DetailView, не ListView).
+
+`EquipmentListView` — сводный список всего оборудования организации. `org_filter_field='warehouse__organization'`. Поиск по типу, складу, станции.
+
+`EquipmentDetailView` — карточка единицы оборудования. `org_filter_field='warehouse__organization'`.
+
+`EquipmentTypeCreateView` — после создания типа редиректит на `signal1520:index` (не на список), показывает сообщение через `messages.success`.
+
+### Права доступа
+
+| Право | Где проверяется |
+|-------|----------------|
+| `signal1520.view_warehouse` | WarehouseListView, WarehouseDetailView |
+| `signal1520.add_warehouse` | WarehouseCreateView; `can_add_warehouse` в контексте WarehouseListView |
+| `signal1520.change_warehouse` | WarehouseUpdateView; `can_edit` в контексте WarehouseDetailView |
+| `signal1520.view_equipment` | EquipmentListView, EquipmentDetailView, экспорты |
+| `signal1520.add_equipment` | EquipmentCreateView; `can_add_equipment` в контексте WarehouseDetailView и EquipmentListView |
+| `signal1520.change_equipment` | EquipmentUpdateView; `can_edit` в контексте EquipmentDetailView |
+| `signal1520.add_equipmenttype` | EquipmentTypeCreateView; `can_add_type` в контексте EquipmentListView |
+
+### Экспорт в .xlsx
+
+`EquipmentExportView` — выгружает всё оборудование организации (`GET /<org_slug>/equipment/export/`).
+`WarehouseEquipmentExportView` — выгружает оборудование конкретного склада (`GET /<org_slug>/warehouses/<pk>/export/`). Перед выгрузкой проверяет, что склад принадлежит организации через `get_object_or_404(Warehouse, pk=pk, organization=self.get_org())`.
+
+### Навигация в меню (index.js)
+
+Список складов и список оборудования грузятся в contentPanel (не полный редирект).
+Создание склада, создание оборудования, создание типа — полный редирект на отдельные страницы.
+
+---
+
 ## Разделы в разработке (заглушки)
 
 В меню следующие секции показывают «Раздел в разработке»:
-- Склады (`warehouses_stock`)
 - Отчёты (`reports_download`)
 - Ссылки на таблицы (`links_all`), Добавить ссылку (`links_add`)
 - Графики (`charts_download`, `charts_add`)

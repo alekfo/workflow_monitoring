@@ -2,10 +2,11 @@ import io
 import json
 
 import openpyxl
+from django.core.paginator import Paginator
 from django.contrib import messages
 from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, redirect, reverse, get_object_or_404
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.views import View
 from django.db import models
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -15,7 +16,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.conf import settings
 from django.core.mail import send_mail
 
-from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge
+from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge, Warehouse, Equipment, EquipmentType
 from .forms import KnowledgeForm, ContactForm
 from .mixins import OrgMixin
 
@@ -407,6 +408,76 @@ class TasksExportView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View):
         return response
 
 
+class EquipmentExportView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View):
+    """Выгрузка всего оборудования организации в .xlsx."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_equipment')
+
+    def get(self, request, **kwargs):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Оборудование'
+
+        headers = ['ID', 'Тип оборудования', 'Склад', 'Объект/станция', 'Заводской номер', 'Изготовитель', 'Дата изготовления', 'Дата добавления']
+        ws.append(headers)
+
+        for item in Equipment.objects.filter(warehouse__organization=self.get_org()).select_related('type', 'warehouse', 'station').order_by('pk'):
+            ws.append([
+                item.pk,
+                item.type.title,
+                item.warehouse.title,
+                str(item.station) if item.station else '',
+                item.factory_number,
+                item.manufacturer,
+                item.date_of_manufacture.strftime('%d.%m.%Y') if item.date_of_manufacture else '',
+                item.added_at.strftime('%d.%m.%Y %H:%M') if item.added_at else '',
+            ])
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="equipment.xlsx"'
+        return response
+
+
+class WarehouseEquipmentExportView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View):
+    """Выгрузка оборудования конкретного склада в .xlsx."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_equipment')
+
+    def get(self, request, pk, **kwargs):
+        warehouse = get_object_or_404(Warehouse, pk=pk, organization=self.get_org())
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Оборудование'
+
+        headers = ['ID', 'Тип оборудования', 'Склад', 'Объект/станция', 'Заводской номер', 'Изготовитель', 'Дата изготовления', 'Дата добавления']
+        ws.append(headers)
+
+        for item in Equipment.objects.filter(warehouse=warehouse).select_related('type', 'warehouse', 'station').order_by('pk'):
+            ws.append([
+                item.pk,
+                item.type.title,
+                item.warehouse.title,
+                str(item.station) if item.station else '',
+                item.factory_number,
+                item.manufacturer,
+                item.date_of_manufacture.strftime('%d.%m.%Y') if item.date_of_manufacture else '',
+                item.added_at.strftime('%d.%m.%Y %H:%M') if item.added_at else '',
+            ])
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="warehouse_{warehouse.pk}_equipment.xlsx"'
+        return response
+
+
 class KnowledgeListView(OrgMixin, LoginRequiredMixin, ListView):
     """Список инструкций текущего пользователя. Загружается в contentPanel через AJAX."""
 
@@ -514,6 +585,262 @@ class KnowledgeDeleteView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Vie
                 knowledge.file.delete(save=False)
             knowledge.delete()
         return JsonResponse({'success': True})
+
+
+class WarehouseListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Список складов организации с поиском."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_warehouse')
+
+    model = Warehouse
+    template_name = 'signal1520/warehouse_list.html'
+    context_object_name = 'warehouses'
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('responsible_user').prefetch_related('equipment')
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            queryset = queryset.filter(
+                models.Q(title__icontains=search_query) |
+                models.Q(responsible_user__first_name__icontains=search_query) |
+                models.Q(responsible_user__last_name__icontains=search_query) |
+                models.Q(responsible_user__username__icontains=search_query)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_add_warehouse'] = (
+            self.request.user.is_superuser or
+            self.request.user.has_perm('signal1520.add_warehouse')
+        )
+        return context
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
+
+
+class EquipmentListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """Список оборудования организации с поиском."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_equipment')
+
+    model = Equipment
+    template_name = 'signal1520/equipment_list.html'
+    context_object_name = 'equipment_list'
+    paginate_by = 10
+    org_filter_field = 'warehouse__organization'
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('type', 'warehouse', 'station')
+        search_query = self.request.GET.get('search', '').strip()
+        if search_query:
+            queryset = queryset.filter(
+                models.Q(type__title__icontains=search_query) |
+                models.Q(warehouse__title__icontains=search_query) |
+                models.Q(station__name__icontains=search_query)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_add_equipment'] = (
+            self.request.user.is_superuser or
+            self.request.user.has_perm('signal1520.add_equipment')
+        )
+        context['can_add_type'] = (
+            self.request.user.is_superuser or
+            self.request.user.has_perm('signal1520.add_equipmenttype')
+        )
+        return context
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
+
+
+class WarehouseCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Форма создания склада."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.add_warehouse')
+
+    model = Warehouse
+    fields = 'title', 'responsible_user'
+    template_name = 'signal1520/warehouse_form.html'
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['responsible_user'].queryset = User.objects.filter(
+            profile__organization=self.get_org()
+        ).order_by('last_name', 'first_name', 'username')
+        return form
+
+    def form_valid(self, form):
+        form.instance.organization = self.get_org()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse('signal1520:warehouse_detail', kwargs=self.org_kwargs(pk=self.object.pk))
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
+
+
+class WarehouseDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """Карточка склада с перечнем оборудования."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_warehouse')
+
+    model = Warehouse
+    template_name = 'signal1520/warehouse_details.html'
+    context_object_name = 'warehouse'
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('responsible_user')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_edit'] = (
+            self.request.user.is_superuser or
+            self.request.user.has_perm('signal1520.change_warehouse')
+        )
+        context['can_add_equipment'] = (
+            self.request.user.is_superuser or
+            self.request.user.has_perm('signal1520.add_equipment')
+        )
+        equipment_qs = self.object.equipment.select_related('type', 'station').order_by('-added_at')
+        paginator = Paginator(equipment_qs, 10)
+        context['equipment_page'] = paginator.get_page(self.request.GET.get('page', 1))
+        return context
+
+
+class WarehouseUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Форма редактирования склада."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.change_warehouse')
+
+    model = Warehouse
+    fields = 'title', 'responsible_user'
+    template_name = 'signal1520/warehouse_update_form.html'
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['responsible_user'].queryset = User.objects.filter(
+            profile__organization=self.get_org()
+        ).order_by('last_name', 'first_name', 'username')
+        return form
+
+    def get_success_url(self):
+        return reverse('signal1520:warehouse_detail', kwargs=self.org_kwargs(pk=self.object.pk))
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
+
+
+class EquipmentCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Форма добавления единицы оборудования."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.add_equipment')
+
+    model = Equipment
+    fields = 'warehouse', 'station', 'type', 'factory_number', 'manufacturer', 'date_of_manufacture'
+    template_name = 'signal1520/equipment_form.html'
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        org = self.get_org()
+        form.fields['warehouse'].queryset = Warehouse.objects.filter(organization=org)
+        form.fields['station'].queryset = Station.objects.filter(organization=org)
+        form.fields['type'].queryset = EquipmentType.objects.filter(organization=org)
+        return form
+
+    def get_success_url(self):
+        return reverse('signal1520:equipment_detail', kwargs=self.org_kwargs(pk=self.object.pk))
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
+
+
+class EquipmentDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """Карточка единицы оборудования."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.view_equipment')
+
+    model = Equipment
+    template_name = 'signal1520/equipment_details.html'
+    context_object_name = 'equipment'
+    org_filter_field = 'warehouse__organization'
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('type', 'warehouse', 'station')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_edit'] = (
+            self.request.user.is_superuser or
+            self.request.user.has_perm('signal1520.change_equipment')
+        )
+        context['can_view_warehouse'] = (
+            self.request.user.is_superuser or
+            self.request.user.has_perm('signal1520.view_warehouse')
+        )
+        return context
+
+
+class EquipmentUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """Форма редактирования оборудования."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.change_equipment')
+
+    model = Equipment
+    fields = 'warehouse', 'station', 'type', 'factory_number', 'manufacturer', 'date_of_manufacture'
+    template_name = 'signal1520/equipment_update_form.html'
+    org_filter_field = 'warehouse__organization'
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        org = self.get_org()
+        form.fields['warehouse'].queryset = Warehouse.objects.filter(organization=org)
+        form.fields['station'].queryset = Station.objects.filter(organization=org)
+        form.fields['type'].queryset = EquipmentType.objects.filter(organization=org)
+        return form
+
+    def get_success_url(self):
+        return reverse('signal1520:equipment_detail', kwargs=self.org_kwargs(pk=self.object.pk))
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
+
+
+class EquipmentTypeCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    """Форма добавления типа оборудования."""
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.has_perm('signal1520.add_equipmenttype')
+
+    model = EquipmentType
+    fields = ('title',)
+    template_name = 'signal1520/equipment_type_form.html'
+
+    def form_valid(self, form):
+        form.instance.organization = self.get_org()
+        response = super().form_valid(form)
+        messages.success(self.request, f'Тип оборудования «{self.object.title}» успешно добавлен.')
+        return response
+
+    def get_success_url(self):
+        return reverse('signal1520:index', kwargs={'org_slug': self.kwargs['org_slug']})
+
+    def handle_no_permission(self):
+        return redirect(reverse('authentication:error'))
 
 
 class ContactView(OrgMixin, LoginRequiredMixin, View):

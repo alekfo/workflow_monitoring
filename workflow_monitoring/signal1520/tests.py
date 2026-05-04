@@ -1,5 +1,7 @@
+import io
 import json
 
+import openpyxl
 from django.contrib.auth.models import User, Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -7,8 +9,9 @@ from django.urls import reverse
 
 from authentication.models import Profile
 from .models import (
-    AlarmInfo, Attachment, Comment, Knowledge, Organization,
-    Road, Station, System, Task, UserKnowledge,
+    AlarmInfo, Attachment, Comment, Equipment, EquipmentType,
+    Knowledge, Organization, Road, Station, System, Task,
+    UserKnowledge, Warehouse,
 )
 
 
@@ -969,8 +972,6 @@ class StationsExportViewTest(ViewTestBase):
 
     def test_xlsx_contains_data(self):
         """Скачанный xlsx содержит данные существующей станции."""
-        import io
-        import openpyxl
         self.client.force_login(self.station_user)
         r = self.client.get(self.url('signal1520:stations_export'))
         wb = openpyxl.load_workbook(io.BytesIO(r.content))
@@ -1007,10 +1008,713 @@ class TasksExportViewTest(ViewTestBase):
 
     def test_xlsx_contains_task_data(self):
         """Скачанный xlsx содержит описание существующей задачи."""
-        import io
-        import openpyxl
         self.client.force_login(self.task_user)
         r = self.client.get(self.url('signal1520:bugs_export'))
         wb = openpyxl.load_workbook(io.BytesIO(r.content))
         values = [str(cell.value) for row in wb.active.iter_rows() for cell in row]
         self.assertIn('Тестовая задача', values)
+
+
+# ---------------------------------------------------------------------------
+# Учёт оборудования — базовая установка
+# ---------------------------------------------------------------------------
+
+XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+
+class WarehouseViewTestBase(ViewTestBase):
+    """Расширяет ViewTestBase: добавляет склад, тип и единицу оборудования."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        warehouse_perms = ['view_warehouse', 'add_warehouse', 'change_warehouse']
+        equipment_perms = ['view_equipment', 'add_equipment', 'change_equipment', 'add_equipmenttype']
+        cls.warehouse_user = make_user(
+            'warehouse_u', org=cls.org, codenames=warehouse_perms + equipment_perms
+        )
+        cls.equipment_viewer = make_user(
+            'eq_viewer', org=cls.org, codenames=['view_equipment', 'view_warehouse']
+        )
+
+        cls.eq_type = EquipmentType.objects.create(
+            organization=cls.org, title='Тестовый тип'
+        )
+        cls.warehouse = Warehouse.objects.create(
+            organization=cls.org,
+            title='Тестовый склад',
+            responsible_user=cls.superuser,
+        )
+        cls.equipment = Equipment.objects.create(
+            warehouse=cls.warehouse,
+            station=cls.station,
+            type=cls.eq_type,
+            factory_number='SN-001',
+            manufacturer='Тест Завод',
+        )
+
+
+# ---------------------------------------------------------------------------
+# Model tests — EquipmentType, Warehouse, Equipment
+# ---------------------------------------------------------------------------
+
+class EquipmentTypeModelTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='Org', slug='org-model')
+
+    def test_str(self):
+        """__str__ возвращает название типа — используется в формах и шаблонах."""
+        t = EquipmentType(organization=self.org, title='Реле')
+        self.assertEqual(str(t), 'Реле')
+
+    def test_ordering(self):
+        """Типы оборудования упорядочены по алфавиту (Meta.ordering=['title'])."""
+        EquipmentType.objects.create(organization=self.org, title='Ящик')
+        EquipmentType.objects.create(organization=self.org, title='Антенна')
+        titles = list(EquipmentType.objects.filter(organization=self.org).values_list('title', flat=True))
+        self.assertEqual(titles, sorted(titles))
+
+
+class WarehouseModelTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='Org', slug='org-wh')
+
+    def test_str(self):
+        """__str__ возвращает название склада."""
+        w = Warehouse(organization=self.org, title='Центральный склад')
+        self.assertEqual(str(w), 'Центральный склад')
+
+    def test_ordering(self):
+        """Склады упорядочены по алфавиту (Meta.ordering=['title'])."""
+        Warehouse.objects.create(organization=self.org, title='Южный')
+        Warehouse.objects.create(organization=self.org, title='Аварийный')
+        titles = list(Warehouse.objects.filter(organization=self.org).values_list('title', flat=True))
+        self.assertEqual(titles, sorted(titles))
+
+
+class EquipmentModelTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.org = Organization.objects.create(name='Org', slug='org-eq')
+        cls.eq_type = EquipmentType.objects.create(organization=cls.org, title='Блок')
+        cls.warehouse = Warehouse.objects.create(organization=cls.org, title='Склад')
+
+    def test_str(self):
+        """__str__ содержит тип и склад оборудования."""
+        eq = Equipment(type=self.eq_type, warehouse=self.warehouse)
+        s = str(eq)
+        self.assertIn('Блок', s)
+        self.assertIn('Склад', s)
+
+    def test_station_nullable(self):
+        """Equipment можно сохранить без привязки к станции."""
+        eq = Equipment.objects.create(
+            warehouse=self.warehouse, type=self.eq_type
+        )
+        self.assertIsNone(eq.station)
+
+
+# ---------------------------------------------------------------------------
+# WarehouseListView
+# ---------------------------------------------------------------------------
+
+class WarehouseListViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на список складов редиректит на страницу ошибки (handle_no_permission в view)."""
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_no_permission_redirects_to_error(self):
+        """Авторизованный пользователь без view_warehouse перенаправляется на страницу ошибки."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с view_warehouse видит список складов."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertEqual(r.status_code, 200)
+
+    def test_superuser_returns_200(self):
+        """Суперпользователь видит список складов."""
+        self.client.force_login(self.superuser)
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertEqual(r.status_code, 200)
+
+    def test_warehouse_appears_in_list(self):
+        """Существующий склад отображается в таблице."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertContains(r, 'Тестовый склад')
+
+    def test_search_by_title(self):
+        """Поиск по названию склада возвращает нужную запись."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_list'), {'search': 'Тестовый'})
+        self.assertContains(r, 'Тестовый склад')
+
+    def test_search_no_results(self):
+        """Поиск по несуществующей строке не возвращает складов."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_list'), {'search': 'несуществующий_xyz'})
+        self.assertNotContains(r, 'Тестовый склад')
+
+    def test_can_add_warehouse_true_for_permitted(self):
+        """can_add_warehouse=True передаётся пользователю с правом add_warehouse."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertTrue(r.context['can_add_warehouse'])
+
+    def test_can_add_warehouse_false_without_permission(self):
+        """can_add_warehouse=False передаётся пользователю без права add_warehouse."""
+        self.client.force_login(self.equipment_viewer)
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertFalse(r.context['can_add_warehouse'])
+
+    def test_other_org_warehouse_not_visible(self):
+        """Склады другой организации не попадают в список."""
+        other_org = Organization.objects.create(name='Other', slug='wh-other1')
+        Warehouse.objects.create(organization=other_org, title='Чужой склад')
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_list'))
+        self.assertNotContains(r, 'Чужой склад')
+
+
+# ---------------------------------------------------------------------------
+# WarehouseDetailView
+# ---------------------------------------------------------------------------
+
+class WarehouseDetailViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на карточку склада перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_returns_403(self):
+        """Авторизованный пользователь без view_warehouse получает 403."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 403)
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с view_warehouse открывает карточку склада."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 200)
+
+    def test_shows_warehouse_title(self):
+        """Карточка склада содержит его название."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertContains(r, 'Тестовый склад')
+
+    def test_shows_equipment_in_list(self):
+        """Карточка склада показывает привязанное оборудование."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertContains(r, 'Тестовый тип')
+
+    def test_can_edit_true_for_permitted(self):
+        """can_edit=True передаётся пользователю с правом change_warehouse."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertTrue(r.context['can_edit'])
+
+    def test_can_edit_false_without_permission(self):
+        """can_edit=False передаётся пользователю без change_warehouse."""
+        self.client.force_login(self.equipment_viewer)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertFalse(r.context['can_edit'])
+
+    def test_can_add_equipment_true_for_permitted(self):
+        """can_add_equipment=True передаётся пользователю с add_equipment."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=self.warehouse.pk))
+        self.assertTrue(r.context['can_add_equipment'])
+
+    def test_404_for_nonexistent_warehouse(self):
+        """Запрос на несуществующий pk склада возвращает 404."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_detail', pk=99999))
+        self.assertEqual(r.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# WarehouseCreateView
+# ---------------------------------------------------------------------------
+
+class WarehouseCreateViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на форму создания склада перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:warehouse_create'))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_redirects_to_error(self):
+        """Пользователь без add_warehouse перенаправляется на страницу ошибки."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:warehouse_create'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с add_warehouse видит форму создания склада."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_create'))
+        self.assertEqual(r.status_code, 200)
+
+    def test_form_contains_only_org_users(self):
+        """Дропдаун responsible_user содержит только пользователей своей организации."""
+        other_org = Organization.objects.create(name='Other', slug='wh-other2')
+        other_user = make_user('outsider', org=other_org)
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_create'))
+        self.assertNotContains(r, 'outsider')
+
+    def test_create_warehouse_post(self):
+        """POST с валидными данными создаёт склад и редиректит на его карточку."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(self.url('signal1520:warehouse_create'), {
+            'title': 'Новый склад из теста',
+            'responsible_user': '',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Warehouse.objects.filter(title='Новый склад из теста').exists())
+
+    def test_create_warehouse_sets_org(self):
+        """form_valid() автоматически записывает organization из URL."""
+        self.client.force_login(self.warehouse_user)
+        self.client.post(self.url('signal1520:warehouse_create'), {
+            'title': 'Склад с оргой',
+            'responsible_user': '',
+        })
+        w = Warehouse.objects.get(title='Склад с оргой')
+        self.assertEqual(w.organization, self.org)
+
+    def test_missing_title_fails(self):
+        """POST без обязательного поля title возвращает форму с ошибками."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(self.url('signal1520:warehouse_create'), {'responsible_user': ''})
+        self.assertEqual(r.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# WarehouseUpdateView
+# ---------------------------------------------------------------------------
+
+class WarehouseUpdateViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на форму редактирования склада перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:warehouse_update', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_redirects_to_error(self):
+        """Авторизованный пользователь без change_warehouse перенаправляется на страницу ошибки."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:warehouse_update', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с change_warehouse видит форму редактирования."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_update', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 200)
+
+    def test_update_warehouse(self):
+        """POST с новым названием обновляет склад в БД."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(
+            self.url('signal1520:warehouse_update', pk=self.warehouse.pk),
+            {'title': 'Переименованный склад', 'responsible_user': ''},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.warehouse.refresh_from_db()
+        self.assertEqual(self.warehouse.title, 'Переименованный склад')
+
+    def test_superuser_can_access(self):
+        """Суперпользователь проходит test_func и получает форму редактирования."""
+        self.client.force_login(self.superuser)
+        r = self.client.get(self.url('signal1520:warehouse_update', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# EquipmentListView
+# ---------------------------------------------------------------------------
+
+class EquipmentListViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на список оборудования редиректит на страницу ошибки (handle_no_permission в view)."""
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_no_permission_redirects_to_error(self):
+        """Авторизованный пользователь без view_equipment перенаправляется на страницу ошибки."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с view_equipment видит список оборудования."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertEqual(r.status_code, 200)
+
+    def test_equipment_appears_in_list(self):
+        """Существующая единица оборудования отображается в таблице."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertContains(r, 'Тестовый тип')
+
+    def test_search_by_type(self):
+        """Поиск по названию типа находит нужное оборудование."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'), {'search': 'Тестовый тип'})
+        self.assertContains(r, 'Тестовый тип')
+
+    def test_search_by_warehouse(self):
+        """Поиск по названию склада находит оборудование этого склада."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'), {'search': 'Тестовый склад'})
+        self.assertContains(r, 'Тестовый тип')
+
+    def test_search_no_results(self):
+        """Поиск по несуществующей строке не возвращает записей."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'), {'search': 'несуществующий_xyz'})
+        self.assertNotContains(r, 'Тестовый тип')
+
+    def test_other_org_equipment_not_visible(self):
+        """Оборудование другой организации не попадает в список."""
+        other_org = Organization.objects.create(name='Other', slug='eq-other1')
+        other_type = EquipmentType.objects.create(organization=other_org, title='Чужой тип')
+        other_wh = Warehouse.objects.create(organization=other_org, title='Чужой склад')
+        Equipment.objects.create(warehouse=other_wh, type=other_type)
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertNotContains(r, 'Чужой тип')
+
+    def test_can_add_equipment_true_for_permitted(self):
+        """can_add_equipment=True передаётся пользователю с правом add_equipment."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertTrue(r.context['can_add_equipment'])
+
+    def test_can_add_type_true_for_permitted(self):
+        """can_add_type=True передаётся пользователю с правом add_equipmenttype."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertTrue(r.context['can_add_type'])
+
+    def test_can_add_flags_false_without_permission(self):
+        """can_add_equipment и can_add_type — False у пользователя с только view_equipment."""
+        viewer = make_user('eq_only_viewer', org=self.org, codenames=['view_equipment'])
+        self.client.force_login(viewer)
+        r = self.client.get(self.url('signal1520:equipment_list'))
+        self.assertFalse(r.context['can_add_equipment'])
+        self.assertFalse(r.context['can_add_type'])
+
+
+# ---------------------------------------------------------------------------
+# EquipmentDetailView
+# ---------------------------------------------------------------------------
+
+class EquipmentDetailViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на карточку оборудования перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_returns_403(self):
+        """Авторизованный пользователь без view_equipment получает 403."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertEqual(r.status_code, 403)
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с view_equipment открывает карточку оборудования."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertEqual(r.status_code, 200)
+
+    def test_shows_equipment_data(self):
+        """Карточка содержит тип, завод-изготовитель и заводской номер."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertContains(r, 'Тестовый тип')
+        self.assertContains(r, 'Тест Завод')
+        self.assertContains(r, 'SN-001')
+
+    def test_can_edit_true_for_permitted(self):
+        """can_edit=True передаётся пользователю с правом change_equipment."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertTrue(r.context['can_edit'])
+
+    def test_can_edit_false_without_permission(self):
+        """can_edit=False передаётся пользователю без change_equipment."""
+        self.client.force_login(self.equipment_viewer)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertFalse(r.context['can_edit'])
+
+    def test_can_view_warehouse_true_for_permitted(self):
+        """can_view_warehouse=True передаётся пользователю с правом view_warehouse."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertTrue(r.context['can_view_warehouse'])
+
+    def test_can_view_warehouse_false_without_permission(self):
+        """can_view_warehouse=False у пользователя только с view_equipment."""
+        viewer = make_user('eq_no_wh', org=self.org, codenames=['view_equipment'])
+        self.client.force_login(viewer)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=self.equipment.pk))
+        self.assertFalse(r.context['can_view_warehouse'])
+
+    def test_404_for_nonexistent_equipment(self):
+        """Запрос на несуществующий pk оборудования возвращает 404."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=99999))
+        self.assertEqual(r.status_code, 404)
+
+    def test_other_org_equipment_returns_404(self):
+        """Оборудование из другой организации возвращает 404 (фильтрация по org)."""
+        other_org = Organization.objects.create(name='Other', slug='eq-other2')
+        other_type = EquipmentType.objects.create(organization=other_org, title='Чужой тип')
+        other_wh = Warehouse.objects.create(organization=other_org, title='Чужой склад')
+        other_eq = Equipment.objects.create(warehouse=other_wh, type=other_type)
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_detail', pk=other_eq.pk))
+        self.assertEqual(r.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# EquipmentCreateView
+# ---------------------------------------------------------------------------
+
+class EquipmentCreateViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на форму создания оборудования перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:equipment_create'))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_redirects_to_error(self):
+        """Пользователь без add_equipment перенаправляется на страницу ошибки."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:equipment_create'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с add_equipment видит форму создания оборудования."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_create'))
+        self.assertEqual(r.status_code, 200)
+
+    def test_form_contains_only_org_warehouses(self):
+        """Дропдаун warehouse содержит только склады своей организации."""
+        other_org = Organization.objects.create(name='Other', slug='eq-other3')
+        Warehouse.objects.create(organization=other_org, title='Чужой склад в форме')
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_create'))
+        self.assertContains(r, 'Тестовый склад')
+        self.assertNotContains(r, 'Чужой склад в форме')
+
+    def test_form_contains_only_org_types(self):
+        """Дропдаун type содержит только типы оборудования своей организации."""
+        other_org = Organization.objects.create(name='Other', slug='eq-other4')
+        EquipmentType.objects.create(organization=other_org, title='Чужой тип в форме')
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_create'))
+        self.assertContains(r, 'Тестовый тип')
+        self.assertNotContains(r, 'Чужой тип в форме')
+
+    def test_create_equipment_post(self):
+        """POST с валидными данными создаёт оборудование и редиректит на его карточку."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(self.url('signal1520:equipment_create'), {
+            'warehouse': self.warehouse.pk,
+            'station': '',
+            'type': self.eq_type.pk,
+            'factory_number': 'SN-NEW',
+            'manufacturer': '',
+            'date_of_manufacture': '',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Equipment.objects.filter(factory_number='SN-NEW').exists())
+
+    def test_missing_required_field_fails(self):
+        """POST без обязательных полей возвращает форму с ошибками."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(self.url('signal1520:equipment_create'), {'factory_number': 'SN-FAIL'})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(Equipment.objects.filter(factory_number='SN-FAIL').exists())
+
+
+# ---------------------------------------------------------------------------
+# EquipmentUpdateView
+# ---------------------------------------------------------------------------
+
+class EquipmentUpdateViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на форму редактирования оборудования перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:equipment_update', pk=self.equipment.pk))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_redirects_to_error(self):
+        """Авторизованный пользователь без change_equipment перенаправляется на страницу ошибки."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:equipment_update', pk=self.equipment.pk))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с change_equipment видит форму редактирования."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_update', pk=self.equipment.pk))
+        self.assertEqual(r.status_code, 200)
+
+    def test_update_equipment(self):
+        """POST с новыми данными обновляет запись об оборудовании в БД."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(
+            self.url('signal1520:equipment_update', pk=self.equipment.pk),
+            {
+                'warehouse': self.warehouse.pk,
+                'station': '',
+                'type': self.eq_type.pk,
+                'factory_number': 'SN-UPDATED',
+                'manufacturer': 'Новый завод',
+                'date_of_manufacture': '',
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.equipment.refresh_from_db()
+        self.assertEqual(self.equipment.factory_number, 'SN-UPDATED')
+
+    def test_superuser_can_access(self):
+        """Суперпользователь проходит test_func и получает форму редактирования."""
+        self.client.force_login(self.superuser)
+        r = self.client.get(self.url('signal1520:equipment_update', pk=self.equipment.pk))
+        self.assertEqual(r.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# EquipmentTypeCreateView
+# ---------------------------------------------------------------------------
+
+class EquipmentTypeCreateViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:equipment_type_create'))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_redirects_to_error(self):
+        """Пользователь без add_equipmenttype перенаправляется на страницу ошибки."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:equipment_type_create'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('error', r['Location'])
+
+    def test_with_permission_returns_200(self):
+        """Пользователь с add_equipmenttype видит форму."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_type_create'))
+        self.assertEqual(r.status_code, 200)
+
+    def test_create_type_post(self):
+        """POST создаёт тип оборудования с привязкой к организации из URL."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(
+            self.url('signal1520:equipment_type_create'), {'title': 'Новый тип из теста'}
+        )
+        self.assertEqual(r.status_code, 302)
+        t = EquipmentType.objects.get(title='Новый тип из теста')
+        self.assertEqual(t.organization, self.org)
+
+    def test_missing_title_fails(self):
+        """POST без title возвращает форму с ошибками."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.post(self.url('signal1520:equipment_type_create'), {})
+        self.assertEqual(r.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# EquipmentExportView
+# ---------------------------------------------------------------------------
+
+class EquipmentExportViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET на экспорт оборудования перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:equipment_export'))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_returns_403(self):
+        """Авторизованный пользователь без view_equipment получает 403."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:equipment_export'))
+        self.assertEqual(r.status_code, 403)
+
+    def test_returns_xlsx_for_permitted_user(self):
+        """Пользователь с view_equipment получает файл equipment.xlsx."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_export'))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], XLSX_CONTENT_TYPE)
+        self.assertIn('equipment.xlsx', r['Content-Disposition'])
+
+    def test_xlsx_contains_equipment_data(self):
+        """Скачанный xlsx содержит данные существующего оборудования."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:equipment_export'))
+        wb = openpyxl.load_workbook(io.BytesIO(r.content))
+        values = [str(cell.value) for row in wb.active.iter_rows() for cell in row]
+        self.assertIn('Тестовый тип', values)
+        self.assertIn('Тестовый склад', values)
+
+
+# ---------------------------------------------------------------------------
+# WarehouseEquipmentExportView
+# ---------------------------------------------------------------------------
+
+class WarehouseEquipmentExportViewTest(WarehouseViewTestBase):
+    def test_redirect_anon(self):
+        """Анонимный GET перенаправляет на логин."""
+        r = self.client.get(self.url('signal1520:warehouse_equipment_export', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 302)
+
+    def test_no_permission_returns_403(self):
+        """Авторизованный пользователь без view_equipment получает 403."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:warehouse_equipment_export', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 403)
+
+    def test_returns_xlsx_for_permitted_user(self):
+        """Пользователь с view_equipment получает xlsx-файл оборудования склада."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_equipment_export', pk=self.warehouse.pk))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], XLSX_CONTENT_TYPE)
+
+    def test_xlsx_contains_warehouse_equipment(self):
+        """Скачанный xlsx содержит оборудование именно этого склада."""
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_equipment_export', pk=self.warehouse.pk))
+        wb = openpyxl.load_workbook(io.BytesIO(r.content))
+        values = [str(cell.value) for row in wb.active.iter_rows() for cell in row]
+        self.assertIn('Тестовый тип', values)
+
+    def test_other_org_warehouse_returns_404(self):
+        """Экспорт оборудования склада из другой организации возвращает 404."""
+        other_org = Organization.objects.create(name='Other', slug='exp-other1')
+        other_wh = Warehouse.objects.create(organization=other_org, title='Чужой склад')
+        self.client.force_login(self.warehouse_user)
+        r = self.client.get(self.url('signal1520:warehouse_equipment_export', pk=other_wh.pk))
+        self.assertEqual(r.status_code, 404)
