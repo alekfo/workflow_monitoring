@@ -13,7 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'tasks_mine': _base + 'bugs/my/',
         'objects_all': _base + 'stations/',
         'alarms': _base + 'alarms/',
-        'warehouses_stock': null,
+        'warehouses_list': _base + 'warehouses/',
+        'equipment_list': _base + 'equipment/',
         'reports_download': null,
         'links_all': null,
         'charts_download': null,
@@ -29,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'links_add': null,
         'charts_add': null,
         'instructions_add': _base + 'knowledge/create/',
+        'warehouses_create': _base + 'warehouses/create/',
+        'equipment_create': _base + 'equipment/create/',
+        'equipment_type_create': _base + 'equipment/types/create/',
     };
 
     // ---------- Аккордеон для главных кнопок ----------

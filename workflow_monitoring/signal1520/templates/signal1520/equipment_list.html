@@ -1,0 +1,94 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Оборудование</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+</head>
+<body>
+    <div class="stations-container">
+        <div class="stations-header">
+            <h2>🔧 Список оборудования</h2>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <form method="get" action="" id="search-form" style="display: flex; gap: 5px;"
+                      data-base-url="{% url 'signal1520:equipment_list' org_slug=org_slug %}">
+                    <input type="text" name="search" placeholder="Поиск по типу, складу, объекту..."
+                           value="{{ request.GET.search|default:'' }}"
+                           style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 260px;">
+                    <button type="submit" class="btn-create" style="background: #95a5a6; box-shadow: none; padding: 8px 16px;">🔍 Найти</button>
+                    <a href="?" id="reset-search" class="btn-create"
+                       style="background: #e74c3c; box-shadow: none; padding: 8px 16px; {% if not request.GET.search %}display: none;{% endif %}">✖️ Сбросить</a>
+                </form>
+                {% if can_add_equipment %}
+                <a href="{% url 'signal1520:equipment_create' org_slug=org_slug %}" class="btn-create">➕ Добавить оборудование</a>
+                {% endif %}
+                {% if can_add_type %}
+                <a href="{% url 'signal1520:equipment_type_create' org_slug=org_slug %}" class="btn-create" style="background: linear-gradient(135deg, #8e44ad, #6c3483);">🗂 Добавить тип оборудования</a>
+                {% endif %}
+                <a href="#" id="backButton" class="back-link">← В главное меню</a>
+            </div>
+        </div>
+
+        <div class="table-and-pagination">
+            <div class="table-wrapper">
+                <table class="stations-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Тип оборудования</th>
+                            <th>Склад</th>
+                            <th>Объект/станция</th>
+                            <th>Дата добавления</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in equipment_list %}
+                        <tr>
+                            <td class="road-cell">
+                                <a href="{% url 'signal1520:equipment_detail' pk=item.pk org_slug=org_slug %}" class="station-link">{{ item.pk }}</a>
+                            </td>
+                            <td class="station-name-cell">{{ item.type }}</td>
+                            <td class="road-cell">{{ item.warehouse }}</td>
+                            <td class="road-cell">{{ item.station|default:"—" }}</td>
+                            <td class="road-cell">{{ item.added_at|date:"d.m.Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr class="empty-table-row">
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    📭 Оборудование не найдено
+                                    <br>
+                                    <small>Добавьте первую единицу оборудования, нажав на кнопку выше</small>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                {% if is_paginated %}
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1&search={{ request.GET.search|urlencode }}" class="pagination-btn">« Первая</a>
+                        <a href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">← Назад</a>
+                    {% endif %}
+                    <span class="pagination-info">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Вперёд →</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Последняя »</a>
+                    {% endif %}
+                {% endif %}
+                <a href="{% url 'signal1520:equipment_export' org_slug=org_slug %}" class="pagination-btn" style="background: #27ae60; color: white;">⬇ Выгрузить</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('backButton').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = "{% url 'signal1520:index' org_slug=org_slug %}";
+        });
+    </script>
+</body>
+</html>

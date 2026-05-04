@@ -1,0 +1,147 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Склад: {{ warehouse.title }}</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <style>
+        .station-detail-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .station-header { background: linear-gradient(135deg, #00B7B7 0%, #333333 100%); padding: 25px 30px; color: white; }
+        .station-header h1 { margin: 0 0 10px; font-size: 28px; color: white; border: none; padding: 0; }
+        .station-header .station-meta { font-size: 14px; opacity: 0.9; }
+        .station-content { padding: 30px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .info-card { background: #f8f9fa; padding: 15px; border-radius: 10px; border-left: 3px solid #00B7B7; }
+        .info-label { font-size: 12px; text-transform: uppercase; color: #00B7B7; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px; }
+        .info-value { font-size: 16px; color: #2c3e50; font-weight: 500; word-break: break-word; }
+        .section-title {
+            font-size: 20px; font-weight: 600; color: #2c3e50; margin: 30px 0 20px;
+            padding-bottom: 10px; border-bottom: 2px solid #00B7B7;
+            display: flex; justify-content: space-between; align-items: center; gap: 15px;
+        }
+        .count-badge { font-size: 14px; color: #00B7B7; background: #e0f7f7; padding: 4px 12px; border-radius: 20px; }
+        .equipment-table { width: 100%; border-collapse: collapse; }
+        .equipment-table th { background: #f8f9fa; padding: 12px 15px; text-align: left; font-size: 13px; text-transform: uppercase; color: #00B7B7; letter-spacing: 0.5px; }
+        .equipment-table td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #2c3e50; }
+        .equipment-table tr:last-child td { border-bottom: none; }
+        .equipment-table tr:hover td { background: #f8f9fa; }
+        .empty-state { text-align: center; padding: 40px; color: #95a5a6; background: #f8f9fa; border-radius: 10px; }
+        .action-links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+        .back-link {
+            display: inline-block; padding: 10px 20px; background: #95a5a6; color: white;
+            text-decoration: none; border-radius: 8px; transition: all 0.3s;
+        }
+        .back-link:hover { background: #7f8c8d; transform: translateY(-2px); }
+        @media (max-width: 768px) { .station-content { padding: 20px; } .info-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="station-detail-container">
+        <div class="station-header">
+            <h1>🏪 {{ warehouse.title }}</h1>
+            <div class="station-meta">
+                {% if warehouse.responsible_user %}
+                    👤 Ответственный: {{ warehouse.responsible_user.get_full_name|default:warehouse.responsible_user.username }}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="station-content">
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">ID</div>
+                    <div class="info-value">{{ warehouse.pk }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Название</div>
+                    <div class="info-value">{{ warehouse.title }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Ответственный</div>
+                    <div class="info-value">
+                        {% if warehouse.responsible_user %}
+                            {{ warehouse.responsible_user.get_full_name|default:warehouse.responsible_user.username }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Дата создания</div>
+                    <div class="info-value">{{ warehouse.created_at|date:"d.m.Y H:i" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Организация</div>
+                    <div class="info-value">{{ warehouse.organization }}</div>
+                </div>
+            </div>
+
+            <div class="section-title">
+                <span>🔧 Оборудование на складе</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="count-badge">{{ equipment_page.paginator.count }} ед.</span>
+                    {% if can_add_equipment %}
+                    <a href="{% url 'signal1520:equipment_create' org_slug=org_slug %}" class="back-link" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); font-size: 14px; padding: 6px 14px;">➕ Добавить оборудование</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if equipment_page %}
+            <table class="equipment-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Тип оборудования</th>
+                        <th>Объект/станция</th>
+                        <th>Дата добавления</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in equipment_page %}
+                    <tr>
+                        <td><a href="{% url 'signal1520:equipment_detail' pk=item.pk org_slug=org_slug %}" class="station-link">{{ item.pk }}</a></td>
+                        <td>{{ item.type }}</td>
+                        <td>{{ item.station|default:"—" }}</td>
+                        <td>{{ item.added_at|date:"d.m.Y" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="pagination">
+                {% if equipment_page.has_previous %}
+                    <a href="?page=1" class="pagination-btn">« Первая</a>
+                    <a href="?page={{ equipment_page.previous_page_number }}" class="pagination-btn">← Назад</a>
+                {% endif %}
+                {% if equipment_page.paginator.num_pages > 1 %}
+                    <span class="pagination-info">Страница {{ equipment_page.number }} из {{ equipment_page.paginator.num_pages }}</span>
+                {% endif %}
+                {% if equipment_page.has_next %}
+                    <a href="?page={{ equipment_page.next_page_number }}" class="pagination-btn">Вперёд →</a>
+                    <a href="?page={{ equipment_page.paginator.num_pages }}" class="pagination-btn">Последняя »</a>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                📭 На складе нет оборудования
+            </div>
+            {% endif %}
+
+            <div class="action-links">
+                {% if can_edit %}
+                <a href="{% url 'signal1520:warehouse_update' pk=warehouse.pk org_slug=org_slug %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">✏️ Редактировать склад</a>
+                {% endif %}
+                <a href="{% url 'signal1520:warehouse_equipment_export' pk=warehouse.pk org_slug=org_slug %}" class="back-link" style="background: #27ae60;">⬇ Выгрузить оборудование</a>
+                <a href="#" id="backButton" class="back-link">🏠 В главное меню</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('backButton').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = "{% url 'signal1520:index' org_slug=org_slug %}";
+        });
+    </script>
+</body>
+</html>

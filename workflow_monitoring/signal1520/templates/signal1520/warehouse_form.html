@@ -1,0 +1,85 @@
+{% extends 'signal1520/base.html' %}
+{% load static %}
+
+{% block title %}Создание склада{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+<style>
+    .form-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .form-header { background: linear-gradient(135deg, #00B7B7 0%, #333333 100%); padding: 25px 30px; color: white; }
+    .form-header h1 { margin: 0 0 10px; font-size: 28px; color: white; border: none; padding: 0; }
+    .form-header p { margin: 0; opacity: 0.9; font-size: 14px; }
+    .form-body { padding: 30px; }
+    .form-group { margin-bottom: 25px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 14px; }
+    .form-group label .required { color: #e74c3c; }
+    .form-body input[type="text"], .form-body select {
+        width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px;
+        font-size: 15px; transition: all 0.3s ease; box-sizing: border-box; font-family: inherit;
+        background: white; color: #2c3e50;
+    }
+    .form-body input[type="text"]:focus, .form-body select:focus {
+        outline: none; border-color: #00B7B7; box-shadow: 0 0 0 3px rgba(0,183,183,0.1);
+    }
+    .form-body select {
+        cursor: pointer; appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2300B7B7' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px;
+    }
+    .error-message { color: #e74c3c; font-size: 12px; margin-top: 5px; display: block; }
+    .form-actions { display: flex; gap: 15px; margin-top: 30px; flex-wrap: wrap; }
+    .btn-submit {
+        flex: 1; padding: 12px 24px; background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;
+        transition: all 0.3s ease; font-size: 16px;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(39,174,96,0.4); }
+    .btn-cancel {
+        flex: 1; padding: 12px 24px; background: #95a5a6; color: white; text-decoration: none;
+        text-align: center; border-radius: 10px; font-weight: 600; transition: all 0.3s ease; display: inline-block;
+    }
+    .btn-cancel:hover { background: #7f8c8d; transform: translateY(-2px); }
+    @media (max-width: 768px) { .form-body { padding: 20px; } .form-actions { flex-direction: column; } }
+</style>
+
+<div class="form-container">
+    <div class="form-header">
+        <h1>🏪 Создание склада</h1>
+        <p>Добавьте новый склад в систему учёта оборудования</p>
+    </div>
+    <div class="form-body">
+        <form method="post" id="warehouse-form">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="error-message" style="background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.title.id_for_label }}">{{ form.title.label }} <span class="required">*</span></label>
+                {{ form.title }}
+                {% if form.title.errors %}<span class="error-message">{% for e in form.title.errors %}{{ e }}{% endfor %}</span>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.responsible_user.id_for_label }}">{{ form.responsible_user.label }}</label>
+                {{ form.responsible_user }}
+                {% if form.responsible_user.errors %}<span class="error-message">{% for e in form.responsible_user.errors %}{{ e }}{% endfor %}</span>{% endif %}
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">✅ Создать склад</button>
+                <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-cancel">← Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+validateForm('warehouse-form', [
+    { id: 'id_title', required: true, message: 'Введите название склада' },
+]);
+</script>
+{% endblock %}

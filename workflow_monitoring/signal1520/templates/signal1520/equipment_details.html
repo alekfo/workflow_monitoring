@@ -1,0 +1,109 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Оборудование #{{ equipment.pk }}</title>
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+    <style>
+        .station-detail-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .station-header { background: linear-gradient(135deg, #00B7B7 0%, #333333 100%); padding: 25px 30px; color: white; }
+        .station-header h1 { margin: 0 0 10px; font-size: 28px; color: white; border: none; padding: 0; }
+        .station-header .station-meta { font-size: 14px; opacity: 0.9; }
+        .station-content { padding: 30px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .info-card { background: #f8f9fa; padding: 15px; border-radius: 10px; border-left: 3px solid #00B7B7; }
+        .info-label { font-size: 12px; text-transform: uppercase; color: #00B7B7; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px; }
+        .info-value { font-size: 16px; color: #2c3e50; font-weight: 500; word-break: break-word; }
+        .action-links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+        .back-link {
+            display: inline-block; padding: 10px 20px; background: #95a5a6; color: white;
+            text-decoration: none; border-radius: 8px; transition: all 0.3s;
+        }
+        .back-link:hover { background: #7f8c8d; transform: translateY(-2px); }
+        .station-link { color: #00B7B7; text-decoration: none; font-weight: 500; }
+        .station-link:hover { text-decoration: underline; }
+        @media (max-width: 768px) { .station-content { padding: 20px; } .info-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="station-detail-container">
+        <div class="station-header">
+            <h1>🔧 {{ equipment.type }}</h1>
+            <div class="station-meta">
+                🏪 Склад: {{ equipment.warehouse }}
+            </div>
+        </div>
+
+        <div class="station-content">
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">ID</div>
+                    <div class="info-value">{{ equipment.pk }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Тип оборудования</div>
+                    <div class="info-value">{{ equipment.type }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Склад</div>
+                    <div class="info-value">
+                        {% if can_view_warehouse %}
+                        <a href="{% url 'signal1520:warehouse_detail' pk=equipment.warehouse.pk org_slug=org_slug %}" class="station-link">
+                            {{ equipment.warehouse }}
+                        </a>
+                        {% else %}
+                            {{ equipment.warehouse }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Объект/станция</div>
+                    <div class="info-value">
+                        {% if equipment.station %}
+                            <a href="{% url 'signal1520:station_details' pk=equipment.station.pk org_slug=org_slug %}" class="station-link">
+                                {{ equipment.station }}
+                            </a>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Заводской номер</div>
+                    <div class="info-value">{{ equipment.factory_number|default:"—" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Изготовитель</div>
+                    <div class="info-value">{{ equipment.manufacturer|default:"—" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Дата изготовления</div>
+                    <div class="info-value">{{ equipment.date_of_manufacture|date:"d.m.Y"|default:"—" }}</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Дата добавления в систему</div>
+                    <div class="info-value">{{ equipment.added_at|date:"d.m.Y H:i" }}</div>
+                </div>
+            </div>
+
+            <div class="action-links">
+                {% if can_edit %}
+                <a href="{% url 'signal1520:equipment_update' pk=equipment.pk org_slug=org_slug %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">✏️ Редактировать оборудование</a>
+                {% endif %}
+                {% if can_view_warehouse %}
+                <a href="{% url 'signal1520:warehouse_detail' pk=equipment.warehouse.pk org_slug=org_slug %}" class="back-link" style="background: #00B7B7;">🏪 К складу</a>
+                {% endif %}
+                <a href="#" id="backButton" class="back-link">🏠 В главное меню</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('backButton').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = "{% url 'signal1520:index' org_slug=org_slug %}";
+        });
+    </script>
+</body>
+</html>

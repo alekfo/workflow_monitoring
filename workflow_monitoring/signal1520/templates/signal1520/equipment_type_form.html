@@ -1,0 +1,80 @@
+{% extends 'signal1520/base.html' %}
+{% load static %}
+
+{% block title %}Добавление типа оборудования{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+<style>
+    .form-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .form-header { background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%); padding: 25px 30px; color: white; }
+    .form-header h1 { margin: 0 0 10px; font-size: 28px; color: white; border: none; padding: 0; }
+    .form-header p { margin: 0; opacity: 0.9; font-size: 14px; }
+    .form-body { padding: 30px; }
+    .form-group { margin-bottom: 25px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 14px; }
+    .form-group label .required { color: #e74c3c; }
+    .form-body input[type="text"] {
+        width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px;
+        font-size: 15px; transition: all 0.3s ease; box-sizing: border-box; font-family: inherit;
+        background: white; color: #2c3e50;
+    }
+    .form-body input[type="text"]:focus { outline: none; border-color: #8e44ad; box-shadow: 0 0 0 3px rgba(142,68,173,0.1); }
+    .error-message { color: #e74c3c; font-size: 12px; margin-top: 5px; display: block; }
+    .form-actions { display: flex; gap: 15px; margin-top: 30px; flex-wrap: wrap; }
+    .btn-submit {
+        flex: 1; padding: 12px 24px; background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%);
+        color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer;
+        transition: all 0.3s ease; font-size: 16px;
+    }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(142,68,173,0.4); }
+    .btn-cancel {
+        flex: 1; padding: 12px 24px; background: #95a5a6; color: white; text-decoration: none;
+        text-align: center; border-radius: 10px; font-weight: 600; transition: all 0.3s ease; display: inline-block;
+    }
+    .btn-cancel:hover { background: #7f8c8d; transform: translateY(-2px); }
+    .info-note {
+        background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin-top: 20px;
+        font-size: 13px; color: #7f8c8d; border-left: 3px solid #8e44ad;
+    }
+    @media (max-width: 768px) { .form-body { padding: 20px; } .form-actions { flex-direction: column; } }
+</style>
+
+<div class="form-container">
+    <div class="form-header">
+        <h1>🗂 Добавление типа оборудования</h1>
+        <p>Создайте новую категорию в справочнике типов</p>
+    </div>
+    <div class="form-body">
+        <form method="post" id="equipment-type-form">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="error-message" style="background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 20px;">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.title.id_for_label }}">{{ form.title.label }} <span class="required">*</span></label>
+                {{ form.title }}
+                {% if form.title.errors %}<span class="error-message">{% for e in form.title.errors %}{{ e }}{% endfor %}</span>{% endif %}
+            </div>
+
+            <div class="info-note">
+                Типы оборудования — глобальный справочник, доступный при добавлении оборудования.
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">✅ Добавить тип</button>
+                <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-cancel">← Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+validateForm('equipment-type-form', [
+    { id: 'id_title', required: true, message: 'Введите название типа оборудования' },
+]);
+</script>
+{% endblock %}

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
-from .models import Task, Station, Comment, Attachment, Knowledge, UserKnowledge, Link, Road, System, Organization
+from .models import Task, Station, Comment, Attachment, Knowledge, UserKnowledge, Link, Road, System, Organization, EquipmentType, Warehouse, Equipment
 
 
 @admin.register(Organization)
@@ -103,6 +103,32 @@ class TaskAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Task.objects.select_related('responsible_user', 'station')
+
+@admin.register(EquipmentType)
+class EquipmentTypeAdmin(admin.ModelAdmin):
+    list_display = 'pk', 'organization', 'title'
+    list_filter = ('organization',)
+    search_fields = ('title',)
+    ordering = ('organization', 'title')
+
+
+@admin.register(Warehouse)
+class WarehouseAdmin(admin.ModelAdmin):
+    list_display = 'pk', 'title', 'organization', 'responsible_user', 'created_at'
+    list_display_links = 'pk', 'title'
+    list_filter = ('organization',)
+    search_fields = ('title',)
+    ordering = ('organization', 'title')
+
+
+@admin.register(Equipment)
+class EquipmentAdmin(admin.ModelAdmin):
+    list_display = 'pk', 'type', 'warehouse', 'station', 'added_at'
+    list_display_links = 'pk', 'type'
+    list_filter = ('warehouse', 'type')
+    search_fields = ('type__title', 'warehouse__title', 'station__name')
+    ordering = ('-added_at',)
+
 
 @admin.register(Station)
 class StationAdmin(admin.ModelAdmin):
