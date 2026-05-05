@@ -1,3 +1,4 @@
+import logging
 from http.client import responses
 
 from django.contrib.auth.decorators import login_required, permission_required, user_passes_test
@@ -16,6 +17,8 @@ from django.shortcuts import get_object_or_404
 from .models import Profile
 from .forms import ProfileForm, CustomUserCreationForm
 
+logger = logging.getLogger('authentication')
+
 class OrgLoginView(LoginView):
     """После успешного логина редиректит на организацию из профиля, игнорируя ?next."""
     template_name = 'authentication/login.html'
@@ -29,6 +32,12 @@ class OrgLoginView(LoginView):
         except Exception:
             pass
         return reverse_lazy('authentication:about_me')
+
+    def form_invalid(self, form):
+        username = form.data.get('username', '—')
+        ip = self.request.META.get('HTTP_X_FORWARDED_FOR', self.request.META.get('REMOTE_ADDR', '—'))
+        logger.warning('Неудачная попытка входа: username="%s", ip=%s', username, ip)
+        return super().form_invalid(form)
 
 
 class ErrorView(View):
@@ -83,6 +92,11 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         profile, created = Profile.objects.get_or_create(user=self.request.user)
         return profile
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        logger.info('Профиль обновлён: username="%s"', self.request.user.username)
+        return response
+
 #создаем view для регистрации пользователя на основе класса CreateView
 class RegisterView(CreateView):
     #для юзера уже есть форма с необходимой валидацией, в тч двойная проверка пароля
@@ -104,20 +118,13 @@ class RegisterView(CreateView):
     #в нем мы просто проделываем аутентификацию вновь созданного пользователя
     def form_valid(self, form):
         response = super().form_valid(form)
-        #создаем вместе со стандартным пользователем расширенную модель,
-        #которая берем user из self.obkect
         Profile.objects.create(user=self.object)
         username = form.cleaned_data.get("username")
-        #используем ключ password1,т.к в опубликованной форме у нас 2 пароля для подтверждения
         password = form.cleaned_data.get("password1")
 
-        user = authenticate(
-            self.request,
-            username=username,
-            password=password
-        )
-        #выполняем вход пользователя с помощью login
+        user = authenticate(self.request, username=username, password=password)
         login(request=self.request, user=user)
+        logger.info('Новый пользователь зарегистрирован: username="%s"', username)
         return response
 
 

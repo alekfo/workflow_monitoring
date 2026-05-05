@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 
 import openpyxl
 from django.core.paginator import Paginator
@@ -19,6 +20,8 @@ from django.core.mail import send_mail
 from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge, Warehouse, Equipment, EquipmentType
 from .forms import KnowledgeForm, ContactForm
 from .mixins import OrgMixin
+
+logger = logging.getLogger('signal1520')
 
 class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
     """Главная страница приложения."""
@@ -102,12 +105,16 @@ class StationCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Creat
     def form_valid(self, form):
         form.instance.created_by = self.request.user
         form.instance.organization = self.get_org()
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        logger.info('Станция создана: "%s" pk=%s (org=%s, user=%s)',
+                    self.object.name, self.object.pk, self.get_org().slug, self.request.user.username)
+        return response
 
     def get_success_url(self):
         return reverse("signal1520:station_details", kwargs=self.org_kwargs(pk=self.object.pk))
 
     def handle_no_permission(self):
+        logger.warning('Отказ в доступе к созданию станции (user=%s)', self.request.user.username)
         return redirect(reverse('authentication:error'))
 
 
@@ -147,6 +154,12 @@ class StationUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Updat
         form.fields['road'].queryset = Road.objects.filter(organization=org)
         form.fields['system'].queryset = System.objects.filter(organization=org)
         return form
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        logger.info('Станция обновлена: "%s" pk=%s (org=%s, user=%s)',
+                    self.object.name, self.object.pk, self.get_org().slug, self.request.user.username)
+        return response
 
     def get_success_url(self):
         return reverse("signal1520:station_details", kwargs=self.org_kwargs(pk=self.object.pk))
@@ -235,26 +248,25 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
 
         # 1. --- Обработка вложения ---
         if 'file' in request.FILES:
-            # Создаём вложение
             attachment = Attachment(
                 task=self.object,
                 file=request.FILES['file'],
                 description=request.POST.get('description', '')
             )
             attachment.save()
+            logger.info('Вложение добавлено к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
         # 2. Обработка добавления комментария (обычная форма)
         if 'comment_text' in request.POST:
             comment_text = request.POST.get('comment_text', '').strip()
             if comment_text:
-                # Создаём комментарий, привязывая текущего пользователя
                 Comment.objects.create(
                     task=self.object,
                     user=request.user,
                     body=comment_text
                 )
-            # Перенаправляем обратно на страницу с этой же задачей
+                logger.info('Комментарий добавлен к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
         # 3. Обработка изменения статуса (JSON-запрос от JavaScript)
@@ -276,6 +288,8 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
 
         self.object.status = new_status
         self.object.save()
+        logger.info('Статус задачи pk=%s изменён на "%s" (user=%s)',
+                    self.object.pk, new_status, request.user.username)
         return JsonResponse({
             'success': True,
             'status': new_status,
@@ -303,12 +317,16 @@ class BugCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateVie
 
     def form_valid(self, form):
         form.instance.responsible_user = self.request.user
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        logger.info('Задача создана: pk=%s, станция="%s" (org=%s, user=%s)',
+                    self.object.pk, self.object.station, self.get_org().slug, self.request.user.username)
+        return response
 
     def get_success_url(self):
         return reverse("signal1520:bug_details", kwargs=self.org_kwargs(pk=self.object.pk))
 
     def handle_no_permission(self):
+        logger.warning('Отказ в доступе к созданию задачи (user=%s)', self.request.user.username)
         return redirect(reverse('authentication:error'))
 
 class BugUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
@@ -333,6 +351,12 @@ class BugUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateVie
         form = super().get_form(form_class)
         form.fields['station'].queryset = Station.objects.filter(organization=self.get_org())
         return form
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        logger.info('Задача обновлена: pk=%s (org=%s, user=%s)',
+                    self.object.pk, self.get_org().slug, self.request.user.username)
+        return response
 
     def get_success_url(self):
         return reverse("signal1520:bug_details", kwargs=self.org_kwargs(pk=self.object.pk))
@@ -578,6 +602,7 @@ class KnowledgeCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Vie
                 title=title, description=description,
             )
 
+        logger.info('Инструкция добавлена: "%s" (user=%s)', title, request.user.username)
         messages.success(request, 'Инструкция успешно добавлена.')
         return redirect(reverse('signal1520:index', kwargs={'org_slug': self.kwargs['org_slug']}))
 
@@ -596,11 +621,13 @@ class KnowledgeDeleteView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Vie
     def post(self, request, pk, **kwargs):
         uk = get_object_or_404(UserKnowledge, pk=pk, user=request.user)
         knowledge = uk.knowledge
+        title = uk.title
         uk.delete()
         if not knowledge.user_knowledge.exists():
             if knowledge.file:
                 knowledge.file.delete(save=False)
             knowledge.delete()
+        logger.info('Инструкция удалена: "%s" (user=%s)', title, request.user.username)
         return JsonResponse({'success': True})
 
 
@@ -697,12 +724,16 @@ class WarehouseCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Cre
 
     def form_valid(self, form):
         form.instance.organization = self.get_org()
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        logger.info('Склад создан: "%s" pk=%s (org=%s, user=%s)',
+                    self.object.title, self.object.pk, self.get_org().slug, self.request.user.username)
+        return response
 
     def get_success_url(self):
         return reverse('signal1520:warehouse_detail', kwargs=self.org_kwargs(pk=self.object.pk))
 
     def handle_no_permission(self):
+        logger.warning('Отказ в доступе к созданию склада (user=%s)', self.request.user.username)
         return redirect(reverse('authentication:error'))
 
 
@@ -752,6 +783,12 @@ class WarehouseUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Upd
         ).order_by('last_name', 'first_name', 'username')
         return form
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        logger.info('Склад обновлён: "%s" pk=%s (org=%s, user=%s)',
+                    self.object.title, self.object.pk, self.get_org().slug, self.request.user.username)
+        return response
+
     def get_success_url(self):
         return reverse('signal1520:warehouse_detail', kwargs=self.org_kwargs(pk=self.object.pk))
 
@@ -777,10 +814,18 @@ class EquipmentCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Cre
         form.fields['type'].queryset = EquipmentType.objects.filter(organization=org)
         return form
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        logger.info('Оборудование добавлено: тип="%s", склад="%s" pk=%s (org=%s, user=%s)',
+                    self.object.type, self.object.warehouse, self.object.pk,
+                    self.get_org().slug, self.request.user.username)
+        return response
+
     def get_success_url(self):
         return reverse('signal1520:equipment_detail', kwargs=self.org_kwargs(pk=self.object.pk))
 
     def handle_no_permission(self):
+        logger.warning('Отказ в доступе к добавлению оборудования (user=%s)', self.request.user.username)
         return redirect(reverse('authentication:error'))
 
 
@@ -829,6 +874,13 @@ class EquipmentUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Upd
         form.fields['station'].queryset = Station.objects.filter(organization=org)
         form.fields['type'].queryset = EquipmentType.objects.filter(organization=org)
         return form
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        logger.info('Оборудование обновлено: тип="%s", склад="%s" pk=%s (org=%s, user=%s)',
+                    self.object.type, self.object.warehouse, self.object.pk,
+                    self.get_org().slug, self.request.user.username)
+        return response
 
     def get_success_url(self):
         return reverse('signal1520:equipment_detail', kwargs=self.org_kwargs(pk=self.object.pk))
@@ -886,13 +938,17 @@ class ContactView(OrgMixin, LoginRequiredMixin, View):
                 f"Организация: {getattr(request.user.profile.organization, 'name', '—')}\n"
                 f"\n{message}"
             )
-            send_mail(
-                subject=f"Обращение от {name}",
-                message=body,
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[settings.SUPPORT_EMAIL],
-                fail_silently=False,
-            )
+            try:
+                send_mail(
+                    subject=f"Обращение от {name}",
+                    message=body,
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[settings.SUPPORT_EMAIL],
+                    fail_silently=False,
+                )
+                logger.info('Обращение отправлено (user=%s, email=%s)', request.user.username, email)
+            except Exception as exc:
+                logger.error('Ошибка отправки обращения (user=%s): %s', request.user.username, exc)
             fresh_form = ContactForm(initial=self._initial(request.user))
             return render(request, 'signal1520/contact.html', {'form': fresh_form, 'success': True})
         return render(request, 'signal1520/contact.html', {'form': form})
