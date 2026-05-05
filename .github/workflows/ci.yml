@@ -54,6 +54,9 @@ jobs:
             DUMP_FILE="/home/alek_fo/dumps/workflow_db_dump_$(date +%Y%m%d_%H%M%S).sql"
             docker exec workflow_monitoring-db-1 sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "$DUMP_FILE"
             echo "DB dump saved: $DUMP_FILE"
+            LOG_FILE="/home/alek_fo/logs/app_logs_$(date +%Y%m%d_%H%M%S).txt"
+            docker compose -f /home/alek_fo/workflow_monitoring_git/workflow_monitoring/docker-compose.yml logs web > "$LOG_FILE" 2>&1 || true
+            echo "App logs saved: $LOG_FILE"
             cd /home/alek_fo/workflow_monitoring_git  # корень git-репозитория
             git pull origin main
             cd workflow_monitoring  # сюда, где лежит docker-compose.yml
