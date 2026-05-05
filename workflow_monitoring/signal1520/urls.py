@@ -27,6 +27,7 @@ from .views import (TasksIndexView,
                     EquipmentTypeCreateView,
                     EquipmentExportView,
                     WarehouseEquipmentExportView,
+                    StationCheckNameView,
                     )
 
 app_name = "signal1520"
@@ -42,6 +43,7 @@ urlpatterns = [
     path("stations/", StationListView.as_view(), name="station_list"),
     path("stations/<int:pk>/", StationDetailView.as_view(), name="station_details"),
     path("stations/create/", StationCreateView.as_view(), name="create_station"),
+    path("stations/check-name/", StationCheckNameView.as_view(), name="station_check_name"),
     path("stations/<int:pk>/update/", StationUpdateView.as_view(), name="station_update"),
     path("stations/export/", StationsExportView.as_view(), name="stations_export"),
     path("alarms/", AlarmListView.as_view(), name="alarm_list"),

@@ -303,9 +303,10 @@
                 </div>
             </div>
 
+            <input type="hidden" name="force_create" id="force-create" value="">
             <div class="form-actions">
                 <button type="submit" class="btn-submit">
-                    ✅ Создать станцию
+                    ✅ Создать объект
                 </button>
                 <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-cancel">
                     ← Отмена
@@ -314,10 +315,83 @@
         </form>
     </div>
 </div>
+
+<!-- Модальное окно предупреждения о дублях -->
+<div id="duplicate-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:12px; max-width:520px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.2); overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#00B7B7 0%,#333333 100%); padding:20px 24px; color:#fff;">
+            <div style="font-size:18px; font-weight:700;">⚠️ Похожие объекты уже существуют</div>
+            <div style="font-size:13px; opacity:0.9; margin-top:4px;">Найдены объекты с похожим названием в вашей организации</div>
+        </div>
+        <div style="padding:20px 24px;">
+            <div id="duplicate-list" style="margin-bottom:20px; max-height:220px; overflow-y:auto;"></div>
+            <div style="display:flex; gap:12px;">
+                <button id="btn-force-create" style="flex:1; padding:11px 16px; background:linear-gradient(135deg,#27ae60 0%,#229954 100%); color:#fff; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-size:15px;">
+                    Все равно создать
+                </button>
+                <a id="btn-modal-cancel" href="{% url 'signal1520:index' org_slug=org_slug %}" style="flex:1; padding:11px 16px; background:#95a5a6; color:#fff; border-radius:10px; font-weight:600; text-align:center; text-decoration:none; font-size:15px; display:flex; align-items:center; justify-content:center;">
+                    Отмена
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 validateForm('station-form', [
     { id: 'id_name', required: true, message: 'Введите название станции' },
     { id: 'id_road', required: true, message: 'Выберите дорогу' },
 ]);
+
+(function () {
+    const form = document.getElementById('station-form');
+    const modal = document.getElementById('duplicate-modal');
+    const duplicateList = document.getElementById('duplicate-list');
+    const btnForce = document.getElementById('btn-force-create');
+    const forceInput = document.getElementById('force-create');
+    const checkUrl = "{% url 'signal1520:station_check_name' org_slug=org_slug %}";
+
+    form.addEventListener('submit', function (e) {
+        if (forceInput.value === '1') return; // уже подтверждено — пропускаем проверку
+
+        const name = document.getElementById('id_name').value.trim();
+        if (!name) return; // пустое поле — валидация сама обработает
+
+        e.preventDefault();
+
+        fetch(checkUrl + '?name=' + encodeURIComponent(name), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.stations || data.stations.length === 0) {
+                forceInput.value = '1';
+                form.submit();
+                return;
+            }
+            duplicateList.innerHTML = data.stations.map(s =>
+                '<div style="padding:8px 12px; border-left:3px solid #00B7B7; margin-bottom:8px; background:#f8fffe; border-radius:4px;">' +
+                '<span style="font-weight:600; color:#2c3e50;">' + s.name + '</span>' +
+                (s.road__title ? '<span style="color:#7f8c8d; font-size:13px; margin-left:8px;">— ' + s.road__title + '</span>' : '') +
+                '</div>'
+            ).join('');
+            modal.style.display = 'flex';
+        })
+        .catch(() => {
+            forceInput.value = '1';
+            form.submit();
+        });
+    });
+
+    btnForce.addEventListener('click', function () {
+        forceInput.value = '1';
+        modal.style.display = 'none';
+        form.submit();
+    });
+
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+})();
 </script>
 {% endblock %}

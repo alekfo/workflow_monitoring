@@ -331,7 +331,7 @@
         <div class="bug-content">
             <div class="info-grid">
                 <div class="info-card">
-                    <div class="info-label">Станция</div>
+                    <div class="info-label">Объект</div>
                     <a href="{% url 'signal1520:station_details' pk=bug.station.pk org_slug=org_slug %}">{{ bug.station|default:"—" }}</a>
                 </div>
                 <div class="info-card">
@@ -351,7 +351,7 @@
                 </div>
                 <div class="info-card">
                     <div class="info-label">Ответственный сотрудник</div>
-                    <div class="info-value">{{ bug.responsible_user|default:"—" }}</div>
+                    <div class="info-value">{{ bug.responsible_user.get_full_name|default:bug.responsible_user.username|default:"—" }}</div>
                 </div>
                 <div class="info-card" style="grid-column: span 2;">
                     <div class="info-label">Описание</div>
@@ -426,6 +426,8 @@
             </ul>
 
             <!-- Форма добавления вложения -->
+            <hr style="border: none; border-top: 2px solid #f0f0f0; margin: 24px 0;">
+            <div class="section-title" style="margin-bottom: 12px;">➕ Добавить вложение</div>
             <div class="comment-form">
                 <form method="post" enctype="multipart/form-data" id="attachment-form">
                     {% csrf_token %}
