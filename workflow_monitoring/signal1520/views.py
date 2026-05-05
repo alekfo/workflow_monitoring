@@ -110,6 +110,23 @@ class StationCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Creat
     def handle_no_permission(self):
         return redirect(reverse('authentication:error'))
 
+
+class StationCheckNameView(OrgMixin, LoginRequiredMixin, View):
+    """AJAX: возвращает список станций организации с похожим названием."""
+
+    def get(self, request, *args, **kwargs):
+        name = request.GET.get('name', '').strip()
+        if not name:
+            return JsonResponse({'stations': []})
+        org = self.get_org()
+        qs = Station.objects.filter(organization=org, name__icontains=name)
+        exclude_pk = request.GET.get('exclude')
+        if exclude_pk and exclude_pk.isdigit():
+            qs = qs.exclude(pk=int(exclude_pk))
+        qs = qs.select_related('road').values('id', 'name', 'road__title')[:10]
+        return JsonResponse({'stations': list(qs)})
+
+
 class StationUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """Форма редактирования существующего объекта (станции)."""
 
