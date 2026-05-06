@@ -102,7 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.initBugFilter === 'function') window.initBugFilter();
             if (typeof window.initInstructions === 'function') window.initInstructions();
         } catch (error) {
-            contentPanel.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
+            contentPanel.replaceChildren();
+            const p = document.createElement('p');
+            p.style.color = 'red';
+            p.textContent = `Ошибка: ${error.message}`;
+            contentPanel.appendChild(p);
         }
     }
 

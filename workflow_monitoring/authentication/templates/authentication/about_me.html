@@ -294,9 +294,22 @@
                     </div>
                 </div>
 
+                {% if messages %}
+                <div style="margin-bottom:20px;">
+                    {% for message in messages %}
+                    <div style="background:#e0f7f7;border-left:3px solid #00B7B7;padding:12px 16px;border-radius:8px;color:#2c3e50;font-size:14px;">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
                 <div class="button-group">
                     <a href="{% url 'authentication:profile_update' %}" class="btn-action">
                         ✏️ Редактировать профиль
+                    </a>
+                    <a href="{% url 'authentication:password_change' %}" class="btn-action btn-secondary">
+                        🔑 Сменить пароль
                     </a>
                     {% if user.is_superuser or perms.authentication.can_view_users_list %}
                     <a href="{% url 'authentication:users_list' %}" class="btn-action">

@@ -22,6 +22,8 @@ from django.conf.urls.i18n import i18n_patterns
 from django.views.defaults import permission_denied
 from django.views.generic import RedirectView
 
+from signal1520.views import ProtectedMediaView
+
 
 def handler403(request, exception=None):
     return permission_denied(request, exception, template_name='403.html')
@@ -32,13 +34,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('<slug:org_slug>/', include('signal1520.urls')),
     path('accounts/', include('authentication.urls')),
+    path('media/<path:path>', ProtectedMediaView.as_view(), name='protected_media'),
 ]
 
 if settings.DEBUG:
-    #сохранение на диске для медия
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-    #сохранение на диске для статики
     urlpatterns.extend(
         static(settings.STATIC_URL, document=settings.STATIC_ROOT)
     )
