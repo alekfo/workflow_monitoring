@@ -2,8 +2,10 @@ import logging
 from http.client import responses
 
 from django.contrib.auth.decorators import login_required, permission_required, user_passes_test
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.views import LogoutView, LoginView
+from django.contrib.auth.views import LogoutView, LoginView, PasswordChangeView
+from django.contrib import messages
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, reverse
 from django.contrib.auth import authenticate, login, logout
@@ -29,7 +31,7 @@ class OrgLoginView(LoginView):
             org = self.request.user.profile.organization
             if org:
                 return url_reverse('signal1520:index', kwargs={'org_slug': org.slug})
-        except Exception:
+        except ObjectDoesNotExist:
             pass
         return reverse_lazy('authentication:about_me')
 
@@ -109,7 +111,7 @@ class RegisterView(CreateView):
             if org:
                 from django.urls import reverse
                 return reverse('signal1520:index', kwargs={'org_slug': org.slug})
-        except Exception:
+        except ObjectDoesNotExist:
             pass
         return reverse_lazy('authentication:about_me')
 
@@ -125,6 +127,19 @@ class RegisterView(CreateView):
         user = authenticate(self.request, username=username, password=password)
         login(request=self.request, user=user)
         logger.info('Новый пользователь зарегистрирован: username="%s"', username)
+        return response
+
+
+class CustomPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
+    template_name = 'authentication/password_change_form.html'
+    success_url = reverse_lazy('authentication:about_me')
+
+    def form_valid(self, form):
+        # update_session_auth_hash вызывается внутри родительского form_valid —
+        # текущая сессия остаётся активной после смены пароля
+        response = super().form_valid(form)
+        messages.success(self.request, 'Пароль успешно изменён.')
+        logger.info('Пароль изменён: username="%s"', self.request.user.username)
         return response
 
 

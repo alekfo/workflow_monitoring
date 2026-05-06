@@ -406,12 +406,22 @@ validateForm('station-form', [
                 form.submit();
                 return;
             }
-            duplicateList.innerHTML = data.stations.map(s =>
-                '<div style="padding:8px 12px; border-left:3px solid #00B7B7; margin-bottom:8px; background:#f8fffe; border-radius:4px;">' +
-                '<span style="font-weight:600; color:#2c3e50;">' + s.name + '</span>' +
-                (s.road__title ? '<span style="color:#7f8c8d; font-size:13px; margin-left:8px;">— ' + s.road__title + '</span>' : '') +
-                '</div>'
-            ).join('');
+            duplicateList.replaceChildren();
+            data.stations.forEach(s => {
+                const div = document.createElement('div');
+                div.style.cssText = 'padding:8px 12px;border-left:3px solid #00B7B7;margin-bottom:8px;background:#f8fffe;border-radius:4px;';
+                const name = document.createElement('span');
+                name.style.cssText = 'font-weight:600;color:#2c3e50;';
+                name.textContent = s.name;
+                div.appendChild(name);
+                if (s.road__title) {
+                    const road = document.createElement('span');
+                    road.style.cssText = 'color:#7f8c8d;font-size:13px;margin-left:8px;';
+                    road.textContent = '— ' + s.road__title;
+                    div.appendChild(road);
+                }
+                duplicateList.appendChild(div);
+            });
             modal.style.display = 'flex';
         })
         .catch(() => {

@@ -6,39 +6,42 @@
 
 ### Критические
 
-- [ ] **XSS в `index.js`** — `contentPanel.innerHTML = html` вставляет сырой HTML без санитизации.
-  Особенно опасна строка с ошибкой: `` contentPanel.innerHTML = `<p>Ошибка: ${error.message}</p>` `` —
-  сообщение об ошибке вставляется без экранирования, возможен DOM-based XSS.
-  Решение: использовать `textContent` для текстовых данных; рассмотреть DOMPurify для HTML от сервера.
+- [x] **XSS в `index.js`** — строка с `error.message` исправлена: теперь используется DOM API
+  (`replaceChildren` + `createElement` + `textContent`). `contentPanel.innerHTML = html` (строка 95)
+  оставлен как есть — HTML приходит от доверенного Django-сервера с автоэскейпингом.
 
-- [ ] **`.env` не должен быть в git** — если файл попадал в историю хотя бы однажды, нужно
-  провернуть `git filter-branch` / `git-filter-repo` и ротировать все секреты (DB_PASSWORD, SECRET_KEY и т.д.).
-  В репо должен лежать только `.env.example` с заглушками.
+- [x] **Stored XSS в проверке дублей станций** (`station_form.html`, `station_update_form.html`) —
+  `s.name` и `s.road__title` из JSON вставлялись через конкатенацию строк + `innerHTML`.
+  Атакующий мог создать станцию с именем вида `<img src=x onerror="...">` и угнать сессии других
+  участников организации. Исправлено: заменено на DOM API (`replaceChildren`, `createElement`,
+  `textContent`).
+
+- [x] **IDOR: медиафайлы без авторизации** (`nginx.conf`, `urls.py`, `views.py`) —
+  Nginx отдавал `/media/` напрямую без проверки аутентификации. Файлы доступны по предсказуемым
+  путям (`tasks/task_<id>/...`), ID — последовательные целые числа. Любой мог скачать чужие
+  вложения без логина. Исправлено: добавлен `ProtectedMediaView` (`LoginRequiredMixin` + защита
+  от path traversal), маршрут `media/<path>` всегда через Django; Nginx отдаёт файлы только
+  через `X-Accel-Redirect` из внутреннего location `/protected-media/`.
 
 ### Серьёзные
 
-- [ ] **`ALLOWED_HOSTS` при пустой переменной** (`settings.py`) —
-  `os.environ.get('ALLOWED_HOSTS', '').split(',')` возвращает `['']`, а не `[]`.
-  Пустая строка — не защита от Host Header Injection.
-  Решение: `ALLOWED_HOSTS = [h for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h]`
+- [x] **`ALLOWED_HOSTS` при пустой переменной** (`settings.py`) —
+  исправлено: `[h.strip() for h in ... if h.strip()]` — пустые строки и пробелы отфильтрованы.
 
-- [ ] **`SECRET_KEY` может быть `None`** (`settings.py`) —
-  `os.environ.get('SECRET_KEY')` без fallback. Django не упадёт, но CSRF/сессии сломаются тихо.
-  Решение: добавить в settings.py после чтения переменных:
-  ```python
-  assert SECRET_KEY, "SECRET_KEY не установлен в переменных окружения"
-  ```
+- [x] **`SECRET_KEY` может быть `None`** (`settings.py`) —
+  исправлено: добавлена проверка `if not SECRET_KEY: raise RuntimeError(...)` — Django упадёт
+  при старте с внятным сообщением, не тихо ломая CSRF/сессии.
 
-- [ ] **Нет Rate Limiting** — на логин, регистрацию, создание задач. Брутфорс паролей ничем не ограничен.
-  Решение: подключить `django-axes` (блокировка по IP/логину) или `django-ratelimit`.
+- [x] **Нет Rate Limiting** — подключён `django-axes==8.3.1`. После 5 неудачных попыток входа
+  аккаунт блокируется на 1 час (автоматически снимается). Блокировка по `username` — ротация IP
+  атакующим не помогает. При успешном входе счётчик сбрасывается. Управление через Django admin.
 
-- [ ] **Нет логирования** — ни одного вызова `logging` во всём проекте. Попытки несанкционированного
-  доступа, 403-ошибки, исключения — всё исчезает. Решение: настроить `LOGGING` в settings.py,
-  добавить `logger = logging.getLogger(__name__)` в views.py и authentication/views.py.
+- [x] **Нет логирования** — реализовано: `LOGGING` настроен в `settings.py`, `logger` добавлен
+  в `signal1520/views.py` и `authentication/views.py` с вызовами `info`/`warning`/`error`.
 
-- [ ] **`bare except` и слишком широкий `except Exception`** (`views.py`, `authentication/views.py`) —
-  скрывают реальные ошибки, делают отладку сложной.
-  Решение: заменить на конкретные типы исключений (`json.JSONDecodeError`, `AttributeError` и т.д.).
+- [x] **`bare except` и слишком широкий `except Exception`** — исправлено в 4 местах:
+  `bare except` → `json.JSONDecodeError`; `except Exception` → `ObjectDoesNotExist` (×3).
+  `except Exception as exc` в send_mail оставлен — там это оправдано для логирования SMTP-ошибок.
 
 ---
 
@@ -99,11 +102,14 @@
 
 | Задача | Срочность |
 |--------|-----------|
-| XSS в `error.message` (`index.js`) | Сейчас |
-| `ALLOWED_HOSTS` и `SECRET_KEY` assertion | Сейчас |
+| ~~XSS в `error.message` (`index.js`)~~ | ✅ Выполнено |
+| ~~Stored XSS в дублях станций~~ | ✅ Выполнено |
+| ~~IDOR: медиафайлы без авторизации~~ | ✅ Выполнено |
+| ~~Логирование~~ | ✅ Выполнено |
+| ~~`ALLOWED_HOSTS` и `SECRET_KEY` assertion~~ | ✅ Выполнено |
+| ~~Rate Limiting~~ | ✅ Выполнено |
 | N+1 в `StationListView` | Скоро |
 | Индексы на моделях | Скоро |
-| Rate Limiting + логирование | Важно |
 | `on_delete=SET_NULL` на nullable FK | При следующей миграции |
 | Рефакторинг `test_func` | По мере сил |
 | Спиннер, валидация форм, accept на файлах | Улучшения |

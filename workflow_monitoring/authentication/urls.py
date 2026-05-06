@@ -8,7 +8,8 @@ from .views import (MyLogoutView,
                     RegisterView,
                     UsersListView,
                     UserDetailView,
-                    ErrorView,)
+                    ErrorView,
+                    CustomPasswordChangeView,)
 
 app_name = "authentication"
 
@@ -20,6 +21,8 @@ urlpatterns = [
     path("update/", ProfileUpdateView.as_view(), name="profile_update"),
     path("register/", RegisterView.as_view(), name="register"),
     path("error/", ErrorView.as_view(), name="error"),
+
+    path("password_change/", CustomPasswordChangeView.as_view(), name="password_change"),
 
     path("users/", UsersListView.as_view(), name="users_list"),
     path("user/<int:pk>/", UserDetailView.as_view(), name="user_detail"),

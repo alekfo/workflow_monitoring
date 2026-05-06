@@ -472,6 +472,47 @@ POST /accounts/register/
 
 ---
 
+## Безопасность
+
+### Защита от брутфорса — django-axes
+
+Подключён `django-axes==8.3.1`. После **5 неудачных попыток входа** аккаунт блокируется на **1 час** (затем снимается автоматически). Блокировка по `username` — ротация IP атакующим не помогает.
+
+Три точки подключения в `settings.py`:
+- `INSTALLED_APPS`: `'axes'`
+- `MIDDLEWARE`: `'axes.middleware.AxesMiddleware'` — после `AuthenticationMiddleware`
+- `AUTHENTICATION_BACKENDS`: `AxesStandaloneBackend` первым, затем `ModelBackend`
+
+Управление блокировками — Django admin → раздел **AXES → Access Attempts**. Удалить запись = разблокировать пользователя немедленно.
+
+При блокировке показывается шаблон `authentication/templates/authentication/locked_out.html`.
+
+### Защита медиафайлов (IDOR)
+
+Медиафайлы (вложения к задачам, файлы базы знаний) **не отдаются Nginx напрямую**. Все запросы к `/media/` проходят через `ProtectedMediaView` (`signal1520/views.py`), который требует аутентификации (`LoginRequiredMixin`).
+
+В продакшне используется `X-Accel-Redirect`: Django проверяет авторизацию → отправляет заголовок → Nginx отдаёт файл из внутреннего location `/protected-media/` (`internal`).
+
+В разработке (`DEBUG=True`) — `FileResponse` напрямую из Django.
+
+Маршрут в `workflow_monitoring/urls.py`: `path('media/<path:path>', ProtectedMediaView.as_view())`.
+
+### XSS-защита в JavaScript
+
+- `index.js`: сообщение об ошибке fetch вставляется через `textContent` (не `innerHTML`)
+- `station_form.html` / `station_update_form.html`: список дубликатов станций строится через DOM API (`createElement` + `textContent`), не через конкатенацию строк в `innerHTML`
+
+### Смена пароля
+
+Реализована через `CustomPasswordChangeView` (`authentication/views.py`). URL: `/accounts/password_change/`. После смены текущая сессия остаётся активной (`update_session_auth_hash` вызывается в родительском `PasswordChangeView`). Ссылка — в профиле (`about_me.html`).
+
+### Переменные окружения
+
+- `SECRET_KEY` — при старте проверяется: `if not SECRET_KEY: raise RuntimeError(...)`. Django не запустится без ключа.
+- `ALLOWED_HOSTS` — парсится с `.strip()` и фильтрацией пустых строк: `[h.strip() for h in ... if h.strip()]`.
+
+---
+
 ## Технологический стек
 
 - **Backend:** Django 6.0.3, Python

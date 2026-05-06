@@ -1,11 +1,14 @@
 import io
 import json
 import logging
+import mimetypes
+from pathlib import Path
 
 import openpyxl
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.contrib import messages
-from django.http import HttpResponse, HttpRequest, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpRequest, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, redirect, reverse, get_object_or_404
 from django.contrib.auth.models import Group, User
 from django.views import View
@@ -279,7 +282,7 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
         try:
             data = json.loads(request.body)
             new_status = data.get('status')
-        except:
+        except json.JSONDecodeError:
             return JsonResponse({'error': 'Неверные данные'}, status=400)
 
         valid_statuses = [choice[0] for choice in Task.Status.choices]
@@ -553,7 +556,7 @@ class KnowledgeCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Vie
     def _get_file_limit(self):
         try:
             return self.request.user.profile.knowledge_file_limit
-        except Exception:
+        except ObjectDoesNotExist:
             return 10
 
     def _file_count(self):
@@ -951,4 +954,30 @@ class ContactView(OrgMixin, LoginRequiredMixin, View):
                 logger.error('Ошибка отправки обращения (user=%s): %s', request.user.username, exc)
             fresh_form = ContactForm(initial=self._initial(request.user))
             return render(request, 'signal1520/contact.html', {'form': fresh_form, 'success': True})
-        return render(request, 'signal1520/contact.html', {'form': form})
+
+
+class ProtectedMediaView(LoginRequiredMixin, View):
+    """Раздаёт медиа-файлы только аутентифицированным пользователям."""
+
+    def get(self, request, path):
+        media_root = Path(settings.MEDIA_ROOT).resolve()
+        file_path = (media_root / path).resolve()
+        try:
+            file_path.relative_to(media_root)
+        except ValueError:
+            raise Http404
+        if not file_path.is_file():
+            raise Http404
+
+        if settings.DEBUG:
+            content_type, _ = mimetypes.guess_type(str(file_path))
+            return FileResponse(
+                open(file_path, 'rb'),
+                content_type=content_type or 'application/octet-stream',
+            )
+
+        # Продакшн: Nginx отдаёт файл сам через X-Accel-Redirect
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        response = HttpResponse(content_type=content_type or 'application/octet-stream')
+        response['X-Accel-Redirect'] = f'/protected-media/{path}'
+        return response

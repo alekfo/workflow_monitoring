@@ -11,6 +11,7 @@ For the full list of settings and their values, see
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.urls import reverse_lazy
@@ -31,6 +32,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECRET_KEY = 'django-insecure-pc%@sq!y#sbnnsqgmd+s6#2(r+ft$2v(sqo+ir3_%c&y41te68'
 # --- ПРОДАКШН ---
 SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY не установлен в переменных окружения")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # --- РАЗРАБОТКА ---
@@ -41,7 +44,7 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 # --- РАЗРАБОТКА ---
 # ALLOWED_HOSTS = []
 # --- ПРОДАКШН ---
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 
 
 # Application definition
@@ -53,6 +56,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'axes',
     'authentication.apps.AuthenticationConfig',
     'signal1520.apps.Signal1520Config',
 ]
@@ -65,6 +69,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'axes.middleware.AxesMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -162,6 +167,26 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGIN_URL = '/accounts/login/'  # URL для перенаправления неавторизованных пользователей
+
+AUTHENTICATION_BACKENDS = [
+    # Axes должен быть первым: проверяет блокировку до проверки пароля
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# --- django-axes: защита от brute force ---
+# После 5 неудачных попыток — блокировка на 1 час, потом снимается автоматически.
+# Блокируем по имени пользователя (не по IP), чтобы атака с разных адресов
+# на один аккаунт тоже блокировалась.
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(hours=1)
+AXES_LOCKOUT_PARAMETERS = [['username']]
+AXES_RESET_ON_SUCCESS = True       # при успешном входе счётчик неудач сбрасывается
+AXES_LOCKOUT_TEMPLATE = 'authentication/locked_out.html'
+# Реальный IP берём из X-Forwarded-For (Nginx проксирует за собой)
+AXES_IPWARE_META_PRECEDENCE_ORDER = ['HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']
+# W006 намеренно игнорируется: блокировка по username достаточна для внутреннего сервиса
+SILENCED_SYSTEM_CHECKS = ['axes.W006']
 
 #перенаправлем после регисрации на страницу about_me
 LOGIN_REDIRECT_URL = '/signal1520/'  # Куда перенаправлять после успешного входа
