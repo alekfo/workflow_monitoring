@@ -6,6 +6,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LogoutView, LoginView, PasswordChangeView
 from django.contrib import messages
+from django.utils import timezone
+from django.core.mail import EmailMessage
+from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, reverse
 from django.contrib.auth import authenticate, login, logout
@@ -20,6 +23,8 @@ from .models import Profile
 from .forms import ProfileForm, CustomUserCreationForm
 
 logger = logging.getLogger('authentication')
+
+POLICY_VERSION = '1.0'
 
 class OrgLoginView(LoginView):
     """После успешного логина редиректит на организацию из профиля, игнорируя ?next."""
@@ -47,6 +52,10 @@ class ErrorView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
 
         return render(request, 'authentication/error.html')
+
+
+class PrivacyPolicyView(TemplateView):
+    template_name = 'authentication/privacy_policy.html'
 
 
 class AboutMeView(LoginRequiredMixin, TemplateView):
@@ -120,14 +129,50 @@ class RegisterView(CreateView):
     #в нем мы просто проделываем аутентификацию вновь созданного пользователя
     def form_valid(self, form):
         response = super().form_valid(form)
-        Profile.objects.create(user=self.object)
+        ip = (
+            self.request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            or self.request.META.get('REMOTE_ADDR')
+        )
+        consent_dt = timezone.now()
+        Profile.objects.create(
+            user=self.object,
+            agreement_accepted=True,
+            consent_given_at=consent_dt,
+            consent_ip=ip or None,
+            consent_policy_version=POLICY_VERSION,
+        )
         username = form.cleaned_data.get("username")
         password = form.cleaned_data.get("password1")
-
         user = authenticate(self.request, username=username, password=password)
         login(request=self.request, user=user)
         logger.info('Новый пользователь зарегистрирован: username="%s"', username)
+        self._send_consent_email(self.object, consent_dt)
         return response
+
+    def _send_consent_email(self, user, consent_dt):
+        if not user.email:
+            return
+        subject = 'Подтверждение регистрации в сервисе Fieldlog'
+        message = (
+            f'Здравствуйте, {user.get_full_name() or user.username}!\n\n'
+            f'Вы успешно зарегистрировались в сервисе Fieldlog.\n\n'
+            f'При регистрации вы ознакомились и согласились с Политикой '
+            f'конфиденциальности (версия {POLICY_VERSION}) и дали согласие '
+            f'на обработку персональных данных.\n\n'
+            f'Дата и время: {consent_dt.strftime("%d.%m.%Y %H:%M:%S UTC")}\n\n'
+            f'Если вы не регистрировались в сервисе — проигнорируйте это письмо.\n\n'
+            f'Для отзыва согласия обратитесь: {settings.SUPPORT_EMAIL}'
+        )
+        try:
+            EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=settings.EMAIL_HOST_USER,
+                to=[user.email],
+                bcc=[settings.EMAIL_HOST_USER],
+            ).send(fail_silently=False)
+        except Exception:
+            logger.exception('Не удалось отправить письмо о согласии пользователю "%s"', user.username)
 
 
 class CustomPasswordChangeView(LoginRequiredMixin, PasswordChangeView):

@@ -54,3 +54,8 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['username'].widget.attrs['placeholder'] = 'Введите имя пользователя'
         self.fields['password1'].widget.attrs['placeholder'] = 'Введите пароль'
         self.fields['password2'].widget.attrs['placeholder'] = 'Подтвердите пароль'
+
+    privacy_policy = forms.BooleanField(
+        required=True,
+        error_messages={'required': 'Необходимо принять политику конфиденциальности для регистрации.'}
+    )

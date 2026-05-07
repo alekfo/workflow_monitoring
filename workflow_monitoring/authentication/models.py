@@ -19,6 +19,9 @@ class Profile(models.Model):
     )
     bio = models.TextField(max_length=500, blank=True)
     agreement_accepted = models.BooleanField(default=False)
+    consent_given_at = models.DateTimeField(null=True, blank=True, verbose_name='Дата согласия на обработку ПД')
+    consent_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name='IP при согласии')
+    consent_policy_version = models.CharField(max_length=20, null=True, blank=True, verbose_name='Версия политики')
 
     avatar = models.ImageField(null=True, blank=True, upload_to=avatar_directory_path)
     knowledge_file_limit = models.PositiveSmallIntegerField(

@@ -27,6 +27,7 @@
                     {% endif %}
 
                     {% for field in form %}
+                        {% if field.name != 'privacy_policy' %}
                         <div class="form-group">
                             <label for="{{ field.id_for_label }}">
                                 {{ field.label }}
@@ -46,9 +47,26 @@
                                 <span class="help-text">{{ field.help_text }}</span>
                             {% endif %}
                         </div>
+                        {% endif %}
                     {% endfor %}
 
-                    <button type="submit" class="btn-auth">
+                    <div class="privacy-policy-group">
+                        {{ form.privacy_policy }}
+                        <label for="{{ form.privacy_policy.id_for_label }}">
+                            Я ознакомлен(а) и согласен(на) с
+                            <a href="{% url 'authentication:privacy_policy' %}" target="_blank">Политикой конфиденциальности</a>
+                            и даю согласие на обработку моих персональных данных
+                        </label>
+                    </div>
+                    {% if form.privacy_policy.errors %}
+                        <span class="error-message" style="margin-top: -10px; margin-bottom: 15px; display: block;">
+                            {% for error in form.privacy_policy.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </span>
+                    {% endif %}
+
+                    <button type="submit" id="submit-btn" class="btn-auth" disabled>
                         Зарегистрироваться
                     </button>
                 </form>
@@ -60,5 +78,13 @@
             </div>
         </div>
     </div>
+
+    <script>
+        const checkbox = document.getElementById('{{ form.privacy_policy.id_for_label }}');
+        const submitBtn = document.getElementById('submit-btn');
+        checkbox.addEventListener('change', function () {
+            submitBtn.disabled = !this.checked;
+        });
+    </script>
 </body>
 </html>
