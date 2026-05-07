@@ -167,6 +167,58 @@
     font-size: 14px;
 }
 
+/* Чекбокс политики конфиденциальности */
+.privacy-policy-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 14px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+    transition: border-color 0.3s;
+}
+
+.privacy-policy-group:focus-within {
+    border-color: #00B7B7;
+}
+
+.privacy-policy-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: #00B7B7;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.privacy-policy-group label {
+    font-size: 13px;
+    color: #2c3e50;
+    line-height: 1.5;
+    cursor: pointer;
+    margin: 0;
+    font-weight: 400;
+}
+
+.privacy-policy-group label a {
+    color: #00B7B7;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.privacy-policy-group label a:hover {
+    text-decoration: underline;
+}
+
+.btn-auth:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
     .auth-body {
