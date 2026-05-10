@@ -519,3 +519,17 @@ POST /accounts/register/
 - **Frontend:** Vanilla JS (без фреймворков), CSS (без препроцессоров)
 - **БД:** SQLite (в разработке), PostgreSQL 16 (прод, через docker-compose)
 - **Шаблоны:** Django Templates
+- **Деплой:** Docker Compose (контейнеры `web` + `db`), Nginx как reverse proxy
+- **Домен и TLS:** `https://www.fieldlog.ru` — HTTPS через Let's Encrypt; Nginx терминирует SSL и проксирует на Gunicorn (порт 8000)
+
+### Важные настройки для HTTPS-окружения
+
+В `settings.py` обязательно должны читаться из `.env`:
+```python
+CSRF_TRUSTED_ORIGINS = [h.strip() for h in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if h.strip()]
+```
+В `.env` прописаны оба варианта домена (с `www` и без):
+```
+CSRF_TRUSTED_ORIGINS=https://fieldlog.ru,https://www.fieldlog.ru
+```
+Без этого Django блокирует POST-запросы с 403 CSRF при работе по HTTPS.
