@@ -315,7 +315,7 @@ class BugCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateVie
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        form.fields['station'].queryset = Station.objects.filter(organization=self.get_org())
+        form.fields['station'].queryset = Station.objects.filter(organization=self.get_org()).order_by('name')
         return form
 
     def form_valid(self, form):
@@ -352,7 +352,7 @@ class BugUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateVie
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
-        form.fields['station'].queryset = Station.objects.filter(organization=self.get_org())
+        form.fields['station'].queryset = Station.objects.filter(organization=self.get_org()).order_by('name')
         return form
 
     def form_valid(self, form):
