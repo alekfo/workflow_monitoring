@@ -2,6 +2,29 @@
 
 ---
 
+## Проблемы и замечания
+
+### Критические
+
+- [ ] **Тесты отсутствуют полностью** — `signal1520/tests.py` и `authentication/tests.py` — пустые
+  заглушки. Для production-системы с мультиарендностью и разграничением прав это серьёзный риск:
+  регрессии в `OrgMixin` или правах доступа не будут видны.
+
+- [ ] **Утечка данных в `KnowledgeCreateView._existing_qs()`** (`views.py:565-569`) —
+  ```python
+  def _existing_qs(self):
+      used_ids = UserKnowledge.objects.filter(user=self.request.user).values_list(...)
+      return Knowledge.objects.filter(file__gt='').exclude(pk__in=used_ids)
+  ```
+  Возвращает все файлы знаний всех пользователей всех организаций. Пользователь из одной орг
+  видит и может привязать к себе файлы из другой орг.
+
+- [ ] **`ContactView.post()` не обрабатывает невалидную форму** (`views.py:931-956`) —
+  Если `form.is_valid()` возвращает `False`, функция неявно возвращает `None`. Django упадёт с
+  `ValueError`. Нужен `else` с `render(request, self.template_name, {'form': form})`.
+
+---
+
 ## Безопасность
 
 ### Критические
