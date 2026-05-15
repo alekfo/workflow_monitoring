@@ -101,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.initStationTasks === 'function') window.initStationTasks();
             if (typeof window.initBugFilter === 'function') window.initBugFilter();
             if (typeof window.initInstructions === 'function') window.initInstructions();
+            if (typeof window.initAlarmToggle === 'function') window.initAlarmToggle();
         } catch (error) {
             contentPanel.replaceChildren();
             const p = document.createElement('p');
