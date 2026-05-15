@@ -2,6 +2,7 @@ import io
 import json
 import logging
 import mimetypes
+from urllib.parse import quote
 from pathlib import Path
 
 import openpyxl
@@ -979,5 +980,5 @@ class ProtectedMediaView(LoginRequiredMixin, View):
         # Продакшн: Nginx отдаёт файл сам через X-Accel-Redirect
         content_type, _ = mimetypes.guess_type(str(file_path))
         response = HttpResponse(content_type=content_type or 'application/octet-stream')
-        response['X-Accel-Redirect'] = f'/protected-media/{path}'
+        response['X-Accel-Redirect'] = f'/protected-media/{quote(path, safe="/")}'
         return response

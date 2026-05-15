@@ -129,18 +129,6 @@
     {% endif %}
 </div>
 
-<script>
-    document.querySelectorAll('.explanation-toggle').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const cell = btn.closest('.explanation-cell');
-            const short = cell.querySelector('.explanation-short');
-            const full = cell.querySelector('.explanation-full');
-            const expanded = full.style.display !== 'none';
-            short.style.display = expanded ? 'inline' : 'none';
-            full.style.display = expanded ? 'none' : 'inline';
-            btn.textContent = expanded ? 'Развернуть' : 'Свернуть';
-        });
-    });
-</script>
+<script>if (typeof window.initAlarmToggle === 'function') window.initAlarmToggle();</script>
 </body>
 </html>
