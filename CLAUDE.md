@@ -502,6 +502,26 @@ POST /accounts/register/
 - `index.js`: сообщение об ошибке fetch вставляется через `textContent` (не `innerHTML`)
 - `station_form.html` / `station_update_form.html`: список дубликатов станций строится через DOM API (`createElement` + `textContent`), не через конкатенацию строк в `innerHTML`
 
+### Защита регистрации от ботов
+
+Реализована в `authentication/forms.py`, `authentication/views.py` и шаблоне `register.html`. Три уровня:
+
+**1. Honeypot-поле** (`website` в `CustomUserCreationForm`) — невидимое поле, скрытое через CSS (`.hp-field`: `position: absolute; left: -9999px`). Простые боты заполняют все `<input>` формы — `clean_website()` отклоняет форму при непустом значении. Поле исключено из видимого цикла шаблона и рендерится отдельно с `aria-hidden="true"`.
+
+**2. Rate limiting по IP** — `RegisterView.post()` проверяет счётчик обращений через Django cache (`FileBasedCache`, `/tmp/django_cache_workflow`). Лимит: **5 POST-запросов с одного IP за 1 час**. При превышении форма перерисовывается с сообщением об ошибке; логируется `WARNING`.
+
+**3. Блокировка одноразовых email** — `_DISPOSABLE_EMAIL_DOMAINS` (frozenset из 12 доменов: mailinator, guerrillamail и др.) в `forms.py`. `clean_email()` отклоняет регистрацию с такими адресами.
+
+Cache настроен в `settings.py`:
+```python
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/django_cache_workflow',
+    }
+}
+```
+
 ### Смена пароля
 
 Реализована через `CustomPasswordChangeView` (`authentication/views.py`). URL: `/accounts/password_change/`. После смены текущая сессия остаётся активной (`update_session_auth_hash` вызывается в родительском `PasswordChangeView`). Ссылка — в профиле (`about_me.html`).

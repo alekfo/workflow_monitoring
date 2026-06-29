@@ -7,6 +7,12 @@ from django.forms.widgets import ClearableFileInput
 
 from .models import Profile
 
+_DISPOSABLE_EMAIL_DOMAINS = frozenset({
+    'mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com',
+    'temp-mail.org', 'yopmail.com', 'trashmail.com', '1secmail.com',
+    'sharklasers.com', 'getnada.com', 'maildrop.cc', 'discard.email',
+})
+
 class ProfileForm(forms.ModelForm):
     class Meta:
         model = Profile
@@ -59,3 +65,19 @@ class CustomUserCreationForm(UserCreationForm):
         required=True,
         error_messages={'required': 'Необходимо принять политику конфиденциальности для регистрации.'}
     )
+    website = forms.CharField(required=False, widget=forms.TextInput(attrs={
+        'autocomplete': 'off',
+        'tabindex': '-1',
+    }))
+
+    def clean_website(self):
+        if self.cleaned_data.get('website'):
+            raise forms.ValidationError('Ошибка валидации формы.')
+        return ''
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '')
+        domain = email.rsplit('@', 1)[-1].lower() if '@' in email else ''
+        if domain in _DISPOSABLE_EMAIL_DOMAINS:
+            raise forms.ValidationError('Временные почтовые адреса не поддерживаются.')
+        return email
