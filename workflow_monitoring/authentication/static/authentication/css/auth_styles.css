@@ -1,3 +1,13 @@
+/* Honeypot (anti-bot): поле невидимо для людей, но боты его заполняют */
+.hp-field {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
 /* Общие стили для страниц аутентификации */
 .auth-container {
     min-height: 100vh;
