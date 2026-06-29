@@ -2,6 +2,7 @@ import logging
 from http.client import responses
 
 from django.contrib.auth.decorators import login_required, permission_required, user_passes_test
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LogoutView, LoginView, PasswordChangeView
@@ -25,6 +26,8 @@ from .forms import ProfileForm, CustomUserCreationForm
 logger = logging.getLogger('authentication')
 
 POLICY_VERSION = '1.0'
+_REGISTER_RATE_LIMIT = 5  # попыток регистрации с одного IP за час
+
 
 class OrgLoginView(LoginView):
     """После успешного логина редиректит на организацию из профиля, игнорируя ?next."""
@@ -113,6 +116,20 @@ class RegisterView(CreateView):
     #для юзера уже есть форма с необходимой валидацией, в тч двойная проверка пароля
     form_class = CustomUserCreationForm
     template_name = "authentication/register.html"
+
+    def post(self, request, *args, **kwargs):
+        ip = (
+            request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            or request.META.get('REMOTE_ADDR', '')
+        )
+        rate_key = f'register_attempts_{ip}'
+        attempts = cache.get(rate_key, 0)
+        if attempts >= _REGISTER_RATE_LIMIT:
+            logger.warning('Registration rate limit hit: ip=%s', ip)
+            messages.error(request, 'Слишком много попыток регистрации с вашего адреса. Попробуйте позже.')
+            return self.get(request, *args, **kwargs)
+        cache.set(rate_key, attempts + 1, timeout=3600)
+        return super().post(request, *args, **kwargs)
 
     def get_success_url(self):
         try:

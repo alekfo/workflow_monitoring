@@ -15,6 +15,12 @@
             </div>
 
             <div class="auth-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="non-field-errors">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+
                 <form method="post">
                     {% csrf_token %}
 
@@ -27,7 +33,7 @@
                     {% endif %}
 
                     {% for field in form %}
-                        {% if field.name != 'privacy_policy' %}
+                        {% if field.name != 'privacy_policy' and field.name != 'website' %}
                         <div class="form-group">
                             <label for="{{ field.id_for_label }}">
                                 {{ field.label }}
@@ -65,6 +71,8 @@
                             {% endfor %}
                         </span>
                     {% endif %}
+
+                    <div class="hp-field" aria-hidden="true">{{ form.website }}</div>
 
                     <button type="submit" id="submit-btn" class="btn-auth" disabled>
                         Зарегистрироваться
