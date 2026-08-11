@@ -191,6 +191,11 @@ class Comment(models.Model):
             return user.first_name
         return user.username
 
+    class Meta:
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'
+        ordering = ['created_at']
+
 def task_attachment_path(instance, filename):
     # путь для сохранения файлов: tasks/task_<id>/<filename>
     return f'tasks/task_{instance.task.id}/{filename}'
