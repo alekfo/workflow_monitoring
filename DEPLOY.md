@@ -110,18 +110,46 @@ docker compose ps
 
 ---
 
-## Шаг 6 — Настроить автообновление сертификата (один раз)
+## Шаг 6 — Перевести продление на webroot (один раз)
 
-Сертификаты Let's Encrypt живут 90 дней. Crontab продлевает их автоматически:
+Сертификат в шаге 4 получен через `--standalone` — это нужно было один раз, пока nginx ещё не запущен и порт 80 свободен. Но для *продления* standalone требует каждый раз останавливать nginx (конфликт за порт 80), что хрупко и легко забыть настроить. Nginx уже сконфигурирован отдавать `/.well-known/acme-challenge/` из `/var/www/certbot` (см. `nginx/nginx.conf`), поэтому продление переводим на `webroot` — оно работает при работающем nginx, без остановки контейнеров:
 
 ```bash
-sudo crontab -e
+sudo mkdir -p /var/www/certbot
+sudo certbot certonly --webroot -w /var/www/certbot \
+  -d fieldlog.ru -d www.fieldlog.ru \
+  --cert-name fieldlog.ru --force-renewal
 ```
 
-Добавить строку:
+`--force-renewal` обязателен именно здесь: без него certbot увидит ещё не истёкший сертификат и ничего не сделает, а нам нужно, чтобы он прямо сейчас перевыпустил сертификат через webroot и записал `authenticator = webroot` в `/etc/letsencrypt/renewal/fieldlog.ru.conf` — иначе все последующие автопродления снова попытаются идти через standalone и будут падать из-за занятого порта 80.
 
+---
+
+## Шаг 7 — Настроить автообновление сертификата (один раз)
+
+Сертификаты Let's Encrypt живут 90 дней. Пакет `certbot` (установленный в шаге 4) сам ставит системный таймер `certbot.timer`, который дважды в сутки вызывает `certbot renew` — отдельный cron не нужен и не должен создаваться отдельно, иначе появляются два независимых механизма продления, которые могут разойтись.
+
+Проверить, что таймер включён:
+
+```bash
+systemctl list-timers | grep certbot
+# если пусто — sudo systemctl enable --now certbot.timer
 ```
-0 3 1 * * docker compose -f /home/alek_fo/workflow_monitoring_git/workflow_monitoring/docker-compose.yml stop nginx && certbot renew --quiet && docker compose -f /home/alek_fo/workflow_monitoring_git/workflow_monitoring/docker-compose.yml start nginx
+
+Так как с шага 6 продление идёт через `webroot`, `certbot renew` не требует остановки nginx — он просто кладёт challenge-файл в `/var/www/certbot`, а nginx его сразу отдаёт. Но после успешного продления nginx всё равно нужно перезагрузить, иначе он продолжит отдавать старый сертификат, который был прочитан в память при старте процесса. Для этого добавляется deploy-hook — certbot автоматически запускает всё, что лежит в `/etc/letsencrypt/renewal-hooks/deploy/`, сразу после каждого успешного продления:
+
+```bash
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh <<'EOF'
+#!/bin/sh
+docker compose -f /home/alek_fo/workflow_monitoring_git/workflow_monitoring/docker-compose.yml exec nginx nginx -s reload
+EOF
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+```
+
+Проверить весь цикл продления (без ожидания реального истечения срока):
+
+```bash
+sudo certbot renew --dry-run
 ```
 
 ---
@@ -232,8 +260,18 @@ docker compose logs nginx
 # Логи Django
 docker compose logs web
 
-# Проверить сертификат
+# Проверить сертификат (даты, authenticator: должен быть webroot)
 sudo certbot certificates
+cat /etc/letsencrypt/renewal/fieldlog.ru.conf | grep authenticator
+
+# Проверить, что таймер автопродления включён и когда сработает
+systemctl list-timers | grep certbot
+
+# Проверить deploy-hook, который перезагружает nginx после продления
+ls -la /etc/letsencrypt/renewal-hooks/deploy/
+
+# Проверить весь цикл продления без реального перевыпуска
+sudo certbot renew --dry-run
 
 # Проверить DNS
 nslookup fieldlog.ru
