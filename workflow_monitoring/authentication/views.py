@@ -4,6 +4,7 @@ from http.client import responses
 from django.contrib.auth.decorators import login_required, permission_required, user_passes_test
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LogoutView, LoginView, PasswordChangeView
 from django.contrib import messages
@@ -25,7 +26,7 @@ from .forms import ProfileForm, CustomUserCreationForm
 
 logger = logging.getLogger('authentication')
 
-POLICY_VERSION = '1.0'
+POLICY_VERSION = '2.0'
 _REGISTER_RATE_LIMIT = 5  # попыток регистрации с одного IP за час
 
 
@@ -66,8 +67,24 @@ class AboutMeView(LoginRequiredMixin, TemplateView):
 
     template_name = "authentication/about_me.html"
 
+def _visible_users(viewer):
+    """Пользователи, чьи профили доступны viewer: он сам и участники его организации.
+
+    Суперпользователь видит всех. Пользователь без организации — только себя.
+    """
+    if viewer.is_superuser:
+        return User.objects.all()
+    try:
+        org = viewer.profile.organization
+    except ObjectDoesNotExist:
+        org = None
+    if org is None:
+        return User.objects.filter(pk=viewer.pk)
+    return User.objects.filter(Q(pk=viewer.pk) | Q(profile__organization=org))
+
+
 class UsersListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    """"Посмотреть список всех пользователей"""
+    """"Посмотреть список пользователей своей организации"""
 
     model = User
     template_name = 'authentication/users_list.html'
@@ -77,12 +94,19 @@ class UsersListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.has_perm('authentication.can_view_users_list')
 
+    def get_queryset(self):
+        return _visible_users(self.request.user).order_by(*self.ordering)
+
 class UserDetailView(LoginRequiredMixin, DetailView):
-    """"Посмотреть детальную инфу о любом пользователе"""
+    """"Посмотреть детальную инфу о пользователе своей организации"""
 
     model = User
     template_name = 'authentication/user_detail.html'
     context_object_name = 'user_obj'
+
+    def get_queryset(self):
+        # Чужой профиль отдаёт 404, а не 403 — чтобы перебором pk нельзя было узнать, какие id существуют
+        return _visible_users(self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
