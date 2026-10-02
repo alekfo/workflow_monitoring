@@ -407,7 +407,7 @@ class StationsExportView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, View
                 station.latitude,
                 station.longitude,
                 station.created_at.strftime('%d.%m.%Y %H:%M') if station.created_at else '',
-                station.created_by.get_full_name() or station.created_by.username,
+                (station.created_by.get_full_name() or station.created_by.username) if station.created_by else '',
             ])
 
         buffer = io.BytesIO()

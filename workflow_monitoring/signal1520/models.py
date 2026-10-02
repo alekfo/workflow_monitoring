@@ -86,7 +86,8 @@ class Station(models.Model):
     latitude = models.FloatField('Широта', null=True, blank=True)
     longitude = models.FloatField('Долгота', null=True, blank=True)
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    # SET_NULL: удаление пользователя не должно уносить станции организации вместе с задачами
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         verbose_name = 'Станция'
