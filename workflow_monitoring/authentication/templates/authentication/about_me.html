@@ -1,15 +1,13 @@
+{% extends 'signal1520/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Мой профиль</title>
+
+{% block title %}Мой профиль{% endblock %}
+
+{% block extra_head %}
     <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
     <style>
         .profile-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
-            padding: 40px 20px;
+            padding: 0;
         }
 
         .profile-card {
@@ -28,35 +26,6 @@
             padding: 40px;
             text-align: center;
             position: relative;
-        }
-
-        /* Контейнер для кнопок в шапке */
-        .header-buttons {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
-            z-index: 10;
-        }
-
-        /* Стили для кнопок в шапке */
-        .header-btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.3s;
-            display: inline-block;
-            backdrop-filter: blur(5px);
-        }
-
-        .header-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
         }
 
         .profile-avatar {
@@ -216,31 +185,18 @@
                 flex-direction: column;
             }
 
-            /* На мобильных устройствах кнопки становятся статичными */
-            .header-buttons {
-                position: static;
-                justify-content: center;
-                margin-bottom: 20px;
-            }
-
             .profile-header {
                 padding-top: 20px;
             }
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
     <div class="profile-container">
         <div class="profile-card">
             <div class="profile-header">
-                <!-- Контейнер для кнопок -->
-                <div class="header-buttons">
-                    <a href="{% url 'authentication:logout' %}" class="header-btn">🚪 Выйти</a>
-                    {% if user.profile.organization %}
-                    <a href="{% url 'signal1520:index' org_slug=user.profile.organization.slug %}" class="header-btn">🏠 Меню</a>
-                    {% endif %}
-                </div>
-
                 {% if user.profile.avatar %}
                     <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="profile-avatar">
                 {% else %}
@@ -308,9 +264,6 @@
                     <a href="{% url 'authentication:profile_update' %}" class="btn-action">
                         ✏️ Редактировать профиль
                     </a>
-                    <a href="{% url 'authentication:password_change' %}" class="btn-action btn-secondary">
-                        🔑 Сменить пароль
-                    </a>
                     {% if user.is_superuser or perms.authentication.can_view_users_list %}
                     <a href="{% url 'authentication:users_list' %}" class="btn-action">
                         👥 Все пользователи
@@ -320,5 +273,5 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

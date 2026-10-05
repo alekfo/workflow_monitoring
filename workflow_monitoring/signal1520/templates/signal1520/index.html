@@ -6,61 +6,62 @@
 {% endblock %}
 
 {% block content %}
-    <div class="menu-section">
-        <h1>Меню</h1>
-        <div class="menu">
-            <!-- Задачи -->
-            <div class="menu-item">
-                <button class="button main-btn">📋 Задачи</button>
-                <div class="submenu">
-                    <button class="sub-button" data-section="tasks_all">📚 Все задачи</button>
-                    <button class="sub-button" data-section="tasks_mine">📌 Мои задачи</button>
-                    <button class="sub-button" data-section="tasks_add">➕ Добавить задачу</button>
-                </div>
-            </div>
-            <!-- Объекты -->
-            <div class="menu-item">
-                <button class="button main-btn">🏢 Объекты</button>
-                <div class="submenu">
-                    <button class="sub-button" data-section="objects_all">🏗️ Все объекты</button>
-<button class="sub-button" data-section="objects_add">➕ Добавить объект</button>
-                </div>
-            </div>
-            <!-- Учет оборудования -->
-            <div class="menu-item">
-                <button class="button main-btn">📦 Учет оборудования</button>
-                <div class="submenu">
-                    <button class="sub-button" data-section="warehouses_list">🏪 Склады</button>
-                    <button class="sub-button" data-section="equipment_list">🔧 Оборудование</button>
-                </div>
-            </div>
-            <!-- Отчеты -->
-            <div class="menu-item">
-                <button class="button main-btn">📊 Отчеты</button>
-                <div class="submenu">
-                    <button class="sub-button" data-section="reports_download">🚧 В разработке</button>
-                </div>
-            </div>
-            <!-- Графики -->
-            <div class="menu-item">
-                <button class="button main-btn">📈 Графики</button>
-                <div class="submenu">
-                    <button class="sub-button" data-section="charts_download">🚧 В разработке</button>
-                </div>
-            </div>
-            <!-- База знаний -->
-            <div class="menu-item">
-                <button class="button main-btn">📚 База знаний</button>
-                <div class="submenu">
-                    <button class="sub-button" data-section="alarms">🚨 Алармы</button>
-                    <button class="sub-button" data-section="instructions">📖 Инструкции</button>
-                    <button class="sub-button" data-section="instructions_add">➕ Добавить инструкцию</button>
-                </div>
+    <div class="page-content">
+        <div class="dashboard">
+            <h1 class="dashboard-title">Сводка</h1>
+
+            {% if not has_summary %}
+            <p class="dashboard-empty">Выберите раздел в меню.</p>
+            {% endif %}
+
+            <div class="stat-grid">
+                {% if my_tasks %}
+                <a class="stat-card" href="{% url 'signal1520:bugs_list_my' org_slug=org_slug %}">
+                    <span class="stat-label">Мои задачи</span>
+                    <span class="stat-value">{{ my_tasks.open }}</span>
+                    <span class="stat-caption">открыто</span>
+                    <span class="stat-chips">
+                        {% if my_tasks.overdue %}<span class="stat-chip chip-overdue">просрочено: {{ my_tasks.overdue }}</span>{% endif %}
+                        {% if my_tasks.due_soon %}<span class="stat-chip chip-soon">срок менее 30 дней: {{ my_tasks.due_soon }}</span>{% endif %}
+                        <span class="stat-chip chip-completed">выполнено мной: {{ my_tasks.completed }}</span>
+                    </span>
+                </a>
+                {% endif %}
+                {% if org_tasks %}
+                <a class="stat-card" href="{% url 'signal1520:bugs_list' org_slug=org_slug %}">
+                    <span class="stat-label">Все задачи организации</span>
+                    <span class="stat-value">{{ org_tasks.open }}</span>
+                    <span class="stat-caption">открыто</span>
+                    <span class="stat-chips">
+                        {% if org_tasks.overdue %}<span class="stat-chip chip-overdue">просрочено: {{ org_tasks.overdue }}</span>{% endif %}
+                        {% if org_tasks.due_soon %}<span class="stat-chip chip-soon">срок менее 30 дней: {{ org_tasks.due_soon }}</span>{% endif %}
+                        <span class="stat-chip chip-completed">выполнено организацией: {{ org_tasks.completed }}</span>
+                    </span>
+                </a>
+                {% endif %}
+                {% if stations_count is not None %}
+                <a class="stat-card" href="{% url 'signal1520:station_list' org_slug=org_slug %}">
+                    <span class="stat-label">Объекты</span>
+                    <span class="stat-value">{{ stations_count }}</span>
+                    <span class="stat-caption">всего</span>
+                </a>
+                {% endif %}
+                {% if equipment_count is not None %}
+                <a class="stat-card" href="{% url 'signal1520:equipment_list' org_slug=org_slug %}">
+                    <span class="stat-label">Оборудование</span>
+                    <span class="stat-value">{{ equipment_count }}</span>
+                    <span class="stat-caption">единиц</span>
+                </a>
+                {% endif %}
+                {% if warehouses_count is not None %}
+                <a class="stat-card" href="{% url 'signal1520:warehouse_list' org_slug=org_slug %}">
+                    <span class="stat-label">Склады</span>
+                    <span class="stat-value">{{ warehouses_count }}</span>
+                    <span class="stat-caption">всего</span>
+                </a>
+                {% endif %}
             </div>
         </div>
-    </div>
-    <div id="content-panel" class="content-panel">
-        <p>Выберите раздел</p>
     </div>
 
     {% if messages %}
@@ -104,26 +105,4 @@
             }, 3500);
         });
     </script>
-
-    <style>
-        .menu-section h1 {
-            color: white;
-            border-bottom-color: rgba(255, 255, 255, 0.3);
-        }
-
-        .menu-section {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-        }
-
-        .button {
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
-        }
-
-        .sub-button {
-            background: rgba(255, 255, 255, 0.9);
-        }
-    </style>
 {% endblock %}

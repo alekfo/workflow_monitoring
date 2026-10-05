@@ -1,10 +1,9 @@
+{% extends 'signal1520/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Лимит файлов</title>
-    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+
+{% block title %}Лимит файлов{% endblock %}
+
+{% block extra_head %}
     <style>
         .limit-container {
             background: white;
@@ -65,8 +64,10 @@
             color: white;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
 <div class="limit-container">
     <div class="limit-header">
         <h1>⛔ Лимит файлов исчерпан</h1>
@@ -79,5 +80,5 @@
         <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-back">← Вернуться в главное меню</a>
     </div>
 </div>
-</body>
-</html>
+</div>
+{% endblock %}

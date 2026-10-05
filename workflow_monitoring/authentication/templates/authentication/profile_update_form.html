@@ -1,15 +1,13 @@
+{% extends 'signal1520/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Редактирование профиля</title>
+
+{% block title %}Редактирование профиля{% endblock %}
+
+{% block extra_head %}
     <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
     <style>
         .profile-update-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
-            padding: 40px 20px;
+            padding: 0;
         }
 
         .update-card {
@@ -275,8 +273,10 @@
             }
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
     <div class="profile-update-container">
         <div class="update-card">
             <div class="update-header">
@@ -296,6 +296,25 @@
                         </div>
                     {% endif %}
 
+                    <!-- Имя и фамилия -->
+                    {% for field in form %}
+                    {% if field.name == 'first_name' or field.name == 'last_name' %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">
+                            {{ field.label }} <span class="required">*</span>
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            <span class="error-message">
+                                {% for error in field.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+
                     <!-- Поле bio -->
                     <div class="form-group">
                         <label for="{{ form.bio.id_for_label }}">
@@ -311,26 +330,6 @@
                         {% endif %}
                         {% if form.bio.help_text %}
                             <span class="help-text">{{ form.bio.help_text }}</span>
-                        {% endif %}
-                    </div>
-
-                    <!-- Поле agreement_accepted (чекбокс) -->
-                    <div class="form-group">
-                        <div class="checkbox-group">
-                            {{ form.agreement_accepted }}
-                            <label for="{{ form.agreement_accepted.id_for_label }}">
-                                {{ form.agreement_accepted.label }}
-                            </label>
-                        </div>
-                        {% if form.agreement_accepted.errors %}
-                            <span class="error-message">
-                                {% for error in form.agreement_accepted.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </span>
-                        {% endif %}
-                        {% if form.agreement_accepted.help_text %}
-                            <span class="help-text">{{ form.agreement_accepted.help_text }}</span>
                         {% endif %}
                     </div>
 
@@ -416,5 +415,5 @@
             }
         }
     </script>
-</body>
-</html>
+</div>
+{% endblock %}

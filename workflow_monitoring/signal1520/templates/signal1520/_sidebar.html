@@ -1,0 +1,160 @@
+{# Левая панель значков. Клик по значку раскрывает вправо ряд кнопок-разделов (sidebar.js): .flyout-row выезжает внутри .rail-flyout. #}
+{# Разделы организации показываются только при наличии org_slug (см. context_processors.py). #}
+{% with name=request.resolver_match.url_name %}
+<nav class="side-rail" id="side-rail" aria-label="Разделы">
+    {% if org_slug %}
+    <!-- Задачи -->
+    <div class="rail-group">
+        <button type="button" title="Задачи" aria-label="Задачи" aria-expanded="false" aria-controls="flyout-tasks"
+                class="rail-btn{% if name in 'bugs_list bugs_list_my bug_details create_bug bug_update' %} is-current{% endif %}">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="4" width="14" height="17" rx="2"/>
+                <path d="M9 2.5h6v3H9z"/>
+                <path d="M9 13l2 2 4-4"/>
+            </svg>
+            <span class="rail-label">Задачи</span>
+        </button>
+        <div class="rail-flyout" id="flyout-tasks">
+            <div class="flyout-row">
+                <a class="flyout-link" href="{% url 'signal1520:bugs_list' org_slug=org_slug %}">Все задачи</a>
+                <a class="flyout-link" href="{% url 'signal1520:bugs_list_my' org_slug=org_slug %}">Мои задачи</a>
+                <a class="flyout-link" href="{% url 'signal1520:create_bug' org_slug=org_slug %}">Добавить задачу</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Объекты -->
+    <div class="rail-group">
+        <button type="button" title="Объекты" aria-label="Объекты" aria-expanded="false" aria-controls="flyout-objects"
+                class="rail-btn{% if name in 'station_list station_details create_station station_update' %} is-current{% endif %}">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/>
+                <path d="M15 10h4a1 1 0 0 1 1 1v10"/>
+                <path d="M2 21h20"/>
+                <path d="M8 8h3M8 12h3M8 16h3"/>
+            </svg>
+            <span class="rail-label">Объекты</span>
+        </button>
+        <div class="rail-flyout" id="flyout-objects">
+            <div class="flyout-row">
+                <a class="flyout-link" href="{% url 'signal1520:station_list' org_slug=org_slug %}">Все объекты</a>
+                <a class="flyout-link" href="{% url 'signal1520:create_station' org_slug=org_slug %}">Добавить объект</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Учет оборудования -->
+    <div class="rail-group">
+        <button type="button" title="Учет оборудования" aria-label="Учет оборудования" aria-expanded="false" aria-controls="flyout-equipment"
+                class="rail-btn{% if name in 'warehouse_list warehouse_create warehouse_detail warehouse_update equipment_list equipment_create equipment_detail equipment_update equipment_type_create' %} is-current{% endif %}">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 8l-9-5-9 5v8l9 5 9-5z"/>
+                <path d="M3 8l9 5 9-5"/>
+                <path d="M12 13v8"/>
+            </svg>
+            <span class="rail-label">Учет оборудования</span>
+        </button>
+        <div class="rail-flyout" id="flyout-equipment">
+            <div class="flyout-row">
+                <a class="flyout-link" href="{% url 'signal1520:warehouse_list' org_slug=org_slug %}">Склады</a>
+                <a class="flyout-link" href="{% url 'signal1520:equipment_list' org_slug=org_slug %}">Оборудование</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Отчеты -->
+    <div class="rail-group">
+        <button type="button" title="Отчеты" aria-label="Отчеты" aria-expanded="false" aria-controls="flyout-reports"
+                class="rail-btn">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 20h16"/>
+                <path d="M7 20v-6M12 20V6M17 20v-9"/>
+            </svg>
+            <span class="rail-label">Отчеты</span>
+        </button>
+        <div class="rail-flyout" id="flyout-reports">
+            <div class="flyout-row">
+                <span class="flyout-link is-disabled">В разработке</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="rail-group">
+        <button type="button" title="Графики" aria-label="Графики" aria-expanded="false" aria-controls="flyout-charts"
+                class="rail-btn">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 4v16h16"/>
+                <path d="M7 15l4-4 3 3 5-6"/>
+            </svg>
+            <span class="rail-label">Графики</span>
+        </button>
+        <div class="rail-flyout" id="flyout-charts">
+            <div class="flyout-row">
+                <span class="flyout-link is-disabled">В разработке</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- База знаний -->
+    <div class="rail-group">
+        <button type="button" title="База знаний" aria-label="База знаний" aria-expanded="false" aria-controls="flyout-knowledge"
+                class="rail-btn{% if name in 'alarm_list knowledge_list knowledge_create' %} is-current{% endif %}">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 19.5V5a2 2 0 0 1 2-2h13v14H6.5A2.5 2.5 0 0 0 4 19.5z"/>
+                <path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H19v-5"/>
+                <path d="M9 8h6"/>
+            </svg>
+            <span class="rail-label">База знаний</span>
+        </button>
+        <div class="rail-flyout" id="flyout-knowledge">
+            <div class="flyout-row">
+                <a class="flyout-link" href="{% url 'signal1520:alarm_list' org_slug=org_slug %}">Алармы</a>
+                <a class="flyout-link" href="{% url 'signal1520:knowledge_list' org_slug=org_slug %}">Инструкции</a>
+                <a class="flyout-link" href="{% url 'signal1520:knowledge_create' org_slug=org_slug %}">Добавить инструкцию</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Мой профиль -->
+    <div class="rail-group">
+        <button type="button" title="Мой профиль" aria-label="Мой профиль" aria-expanded="false" aria-controls="flyout-profile"
+                class="rail-btn{% if name in 'about_me profile_update users_list user_detail' %} is-current{% endif %}">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M4 20a8 8 0 0 1 16 0"/>
+            </svg>
+            <span class="rail-label">Мой профиль</span>
+        </button>
+        <div class="rail-flyout" id="flyout-profile">
+            <div class="flyout-row">
+                <a class="flyout-link" href="{% url 'authentication:about_me' %}">Мой профиль</a>
+                <a class="flyout-link" href="{% url 'authentication:profile_update' %}">Редактировать профиль</a>
+                {% if user.is_superuser or perms.authentication.can_view_users_list %}
+                <a class="flyout-link" href="{% url 'authentication:users_list' %}">Все пользователи</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Настройки -->
+    <div class="rail-group">
+        <button type="button" title="Настройки" aria-label="Настройки" aria-expanded="false" aria-controls="flyout-settings"
+                class="rail-btn{% if name == 'password_change' %} is-current{% endif %}">
+            <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h8M18 7h2M4 17h2M12 17h8"/>
+                <circle cx="15" cy="7" r="2.5"/>
+                <circle cx="9" cy="17" r="2.5"/>
+            </svg>
+            <span class="rail-label">Настройки</span>
+        </button>
+        <div class="rail-flyout" id="flyout-settings">
+            <div class="flyout-row">
+                <a class="flyout-link" href="{% url 'authentication:password_change' %}">Сменить пароль</a>
+                <a class="flyout-link" href="{% url 'authentication:privacy_policy' %}" target="_blank" rel="noopener">Политика конфиденциальности</a>
+            </div>
+        </div>
+    </div>
+</nav>
+{% endwith %}

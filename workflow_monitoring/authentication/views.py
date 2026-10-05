@@ -52,10 +52,14 @@ class OrgLoginView(LoginView):
 
 
 class ErrorView(View):
+    """Страница «Нет прав»: сюда перенаправляют view с handle_no_permission.
+
+    Показывает ту же карточку, что и обработчик 403 (workflow_monitoring/urls.py).
+    """
 
     def get(self, request: HttpRequest) -> HttpResponse:
 
-        return render(request, 'authentication/error.html')
+        return render(request, '403.html', {'wrong_org': False})
 
 
 class PrivacyPolicyView(TemplateView):

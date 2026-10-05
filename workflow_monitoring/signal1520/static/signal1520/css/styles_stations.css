@@ -312,3 +312,52 @@
     border-color: #e74c3c !important;
     box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1) !important;
 }
+/* ---------- Телефон: списки ---------- */
+@media (max-width: 768px) {
+    .stations-header {
+        padding: 14px 12px;
+    }
+
+    /* Поиск и кнопки переносятся; ширина поля и flex-ряд заданы в шаблонах inline */
+    .stations-header > div {
+        flex-wrap: wrap !important;
+        justify-content: center;
+    }
+
+    .stations-header form {
+        flex: 1 1 100%;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .stations-header form input[type="text"] {
+        flex: 1 1 140px;
+        width: auto !important;
+        min-width: 0;
+    }
+
+    .pagination {
+        padding: 14px 8px;
+    }
+
+    /* Таблицы задач и объектов: второстепенные колонки скрыты, остальное сжимается под экран */
+    .table-compact .col-desktop {
+        display: none;
+    }
+
+    .table-compact th,
+    .table-compact td {
+        min-width: 0;
+        padding: 10px 8px;
+        font-size: 13px;
+    }
+
+    /* Описание задачи занимает остаток ширины и обрезается многоточием */
+    .table-compact .task-desc-cell {
+        width: 40%;
+        max-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

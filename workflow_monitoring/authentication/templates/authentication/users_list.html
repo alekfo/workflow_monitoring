@@ -1,15 +1,13 @@
+{% extends 'signal1520/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Пользователи</title>
+
+{% block title %}Пользователи{% endblock %}
+
+{% block extra_head %}
     <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
     <style>
         .users-container {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
-            padding: 40px 20px;
+            padding: 0;
         }
 
         .users-card {
@@ -174,8 +172,10 @@
             }
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
     <div class="users-container">
         <div class="users-card">
             <div class="users-header">
@@ -230,5 +230,5 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

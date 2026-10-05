@@ -3,6 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Политика конфиденциальности</title>
     <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
     <style>
@@ -32,12 +33,6 @@
         .policy-body ul {
             padding-left: 20px;
             margin: 8px 0;
-        }
-        .policy-footer {
-            text-align: center;
-            padding: 20px 40px 40px;
-            border-top: 1px solid #e0e0e0;
-            background: #f8f9fa;
         }
     </style>
 </head>
@@ -275,25 +270,7 @@
                     <a href="{% url 'authentication:privacy_policy' %}">https://www.fieldlog.ru{% url 'authentication:privacy_policy' %}</a>.
                 </p>
             </div>
-
-            <div class="policy-footer">
-                <button onclick="goBack()" class="btn-auth" style="max-width: 300px; margin: 0 auto; display: block;">
-                    ← Вернуться к регистрации
-                </button>
-            </div>
         </div>
     </div>
-
-    <script>
-        function goBack() {
-            if (window.opener) {
-                window.close();
-            } else if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = "{% url 'authentication:register' %}";
-            }
-        }
-    </script>
 </body>
 </html>

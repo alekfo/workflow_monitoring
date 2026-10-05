@@ -1,10 +1,9 @@
+{% extends 'signal1520/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Инструкции</title>
-    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+
+{% block title %}Инструкции{% endblock %}
+
+{% block extra_head %}
     <style>
         .knowledge-section {
             padding: 20px 24px;
@@ -85,14 +84,15 @@
         }
         .link-url:hover { text-decoration: underline; }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
 <div class="stations-container">
     <div class="stations-header">
         <h2>📖 Инструкции</h2>
         <div style="display: flex; gap: 10px; align-items: center;">
             <a href="{% url 'signal1520:knowledge_create' org_slug=org_slug %}" class="btn-create">➕ Добавить</a>
-            <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="back-link">← В главное меню</a>
         </div>
     </div>
 
@@ -100,6 +100,7 @@
     <div class="knowledge-section">
         <h3>📄 Документы</h3>
         {% if docs %}
+        <div class="table-wrapper">
         <table class="stations-table">
             <thead>
                 <tr>
@@ -135,6 +136,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
         {% else %}
         <p class="knowledge-empty">Нет загруженных документов</p>
         {% endif %}
@@ -169,5 +171,5 @@
         {% endif %}
     </div>
 </div>
-</body>
-</html>
+</div>
+{% endblock %}
