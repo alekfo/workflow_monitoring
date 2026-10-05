@@ -28,3 +28,5 @@ window.initInstructions = function () {
         });
     });
 };
+
+document.addEventListener('DOMContentLoaded', window.initInstructions);

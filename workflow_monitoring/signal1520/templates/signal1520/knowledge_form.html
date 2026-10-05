@@ -1,10 +1,9 @@
+{% extends 'signal1520/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Добавить инструкцию</title>
-    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+
+{% block title %}Добавить инструкцию{% endblock %}
+
+{% block extra_head %}
     <style>
         .form-container {
             background: white;
@@ -150,8 +149,10 @@
             border: 2px solid #e74c3c;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
 <div class="form-container">
     <div class="form-header">
         <h1>📖 Добавить инструкцию</h1>
@@ -333,5 +334,5 @@
         if (!valid) e.preventDefault();
     });
 </script>
-</body>
-</html>
+</div>
+{% endblock %}

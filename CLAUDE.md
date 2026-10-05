@@ -4,7 +4,7 @@
 
 Django-приложение для мониторинга рабочих процессов на объектах (станциях).
 Основные сущности: объекты (станции), задачи, алармы (справочник), склады, оборудование, пользователи.
-Интерфейс — одностраничное SPA-подобное приложение: контент грузится в `contentPanel` через AJAX, без перезагрузки страницы.
+Интерфейс — обычные серверные страницы с общим каркасом `base.html`: шапка с логотипом, слева панель значков меню, по клику на значок вправо выезжают кнопки разделов, переход в раздел — обычная ссылка.
 Поддерживает несколько организаций (мультиарендность) через URL-префикс `/<org_slug>/`.
 
 ---
@@ -26,10 +26,8 @@ workflow_monitoring/        ← корень git-репозитория, зде�
 │       │   ├── styles.css           ← глобальные стили (подключён в base.html)
 │       │   └── styles_stations.css  ← стили таблиц, кнопок, пагинации (подключён в base.html)
 │       └── js/
-│           ├── index.js             ← главный JS: меню, loadContentPanel, executeScripts
-│           ├── main_header.js       ← кнопки шапки (профиль, выход)
-│           ├── stations.js          ← initTasksToggle (раскрытие задач на станции)
-│           └── bug_filter.js        ← initBugFilter (AJAX-поиск и пагинация в contentPanel)
+│           ├── sidebar.js           ← левая панель значков: раскрытие/сворачивание разделов
+│           └── stations.js          ← initTasksToggle (раскрытие задач на станции)
 └── authentication/         ← приложение аутентификации
 ```
 
@@ -76,15 +74,9 @@ path('<slug:org_slug>/', include('signal1520.urls')),
 Для задач, у которых нет прямого FK на орг: `org_filter_field = 'station__organization'`.
 
 **5. Context processor (signal1520/context_processors.py)**
-```python
-def org_slug(request):
-    try:
-        slug = request.resolver_match.kwargs.get('org_slug', '')
-    except AttributeError:
-        slug = ''
-    return {'org_slug': slug}
-```
 Зарегистрирован в `settings.TEMPLATES`. Автоматически добавляет `{{ org_slug }}` в контекст каждого шаблона — не нужно передавать его вручную из каждого view.
+Берёт slug из kwargs URL; на страницах вне org-контекста (`/accounts/...`) — из `request.user.profile.organization`,
+чтобы общий каркас мог строить ссылки меню. Пустая строка означает «организации нет».
 
 **6. Шаблоны**
 Все `{% url %}` теги используют `org_slug=org_slug`:
@@ -92,15 +84,9 @@ def org_slug(request):
 {% url 'signal1520:bug_details' pk=bug.pk org_slug=org_slug %}
 ```
 
-**7. JavaScript (index.js)**
-Статический файл не поддерживает Django-теги, поэтому `base.html` инжектирует переменную:
-```html
-<script>window.ORG_SLUG = '{{ org_slug }}';</script>
-```
-`index.js` строит URL-ы динамически:
-```js
-const _base = '/' + (window.ORG_SLUG || 'signal1520') + '/';
-```
+**7. Меню**
+Ссылки меню, логотипа и футера строятся в шаблонах (`_sidebar.html`, `base.html`) через `{% url %}` с `org_slug=org_slug`.
+JavaScript URL-ы не собирает, переменной `window.ORG_SLUG` больше нет.
 
 ---
 
@@ -151,9 +137,8 @@ Vasya видит только задачи своей организации.
 При рендеринге шаблона context processor добавляет `org_slug = 'signal1520'`.
 Все `{% url %}` теги в шаблоне генерируют правильные ссылки вида `/signal1520/...`.
 
-### Шаг 5 — JavaScript
-`base.html` рендерится с `window.ORG_SLUG = 'signal1520'`.
-`index.js` строит URL для AJAX-запросов: `'/signal1520/bugs/'`, `'/signal1520/stations/'` и т.д.
+### Шаг 5 — Меню
+Ссылки меню в `_sidebar.html` уже отрендерены сервером: `/signal1520/bugs/`, `/signal1520/stations/` и т.д.
 
 ---
 
@@ -203,7 +188,7 @@ Vasya видит только задачи своей организации.
 | `Organization` | Организация. Поля: name, slug(unique). FK из Station, Road, System и Profile |
 | `Road` | Справочник дорог/линий/районов. Поля: id, organization(FK, nullable), title. FK из Station.road |
 | `System` | Справочник систем. Поля: id, organization(FK, nullable), title. FK из Station.system (nullable) |
-| `Station` | Объект/станция. Поля: name, road(FK), distance, system(FK, nullable), description, latitude, longitude, created_by, organization(FK) |
+| `Station` | Объект/станция. Поля: name, road(FK), distance, system(FK, nullable), description, latitude, longitude, created_by(FK User, nullable, `SET_NULL`), organization(FK) |
 | `Task` | Задача. Поля: station(FK), description, status(new/in_progress/completed/cancelled), responsible_organization, responsible_user(FK User), due_date |
 | `Comment` | Комментарий к задаче. Поля: task(FK), user(FK), body |
 | `Attachment` | Вложение к задаче. Файлы хранятся в `tasks/task_<id>/` внутри MEDIA_ROOT |
@@ -223,6 +208,9 @@ Vasya видит только задачи своей организации.
 |------|-----|----------|
 | `bio` | TextField | Краткая информация о пользователе |
 | `agreement_accepted` | BooleanField | Принятие пользовательского соглашения |
+| `consent_given_at` | DateTimeField | Дата и время согласия на обработку ПД (ставится при регистрации) |
+| `consent_ip` | GenericIPAddressField | IP, с которого дано согласие |
+| `consent_policy_version` | CharField | Версия политики на момент согласия (`POLICY_VERSION` из `authentication/views.py`) |
 | `avatar` | ImageField | Аватар, хранится в `user/user_<pk>/avatar/` |
 | `knowledge_file_limit` | PositiveSmallIntegerField | Максимальное число файлов-инструкций для пользователя (default=10) |
 | `organization` | FK → Organization | Принадлежность к организации (nullable). Ссылка через строку `'signal1520.Organization'` |
@@ -268,64 +256,70 @@ Vasya видит только задачи своей организации.
 
 ---
 
-## Архитектура SPA (index.js)
+## Навигация: шапка и панель значков (sidebar.js)
 
-Главная страница (`/<org_slug>/`) имеет боковое меню и `<div id="content-panel">`.
-Весь контент загружается в `contentPanel` через `window.loadContentPanel(url)`.
+Правила работы над интерфейсом, дизайн-система и контракты разметки — в `FRONTEND.md` в корне репозитория.
+Читать перед любой фронт-задачей.
 
-### Как работает loadContentPanel
-1. Делает `fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })`
-2. Вставляет ответ в `contentPanel.innerHTML`
-3. Вызывает `executeScripts()` — вырезает `<script>` теги из contentPanel и добавляет в `document.head`
-4. Вызывает инициализаторы: `initTasksToggle()`, `initStationTasks()`, `initBugFilter()`, `initInstructions()`
+Каждая страница — обычная полноценная страница: шаблон наследует `signal1520/base.html`,
+переход между разделами — обычная ссылка с перезагрузкой. Подгрузки контента через AJAX
+(`contentPanel`, `loadContentPanel`, `executeScripts`) больше нет.
 
-### Словари маршрутов в index.js
-- `urlMap_for_contentPanel` — секции, которые грузятся в contentPanel
-- `urlMap_for_redirect` — секции, которые делают полный переход
+Общий каркас `base.html` используют и страницы signal1520, и страницы профиля из `authentication`
+(`about_me`, `profile_update_form`, `password_change_form`, `users_list`, `user_detail`).
+Вне каркаса остаются `login`, `register`, `locked_out`, `privacy_policy` и карточка «Нет прав» — отдельные экраны.
 
-| Ключ (data-section) | Тип | URL |
-|---------------------|-----|-----|
-| `tasks_all` | contentPanel | `bugs/` |
-| `tasks_mine` | contentPanel | `bugs/my/` |
-| `objects_all` | contentPanel | `stations/` |
-| `alarms` | contentPanel | `alarms/` |
-| `warehouses_list` | contentPanel | `warehouses/` |
-| `equipment_list` | contentPanel | `equipment/` |
-| `instructions` | contentPanel | `knowledge/` |
-| `tasks_add` | redirect | `bugs/create/` |
-| `objects_add` | redirect | `stations/create/` |
-| `instructions_add` | redirect | `knowledge/create/` |
-| `warehouses_create` | redirect | `warehouses/create/` |
-| `equipment_create` | redirect | `equipment/create/` |
-| `equipment_type_create` | redirect | `equipment/types/create/` |
+**«Нет прав»** — один шаблон `templates/403.html` на все случаи. Его рендерят `handler403`
+(`workflow_monitoring/urls.py`) и `ErrorView` (`/accounts/error/`, куда редиректят view с `handle_no_permission`).
+Флаг `wrong_org` переключает текст: чужая организация (`OrgAccessDenied` из `mixins.py`) или нехватка прав в своей.
 
-URL-ы строятся динамически через `window.ORG_SLUG`, который инжектируется из `base.html`:
+**Шапка** (`.site-header`, фиксированная): слева текстовый логотип FieldLog — ссылка на главную
+организации (без организации — на профиль), справа «Имя | Организация» и ссылка «Выйти».
+**Футер**: ссылка «Связаться с поддержкой» (только при наличии организации).
+
+**Панель значков** (`_sidebar.html`, `.side-rail`) закреплена слева под шапкой. Значки — inline SVG
+(`.rail-icon`, обводка `currentColor`). Клик по значку раскрывает вправо ряд кнопок-разделов
+(`.rail-flyout`) той же высоты, что и значок, **поверх** страницы; контент не сдвигается.
+Клик мимо или `Escape` сворачивает меню обратно до значков. Логика — в `sidebar.js`
+(переключает `aria-expanded` на кнопке и класс `is-open` на ряду).
+
+| Значок | Разделы (ссылки) |
+|--------|------------------|
+| Задачи | `bugs_list`, `bugs_list_my`, `create_bug` |
+| Объекты | `station_list`, `create_station` |
+| Учет оборудования | `warehouse_list`, `equipment_list` |
+| Отчеты, Графики | «В разработке» (неактивный пункт) |
+| База знаний | `alarm_list`, `knowledge_list`, `knowledge_create` |
+| Мой профиль | `authentication:about_me`, `profile_update`, `users_list` (при праве `can_view_users_list`) |
+| Настройки | `authentication:password_change`, `privacy_policy` |
+
+Разделы организации (первые пять строк) показываются только при непустом `org_slug`.
+У пользователя без организации в меню только «Мой профиль» и «Настройки».
+
+Значок текущего раздела подсвечивается классом `is-current` — он вычисляется в `_sidebar.html`
+по `request.resolver_match.url_name`. **При добавлении нового маршрута** в раздел нужно дописать
+его имя в соответствующую строку `{% if name in '...' %}`, иначе значок не подсветится.
+
+### Как устроен шаблон страницы
 ```html
-<script>window.ORG_SLUG = '{{ org_slug }}';</script>
+{% extends 'signal1520/base.html' %}
+{% block title %}...{% endblock %}
+{% block extra_head %}<!-- свои <style> и <script src> -->{% endblock %}
+{% block content %}
+<div class="page-content"> ... </div>
+{% endblock %}
 ```
+`.page-content` растягивает содержимое на всю ширину справа от панели (`.main-layout` — flex-контейнер).
+Классы каркаса (`.logo`, `.logout-btn`, `.rail-*`, `.flyout-link`) глобальные — в `<style>` страниц
+их имена переиспользовать нельзя.
 
-### ВАЖНО: executeScripts и накопление скриптов
-Скрипты из шаблонов копируются в `document.head` и там остаются навсегда.
-Поэтому **нельзя** писать логику инициализации прямо в inline `<script>` внутри шаблонов, которые грузятся в contentPanel.
-Правильный подход: выносить логику в отдельный JS-файл с функцией `window.initXxx()` и вызывать её из `loadContentPanel`.
+### Поиск и пагинация
+Работают без JavaScript: форма поиска — обычный `GET` на текущий URL (`?search=`),
+кнопки пагинации — обычные ссылки `?page=N&search=...`, «Сбросить» — ссылка `?`.
 
----
-
-## bug_filter.js — AJAX-поиск и пагинация
-
-Инициализируется вызовом `window.initBugFilter()` после каждой загрузки контента.
-Защита от двойной инициализации: `searchForm.dataset.filterInitialized = 'true'`.
-
-- Ищет форму по `id="search-form"` с атрибутом `data-base-url`
-- При сабмите делает fetch и заменяет `.table-and-pagination` (задачи) или `.table-wrapper` (алармы)
-- Кнопки пагинации перехватываются и загружают страницу через `window.loadContentPanel(url)`
-- Использует `history.replaceState` (не `pushState`) — не засоряет историю браузера
-
-**Шаблоны, где работает фильтр:**
-- `bug_list.html` — `data-base-url="{% url 'signal1520:bugs_list' org_slug=org_slug %}"`, контейнер `.table-and-pagination`
-- `alarm_list.html` — `data-base-url="{% url 'signal1520:alarm_list' org_slug=org_slug %}"`, контейнер `.table-wrapper`
-- `warehouse_list.html` — `data-base-url="{% url 'signal1520:warehouse_list' org_slug=org_slug %}"`, контейнер `.table-and-pagination`
-- `equipment_list.html` — `data-base-url="{% url 'signal1520:equipment_list' org_slug=org_slug %}"`, контейнер `.table-and-pagination`
+### Инициализация скриптов
+Скрипты страниц выполняются один раз при загрузке, поэтому inline `<script>` в шаблонах допустим.
+`stations.js` и `instructions.js` сами вызывают свои `init...()` на `DOMContentLoaded`.
 
 ---
 
@@ -349,15 +343,13 @@ URL-ы строятся динамически через `window.ORG_SLUG`, к�
 Основные цвета: `#00B7B7` (бирюзовый) и `#333333` (тёмно-серый). Фиолетовый (`#667eea`) нигде не используется.
 
 `styles_stations.css` подключён в `signal1520/base.html` — загружается один раз для всего приложения.
-Отдельные шаблоны тоже содержат `<link>` на него (для прямого открытия), дублирование безвредно — браузер кеширует.
-
-Когда контент грузится в `contentPanel` через innerHTML, `<link>` теги из `<head>` шаблона **не обрабатываются** браузером. Поэтому все общие стили должны быть подключены в `base.html`.
+Стили каркаса (`.site-header`, `.logo`, `.side-rail`, `.rail-btn`, `.rail-flyout`, `.flyout-link`) лежат в `styles.css`; размеры — переменные `--header-height`, `--rail-width`, `--rail-btn-size`, на них же завязаны отступы `body`.
 
 ---
 
 ## Раздел Инструкции (Knowledge)
 
-`KnowledgeListView` — список инструкций текущего пользователя, загружается в contentPanel через AJAX.
+`KnowledgeListView` — список инструкций текущего пользователя.
 Шаблон `knowledge_list.html` разделяет вывод на два блока: `docs` (записи с файлом) и `links` (записи с внешней ссылкой).
 
 `KnowledgeCreateView` — форма добавления инструкции. Требует право `signal1520.add_userknowledge`.
@@ -384,7 +376,7 @@ URL-ы строятся динамически через `window.ORG_SLUG`, к�
 
 ### View-архитектура
 
-`WarehouseListView` — список складов, грузится в contentPanel через AJAX. `org_filter_field='organization'` (дефолтное). Поиск по названию, имени ответственного.
+`WarehouseListView` — список складов. `org_filter_field='organization'` (дефолтное). Поиск по названию, имени ответственного.
 
 `WarehouseDetailView` — карточка склада. Пагинированный список оборудования (10 шт.) реализован вручную через `Paginator` в `get_context_data`, а не через `paginate_by` (View — DetailView, не ListView).
 
@@ -411,20 +403,16 @@ URL-ы строятся динамически через `window.ORG_SLUG`, к�
 `EquipmentExportView` — выгружает всё оборудование организации (`GET /<org_slug>/equipment/export/`).
 `WarehouseEquipmentExportView` — выгружает оборудование конкретного склада (`GET /<org_slug>/warehouses/<pk>/export/`). Перед выгрузкой проверяет, что склад принадлежит организации через `get_object_or_404(Warehouse, pk=pk, organization=self.get_org())`.
 
-### Навигация в меню (index.js)
+### Навигация в меню
 
-Список складов и список оборудования грузятся в contentPanel (не полный редирект).
-Создание склада, создание оборудования, создание типа — полный редирект на отдельные страницы.
+В меню (значок 📦) — ссылки на список складов и список оборудования.
+Создание склада, создание оборудования, создание типа — кнопки на самих страницах списков.
 
 ---
 
 ## Разделы в разработке (заглушки)
 
-В меню следующие секции показывают «Раздел в разработке»:
-- Отчёты (`reports_download`)
-- Ссылки на таблицы (`links_all`), Добавить ссылку (`links_add`)
-- Графики (`charts_download`, `charts_add`)
-- Разное (`others`)
+В меню значки «Отчёты» и «Графики» раскрывают единственный неактивный пункт «В разработке».
 
 ---
 
@@ -454,21 +442,17 @@ POST /accounts/register/
 /accounts/about_me/
   → если profile.organization == None → показывается плашка-предупреждение
     «Ожидайте подтверждения регистрации и определения необходимых прав»
-  → кнопка «Меню» скрыта
+  → в меню только «Мой профиль» и «Настройки»
 
 Администратор в Django admin назначает organization пользователю.
 
   → пользователь логинится → OrgLoginView.get_success_url() → /<org_slug>/
-  → плашка исчезает, кнопка «Меню» появляется
+  → плашка исчезает, в меню появляются разделы организации
 ```
 
-Шаблоны `about_me.html` и `error.html` лежат вне org-контекста (`/accounts/...`).
-Кнопка «Меню» отображается только при наличии организации:
-```html
-{% if user.profile.organization %}
-<a href="{% url 'signal1520:index' org_slug=user.profile.organization.slug %}">🏠 Меню</a>
-{% endif %}
-```
+Страницы профиля лежат вне org-контекста (`/accounts/...`), но используют общий каркас:
+`org_slug` для них context processor берёт из профиля пользователя. Пока организации нет,
+в меню только «Мой профиль» и «Настройки», а логотип ведёт на профиль.
 
 ---
 
@@ -497,9 +481,18 @@ POST /accounts/register/
 
 Маршрут в `workflow_monitoring/urls.py`: `path('media/<path:path>', ProtectedMediaView.as_view())`.
 
+**Не закрыто:** `ProtectedMediaView` проверяет только аутентификацию, но не организацию — аватар (`user/user_<pk>/avatar/`) или вложение чужой организации доступны любому вошедшему пользователю, знающему путь.
+
+### Доступ к профилям пользователей
+
+`UserDetailView` (`/accounts/user/<pk>/`) и `UsersListView` (`/accounts/users/`) берут queryset из `_visible_users(viewer)` (`authentication/views.py`): сам пользователь + участники его организации. Суперпользователь видит всех, пользователь без организации — только себя. Чужой профиль отдаёт **404, а не 403** — чтобы перебором `pk` нельзя было узнать, какие id существуют. До 02.10.2026 проверки организации не было, и при открытой регистрации любой мог перебором увидеть имя, фамилию и email любого пользователя. Тесты — `authentication/tests.py`.
+
+### Удаление пользователя
+
+`Station.created_by` — `SET_NULL` (миграция `signal1520/0016`). Раньше был `CASCADE`: удаление пользователя (в т.ч. по запросу на удаление персональных данных) уносило созданные им станции вместе с задачами и вложениями. `Task.responsible_user`, `Comment.user`, `Knowledge.created_by`, `Warehouse.responsible_user` — тоже `SET_NULL`; `UserKnowledge.user` и `Link.user` — `CASCADE` (личные записи). Код, читающий `station.created_by`, должен учитывать `None` (см. `StationsExportView`).
+
 ### XSS-защита в JavaScript
 
-- `index.js`: сообщение об ошибке fetch вставляется через `textContent` (не `innerHTML`)
 - `station_form.html` / `station_update_form.html`: список дубликатов станций строится через DOM API (`createElement` + `textContent`), не через конкатенацию строк в `innerHTML`
 
 ### Защита регистрации от ботов
@@ -524,12 +517,29 @@ CACHES = {
 
 ### Смена пароля
 
-Реализована через `CustomPasswordChangeView` (`authentication/views.py`). URL: `/accounts/password_change/`. После смены текущая сессия остаётся активной (`update_session_auth_hash` вызывается в родительском `PasswordChangeView`). Ссылка — в профиле (`about_me.html`).
+Реализована через `CustomPasswordChangeView` (`authentication/views.py`). URL: `/accounts/password_change/`. После смены текущая сессия остаётся активной (`update_session_auth_hash` вызывается в родительском `PasswordChangeView`). Ссылка — в меню «Настройки».
 
 ### Переменные окружения
 
 - `SECRET_KEY` — при старте проверяется: `if not SECRET_KEY: raise RuntimeError(...)`. Django не запустится без ключа.
 - `ALLOWED_HOSTS` — парсится с `.strip()` и фильтрацией пустых строк: `[h.strip() for h in ... if h.strip()]`.
+
+---
+
+## Персональные данные (152-ФЗ)
+
+Состояние, оставшиеся задачи и риски — в `privacy_policy.md` в корне репозитория.
+
+- Политика: `authentication/templates/authentication/privacy_policy.html`, URL `/accounts/privacy/`. Текущая версия — 2.0 от 02.10.2026.
+- **При любом изменении текста политики** поднимать `POLICY_VERSION` в `authentication/views.py` и версию/дату в шапке шаблона — версия пишется в `Profile.consent_policy_version` и в письмо о согласии (`RegisterView._send_consent_email`).
+- Политика перечисляет фактических получателей данных (хостинг Cloud.ru, почта Яндекса) и утверждает, что трансграничной передачи нет. При подключении любого внешнего сервиса (аналитика, карты, AI, платежи, CDN) политику нужно обновить до выката.
+- Оператор — физическое лицо; сервер и база — в России (Cloud.ru).
+
+---
+
+## Запуск тестов
+
+`python manage.py test` — 207 тестов (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
 
 ---
 

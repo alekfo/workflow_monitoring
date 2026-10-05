@@ -1,10 +1,9 @@
+{% extends 'signal1520/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Алармы</title>
-    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
+
+{% block title %}Алармы{% endblock %}
+
+{% block extra_head %}
     <style>
         .search-form {
             display: flex;
@@ -57,8 +56,10 @@
             color: white;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
+<div class="page-content">
 <div class="stations-container">
     <div class="stations-header">
         <h2>🚨 Алармы (справочник)</h2>
@@ -71,7 +72,6 @@
                     <a href="?" class="reset-btn" style="background:#e74c3c; padding:10px 20px; border-radius:8px; color:white; text-decoration:none; font-weight:bold;">✖️ Сбросить</a>
                 {% endif %}
             </form>
-            <a href="#" id="backButton" class="back-link">← В главное меню</a>
         </div>
     </div>
 
@@ -130,5 +130,5 @@
 </div>
 
 <script>if (typeof window.initAlarmToggle === 'function') window.initAlarmToggle();</script>
-</body>
-</html>
+</div>
+{% endblock %}

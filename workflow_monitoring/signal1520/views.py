@@ -2,6 +2,7 @@ import io
 import json
 import logging
 import mimetypes
+from datetime import date, timedelta
 from urllib.parse import quote
 from pathlib import Path
 
@@ -28,10 +29,41 @@ from .mixins import OrgMixin
 logger = logging.getLogger('signal1520')
 
 class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
-    """Главная страница приложения."""
+    """Главная страница: сводка по организации. Каждый блок показывается только при наличии права на раздел."""
+
+    @staticmethod
+    def _task_counts(queryset, today):
+        """Счётчики задач: открытые (из них просрочено и со сроком менее 30 дней, как row_color_class в Task) и выполненные."""
+        is_open = models.Q(status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS])
+        return queryset.aggregate(
+            open=models.Count('pk', filter=is_open),
+            overdue=models.Count('pk', filter=is_open & models.Q(due_date__lt=today)),
+            due_soon=models.Count(
+                'pk', filter=is_open & models.Q(due_date__gte=today, due_date__lt=today + timedelta(days=30)),
+            ),
+            completed=models.Count('pk', filter=models.Q(status=Task.Status.COMPLETED)),
+        )
 
     def get(self, request: HttpRequest, org_slug: str) -> HttpResponse:
-        return render(request, 'signal1520/index.html')
+        user = request.user
+        org = self.get_org()
+        today = date.today()
+        context = {}
+
+        if user.has_perm('signal1520.view_task'):
+            org_tasks = Task.objects.filter(station__organization=org)
+            context['org_tasks'] = self._task_counts(org_tasks, today)
+            # «выполнено мной» — выполненные задачи, где пользователь ответственный: кто закрыл задачу, не хранится
+            context['my_tasks'] = self._task_counts(org_tasks.filter(responsible_user=user), today)
+        if user.has_perm('signal1520.view_station'):
+            context['stations_count'] = Station.objects.filter(organization=org).count()
+        if user.has_perm('signal1520.view_warehouse'):
+            context['warehouses_count'] = Warehouse.objects.filter(organization=org).count()
+        if user.has_perm('signal1520.view_equipment'):
+            context['equipment_count'] = Equipment.objects.filter(warehouse__organization=org).count()
+
+        context['has_summary'] = bool(context)
+        return render(request, 'signal1520/index.html', context)
 
 class StationListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
     """Список всех объектов (станций). Доступен суперпользователям и пользователям с правом view_station."""
@@ -524,7 +556,7 @@ class WarehouseEquipmentExportView(OrgMixin, LoginRequiredMixin, UserPassesTestM
 
 
 class KnowledgeListView(OrgMixin, LoginRequiredMixin, ListView):
-    """Список инструкций текущего пользователя. Загружается в contentPanel через AJAX."""
+    """Список инструкций текущего пользователя."""
 
     model = UserKnowledge
     template_name = 'signal1520/knowledge_list.html'
