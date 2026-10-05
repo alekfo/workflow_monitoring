@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Нет доступа</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,6 +58,7 @@
 <body>
     <div class="card">
         <div class="icon">🚫</div>
+        {% if wrong_org %}
         <h1>Нет доступа к этому разделу</h1>
         <p>Вы вошли в систему, но у вашего аккаунта нет доступа к этой организации.</p>
 
@@ -71,6 +73,16 @@
         <div class="org-hint">
             Обратитесь к администратору для назначения организации.
         </div>
+        {% endif %}
+        {% else %}
+        <h1>Нет прав</h1>
+        <p>Обратитесь к разработчикам.</p>
+
+        {% if user.is_authenticated and user.profile.organization %}
+        <a href="{% url 'signal1520:index' org_slug=user.profile.organization.slug %}" class="btn btn-primary">
+            🏠 На главную
+        </a>
+        {% endif %}
         {% endif %}
 
         <a href="{% url 'authentication:logout' %}" class="btn btn-secondary">

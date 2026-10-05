@@ -19,14 +19,17 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.i18n import i18n_patterns
-from django.views.defaults import permission_denied
+from django.shortcuts import render
 from django.views.generic import RedirectView
 
+from signal1520.mixins import OrgAccessDenied
 from signal1520.views import ProtectedMediaView
 
 
 def handler403(request, exception=None):
-    return permission_denied(request, exception, template_name='403.html')
+    # wrong_org: пользователь в чужой организации; иначе — не хватает прав в своей
+    context = {'wrong_org': isinstance(exception, OrgAccessDenied)}
+    return render(request, '403.html', context, status=403)
 
 
 urlpatterns = [

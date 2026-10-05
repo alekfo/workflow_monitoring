@@ -14,9 +14,16 @@ _DISPOSABLE_EMAIL_DOMAINS = frozenset({
 })
 
 class ProfileForm(forms.ModelForm):
+    """Редактирование профиля. Имя и фамилия хранятся в User, остальное — в Profile."""
+
+    first_name = forms.CharField(label='Имя', max_length=150)
+    last_name = forms.CharField(label='Фамилия', max_length=150)
+
+    field_order = ['first_name', 'last_name', 'bio', 'avatar']
+
     class Meta:
         model = Profile
-        fields = "bio", "agreement_accepted", "avatar"
+        fields = "bio", "avatar"
         widgets = {
             'bio': forms.Textarea(attrs={'rows': 4, 'cols': 40}),
             'avatar': forms.ClearableFileInput(attrs={'class': 'form-control'})
@@ -25,6 +32,20 @@ class ProfileForm(forms.ModelForm):
             'bio': 'О себе',
             'avatar': 'Аватарка'
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['first_name'].initial = self.instance.user.first_name
+        self.fields['last_name'].initial = self.instance.user.last_name
+
+    def save(self, commit=True):
+        profile = super().save(commit=commit)
+        user = profile.user
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        if commit:
+            user.save(update_fields=['first_name', 'last_name'])
+        return profile
 
 
 class CustomUserCreationForm(UserCreationForm):

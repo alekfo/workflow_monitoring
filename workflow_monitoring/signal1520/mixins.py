@@ -4,6 +4,14 @@ from django.shortcuts import get_object_or_404
 from .models import Organization
 
 
+class OrgAccessDenied(PermissionDenied):
+    """Пользователь зашёл в чужую организацию.
+
+    Отдельный класс нужен обработчику 403 (workflow_monitoring/urls.py), чтобы отличить
+    этот случай от обычной нехватки прав внутри своей организации и показать другой текст.
+    """
+
+
 class OrgMixin:
     """Привязывает view к организации из URL-параметра org_slug.
 
@@ -52,7 +60,7 @@ class OrgMixin:
            доступ ко всем организациям (удобно для администрирования).
         3. Обычный пользователь — сравниваем user.profile.organization с get_org().
            Django сравнивает объекты моделей по pk, поэтому сравнение корректно.
-           Если организации не совпадают — PermissionDenied → 403.
+           Если организации не совпадают — OrgAccessDenied → 403.
            Если у пользователя нет профиля или profile.organization == None —
            любое исключение кроме PermissionDenied перехватывается и тоже даёт 403.
            PermissionDenied обрабатывается отдельно (re-raise), чтобы он не был
@@ -61,11 +69,11 @@ class OrgMixin:
         if request.user.is_authenticated and not request.user.is_superuser:
             try:
                 if request.user.profile.organization != self.get_org():
-                    raise PermissionDenied
+                    raise OrgAccessDenied
             except PermissionDenied:
                 raise
             except Exception:
-                raise PermissionDenied
+                raise OrgAccessDenied
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):

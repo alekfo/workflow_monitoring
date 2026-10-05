@@ -1,40 +1,49 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>
         {% block title %}
             Base title
         {% endblock %}
     </title>
     <link rel="icon" type="image/x-icon" href="{% static 'signal1520/favicon.ico' %}">
-    <link rel="stylesheet" href="{% static 'signal1520/css/styles.css' %}">
-    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
-    <script>window.ORG_SLUG = '{{ org_slug }}';</script>
-    <script src="{% static 'signal1520/js/index.js' %}"></script>
-    <script src="{% static 'signal1520/js/main_header.js' %}"></script>
-    <script src="{% static 'signal1520/js/bug_filter.js' %}"></script>
-    <script src="{% static 'signal1520/js/instructions.js' %}"></script>
+    {# ?v=… — сброс кэша: Nginx отдаёт /static/ с expires 30d и immutable. Менять номер при каждой правке этих файлов. #}
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles.css' %}?v=20261005">
+    <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}?v=20261005">
+    <script src="{% static 'signal1520/js/sidebar.js' %}?v=20261005"></script>
+    <script src="{% static 'signal1520/js/instructions.js' %}?v=20261005"></script>
     <script src="{% static 'signal1520/js/alarm_toggle.js' %}"></script>
     <script src="{% static 'signal1520/js/form_validation.js' %}"></script>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <header>
-        <nav style="display: flex; gap: 10px; justify-content: flex-end; padding: 10px 20px;">
+    <header class="site-header">
+        <div class="header-left">
+            <button type="button" class="nav-toggle" id="nav-toggle"
+                    aria-controls="side-rail" aria-expanded="false" aria-label="Разделы">
+                <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <a class="logo" title="На главную"
+               href="{% if org_slug %}{% url 'signal1520:index' org_slug=org_slug %}{% else %}{% url 'authentication:about_me' %}{% endif %}">Field<span>Log</span></a>
+        </div>
+        <div class="header-right">
             <div class="user-info">
-                <span class="user-icon">👤</span>
                 <span class="user-name">{{ user.get_full_name|default:user.username }}</span>
                 {% if user.profile.organization %}
                 <span class="user-org-divider">|</span>
-                <span class="user-org">🏢 {{ user.profile.organization.name }}</span>
+                <span class="user-org">{{ user.profile.organization.name }}</span>
                 {% endif %}
             </div>
-            <button id="accountBtn" class="button" style="width: auto; padding: 8px 20px;">👤 Профиль</button>
-            <button id="logoutBtn" class="button" style="width: auto; padding: 8px 20px;">🚪 Выйти</button>
-
-        </nav>
+            <a class="logout-btn" href="{% url 'authentication:logout' %}">Выйти</a>
+        </div>
     </header>
+
+    {% include 'signal1520/_sidebar.html' %}
 
     <!-- Основной контейнер для контента -->
     <div class="main-layout">
@@ -44,9 +53,9 @@
     </div>
 
     <footer>
-        <nav>
-            <button id="contactBtn" class="button"> 📞 Связаться с поддержкой</button>
-        </nav>
+        {% if org_slug %}
+        <a class="button" href="{% url 'signal1520:contact' org_slug=org_slug %}">Связаться с поддержкой</a>
+        {% endif %}
     </footer>
 </body>
 </html>

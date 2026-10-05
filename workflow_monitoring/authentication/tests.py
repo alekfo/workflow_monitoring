@@ -87,3 +87,37 @@ class UserDeletionTest(TestCase):
 
         station.refresh_from_db()
         self.assertIsNone(station.created_by)
+
+
+class ProfileUpdateTest(TestCase):
+    """Форма редактирования профиля: имя и фамилия пишутся в User, остальное — в Profile."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = make_user('editor', first_name='Иван', last_name='Старов')
+        Profile.objects.filter(user=cls.user).update(agreement_accepted=True)
+
+    def setUp(self):
+        self.client.force_login(self.user)
+        self.url = reverse('authentication:profile_update')
+
+    def test_form_shows_current_name_and_no_agreement_checkbox(self):
+        r = self.client.get(self.url)
+        self.assertContains(r, 'value="Иван"')
+        self.assertContains(r, 'value="Старов"')
+        self.assertNotContains(r, 'agreement_accepted')
+
+    def test_post_updates_name_and_bio(self):
+        r = self.client.post(self.url, {'first_name': 'Пётр', 'last_name': 'Новиков', 'bio': 'Инженер'})
+        self.assertRedirects(r, reverse('authentication:about_me'))
+        self.user.refresh_from_db()
+        self.assertEqual((self.user.first_name, self.user.last_name), ('Пётр', 'Новиков'))
+        self.assertEqual(self.user.profile.bio, 'Инженер')
+        # согласие, данное при регистрации, форма больше не трогает
+        self.assertTrue(self.user.profile.agreement_accepted)
+
+    def test_empty_name_is_rejected(self):
+        r = self.client.post(self.url, {'first_name': '', 'last_name': 'Новиков', 'bio': ''})
+        self.assertEqual(r.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'Иван')

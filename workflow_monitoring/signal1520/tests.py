@@ -1,3 +1,4 @@
+import datetime
 import io
 import json
 
@@ -241,6 +242,14 @@ class OrgIsolationTest(ViewTestBase):
         self.client.force_login(other_user)
         r = self.client.get(self.url('signal1520:station_list'))
         self.assertEqual(r.status_code, 403)
+        self.assertContains(r, 'нет доступа к этой организации', status_code=403)
+
+    def test_no_permission_in_own_org_is_not_reported_as_foreign_org(self):
+        """Нехватка прав в своей организации — «Нет прав», а не сообщение о чужой организации."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:station_list'))
+        self.assertContains(r, 'Нет прав', status_code=403)
+        self.assertNotContains(r, 'нет доступа к этой организации', status_code=403)
 
     def test_anon_gets_login_redirect(self):
         """Анонимный пользователь перенаправляется на логин, а не получает 403."""
@@ -1718,3 +1727,72 @@ class WarehouseEquipmentExportViewTest(WarehouseViewTestBase):
         self.client.force_login(self.warehouse_user)
         r = self.client.get(self.url('signal1520:warehouse_equipment_export', pk=other_wh.pk))
         self.assertEqual(r.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# Задача без ответственного (пользователь удалён, responsible_user = NULL)
+# ---------------------------------------------------------------------------
+
+class TaskWithoutResponsibleUserTest(ViewTestBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.orphan_task = Task.objects.create(
+            station=cls.station,
+            description='Задача без ответственного',
+            status=Task.Status.NEW,
+            responsible_user=None,
+        )
+
+    def test_list_renders(self):
+        """Список задач открывается, если у задачи нет ответственного."""
+        self.client.force_login(self.superuser)
+        r = self.client.get(self.url('signal1520:bugs_list'))
+        self.assertContains(r, 'Задача без ответственного')
+
+    def test_detail_renders(self):
+        """Карточка задачи открывается, если у задачи нет ответственного."""
+        self.client.force_login(self.superuser)
+        r = self.client.get(self.url('signal1520:bug_details', pk=self.orphan_task.pk))
+        self.assertEqual(r.status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# Главная: сводка
+# ---------------------------------------------------------------------------
+
+class IndexSummaryTest(ViewTestBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        today = datetime.date.today()
+        for description, due_date, status in [
+            ('Просроченная', today - datetime.timedelta(days=3), Task.Status.NEW),
+            ('Скоро срок', today + datetime.timedelta(days=5), Task.Status.IN_PROGRESS),
+            ('Далёкий срок', today + datetime.timedelta(days=90), Task.Status.NEW),
+            ('Закрытая просроченная', today - datetime.timedelta(days=3), Task.Status.COMPLETED),
+        ]:
+            Task.objects.create(
+                station=cls.station, description=description, status=status,
+                due_date=due_date, responsible_user=cls.task_user,
+            )
+
+    def test_counts_for_user_with_task_permission(self):
+        """Открытые и выполненные считаются отдельно; свои и всей организации — тоже."""
+        self.client.force_login(self.task_user)
+        r = self.client.get(self.url('signal1520:index'))
+        self.assertEqual(r.context['my_tasks'], {'open': 3, 'overdue': 1, 'due_soon': 1, 'completed': 1})
+        # в базовых фикстурах есть ещё одна открытая задача без срока на plain_user
+        self.assertEqual(r.context['org_tasks'], {'open': 4, 'overdue': 1, 'due_soon': 1, 'completed': 1})
+        self.assertContains(r, 'выполнено мной: 1')
+        self.assertContains(r, 'выполнено организацией: 1')
+        self.assertEqual(r.context['stations_count'], 1)
+
+    def test_no_permissions_shows_no_numbers(self):
+        """Без прав на разделы сводка не раскрывает количество задач и объектов."""
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:index'))
+        self.assertEqual(r.status_code, 200)
+        for key in ('my_tasks', 'org_tasks', 'stations_count', 'equipment_count', 'warehouses_count'):
+            self.assertNotIn(key, r.context)
+        self.assertContains(r, 'Выберите раздел в меню')
