@@ -17,11 +17,13 @@ from django.views import View
 from django.db import models
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
+from django.utils.http import content_disposition_header
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
 from django.conf import settings
 from django.core.mail import send_mail
 
+from authentication.models import Profile
 from .models import ActivityEvent, Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge, Warehouse, Equipment, EquipmentType
 from .forms import KnowledgeForm, ContactForm
 from .mixins import OrgMixin
@@ -665,7 +667,10 @@ class KnowledgeCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Vie
         used_ids = UserKnowledge.objects.filter(
             user=self.request.user
         ).values_list('knowledge_id', flat=True)
-        return Knowledge.objects.filter(file__gt='').exclude(pk__in=used_ids)
+        # только файлы, загруженные участниками своей организации: у Knowledge нет своего FK на организацию
+        return Knowledge.objects.filter(
+            file__gt='', created_by__profile__organization=self.get_org(),
+        ).exclude(pk__in=used_ids)
 
     def _build_form(self, data=None, files=None):
         form = KnowledgeForm(data, files)
@@ -1029,54 +1034,108 @@ class ContactView(OrgMixin, LoginRequiredMixin, View):
 
     def post(self, request, **kwargs):
         form = ContactForm(request.POST)
-        if form.is_valid():
-            name = form.cleaned_data['name']
-            email = form.cleaned_data['email']
-            message = form.cleaned_data['message']
-            body = (
-                f"Имя: {name}\n"
-                f"Email: {email}\n"
-                f"Пользователь: {request.user.username}\n"
-                f"Организация: {getattr(request.user.profile.organization, 'name', '—')}\n"
-                f"\n{message}"
+        if not form.is_valid():
+            return render(request, 'signal1520/contact.html', {'form': form})
+
+        name = form.cleaned_data['name']
+        email = form.cleaned_data['email']
+        message = form.cleaned_data['message']
+        body = (
+            f"Имя: {name}\n"
+            f"Email: {email}\n"
+            f"Пользователь: {request.user.username}\n"
+            f"Организация: {getattr(request.user.profile.organization, 'name', '—')}\n"
+            f"\n{message}"
+        )
+        try:
+            send_mail(
+                subject=f"Обращение от {name}",
+                message=body,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[settings.SUPPORT_EMAIL],
+                fail_silently=False,
             )
-            try:
-                send_mail(
-                    subject=f"Обращение от {name}",
-                    message=body,
-                    from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=[settings.SUPPORT_EMAIL],
-                    fail_silently=False,
-                )
-                logger.info('Обращение отправлено (user=%s, email=%s)', request.user.username, email)
-            except Exception as exc:
-                logger.error('Ошибка отправки обращения (user=%s): %s', request.user.username, exc)
-            fresh_form = ContactForm(initial=self._initial(request.user))
-            return render(request, 'signal1520/contact.html', {'form': fresh_form, 'success': True})
+        except Exception as exc:
+            logger.error('Ошибка отправки обращения (user=%s): %s', request.user.username, exc)
+            # текст обращения остаётся в форме, чтобы его не пришлось набирать заново
+            form.add_error(None, 'Не удалось отправить обращение. Попробуйте ещё раз позже.')
+            return render(request, 'signal1520/contact.html', {'form': form})
+
+        logger.info('Обращение отправлено (user=%s, email=%s)', request.user.username, email)
+        fresh_form = ContactForm(initial=self._initial(request.user))
+        return render(request, 'signal1520/contact.html', {'form': fresh_form, 'success': True})
 
 
 class ProtectedMediaView(LoginRequiredMixin, View):
-    """Раздаёт медиа-файлы только аутентифицированным пользователям."""
+    """Раздаёт медиа-файлы только тем, кому доступна страница с этим файлом (см. _has_access).
+
+    В браузере открываются только типы из INLINE_TYPES, всё остальное отдаётся на скачивание:
+    загруженный .html или .svg со скриптом иначе выполнился бы на нашем домене от имени открывшего."""
+
+    INLINE_TYPES = frozenset({'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'})
+
+    @classmethod
+    def _safe_headers(cls, file_path):
+        """Content-Type и Content-Disposition для файла."""
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        if content_type in cls.INLINE_TYPES:
+            return content_type, content_disposition_header(False, file_path.name)
+        # прочие растровые картинки (например .bmp в аватаре) остаются картинками для <img>,
+        # но при прямом открытии тоже скачиваются; svg к ним не относится — в нём бывают скрипты
+        if not (content_type or '').startswith('image/') or content_type == 'image/svg+xml':
+            content_type = 'application/octet-stream'
+        return content_type, content_disposition_header(True, file_path.name)
+
+    @staticmethod
+    def _has_access(user, name):
+        """Файл доступен тому же, кому доступна страница, где он показан. name — путь внутри MEDIA_ROOT.
+
+        Файл, на который не ссылается ни одна запись в базе, не отдаётся никому, кроме суперпользователя."""
+        if user.is_superuser:
+            return True
+        try:
+            org = user.profile.organization
+        except ObjectDoesNotExist:
+            org = None
+        section = name.split('/', 1)[0]
+        if section == 'tasks':
+            # вложение задачи — как карточка задачи: своя организация и право view_task
+            return (org is not None and user.has_perm('signal1520.view_task')
+                    and Attachment.objects.filter(file=name, task__station__organization=org).exists())
+        if section == 'knowledge':
+            # инструкция — тому, у кого она в списке, и тому, кто её загрузил
+            return Knowledge.objects.filter(file=name).filter(
+                models.Q(user_knowledge__user=user) | models.Q(created_by=user)
+            ).exists()
+        if section == 'user':
+            # аватар — как профиль: свой и участников своей организации
+            visible = models.Q(user=user)
+            if org is not None:
+                visible |= models.Q(organization=org)
+            return Profile.objects.filter(avatar=name).filter(visible).exists()
+        return False
 
     def get(self, request, path):
         media_root = Path(settings.MEDIA_ROOT).resolve()
         file_path = (media_root / path).resolve()
         try:
-            file_path.relative_to(media_root)
+            name = file_path.relative_to(media_root).as_posix()
         except ValueError:
             raise Http404
         if not file_path.is_file():
             raise Http404
+        # 404, а не 403: по ответу нельзя узнать, существует ли чужой файл
+        if not self._has_access(request.user, name):
+            logger.warning('Отказ в доступе к файлу "%s" (user=%s)', name, request.user.username)
+            raise Http404
 
+        content_type, disposition = self._safe_headers(file_path)
         if settings.DEBUG:
-            content_type, _ = mimetypes.guess_type(str(file_path))
-            return FileResponse(
-                open(file_path, 'rb'),
-                content_type=content_type or 'application/octet-stream',
-            )
-
-        # Продакшн: Nginx отдаёт файл сам через X-Accel-Redirect
-        content_type, _ = mimetypes.guess_type(str(file_path))
-        response = HttpResponse(content_type=content_type or 'application/octet-stream')
-        response['X-Accel-Redirect'] = f'/protected-media/{quote(path, safe="/")}'
+            response = FileResponse(open(file_path, 'rb'), content_type=content_type)
+        else:
+            # Продакшн: Nginx отдаёт файл сам через X-Accel-Redirect, заголовки ответа сохраняет
+            response = HttpResponse(content_type=content_type)
+            response['X-Accel-Redirect'] = f'/protected-media/{quote(path, safe="/")}'
+        response['Content-Disposition'] = disposition
+        response['X-Content-Type-Options'] = 'nosniff'
         return response

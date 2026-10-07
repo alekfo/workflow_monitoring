@@ -1,9 +1,14 @@
 import datetime
 import io
 import json
+import tempfile
+from pathlib import Path
+
+from unittest import mock
 
 import openpyxl
 from django.contrib.auth.models import User, Permission
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -1178,6 +1183,197 @@ class KnowledgeCreateViewTest(ViewTestBase):
         self.client.force_login(self.superuser)
         r = self.client.get(self.url('signal1520:knowledge_create'))
         self.assertEqual(r.status_code, 200)
+
+    def _knowledge_fixtures(self):
+        user = make_user('know_user', org=self.org, codenames=['add_userknowledge'])
+        colleague = make_user('know_colleague', org=self.org)
+        other_org = Organization.objects.create(name='Other', slug='know-other')
+        stranger = make_user('know_stranger', org=other_org)
+        own = Knowledge.objects.create(created_by=colleague, file='knowledge/own_org.pdf')
+        foreign = Knowledge.objects.create(created_by=stranger, file='knowledge/foreign_org.pdf')
+        return user, own, foreign
+
+    def test_existing_files_limited_to_own_organization(self):
+        """В списке «Выбрать из существующих» — только файлы, загруженные участниками своей организации."""
+        user, own, foreign = self._knowledge_fixtures()
+        self.client.force_login(user)
+        r = self.client.get(self.url('signal1520:knowledge_create'))
+        offered = list(r.context['form'].fields['existing_knowledge'].queryset)
+        self.assertEqual(offered, [own])
+
+    def test_cannot_attach_file_of_other_organization(self):
+        """Файл чужой организации нельзя привязать к себе, даже подставив его id в запрос."""
+        user, own, foreign = self._knowledge_fixtures()
+        self.client.force_login(user)
+        r = self.client.post(self.url('signal1520:knowledge_create'), {
+            'title': 'Чужой файл', 'existing_knowledge': foreign.pk,
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(UserKnowledge.objects.filter(user=user).exists())
+        self.client.post(self.url('signal1520:knowledge_create'), {
+            'title': 'Свой файл', 'existing_knowledge': own.pk,
+        })
+        self.assertTrue(UserKnowledge.objects.filter(user=user, knowledge=own).exists())
+
+
+# ---------------------------------------------------------------------------
+# ProtectedMediaView
+# ---------------------------------------------------------------------------
+
+class ProtectedMediaViewTest(ViewTestBase):
+    def setUp(self):
+        media = tempfile.TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        self.enterContext(self.settings(MEDIA_ROOT=media.name))
+        self.media = Path(media.name)
+        for name in ('photo.jpg', 'act.pdf', 'page.html', 'drawing.svg', 'notes.txt', 'scan.bmp', 'report.docx'):
+            self._write(f'tasks/task_1/{name}')
+            Attachment.objects.create(task=self.task, file=f'tasks/task_1/{name}')
+
+    def _write(self, name):
+        path = self.media / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'<script>alert(1)</script>')
+
+    def _get(self, name, user=None):
+        self.client.force_login(user or self.task_user)
+        return self.client.get(f'/media/tasks/task_1/{name}')
+
+    def _status(self, user, path):
+        self.client.force_login(user)
+        return self.client.get(f'/media/{path}').status_code
+
+    def _other_org_user(self, username, codenames=()):
+        other_org, _ = Organization.objects.get_or_create(name='Other', slug='media-other')
+        return make_user(username, org=other_org, codenames=codenames)
+
+    def test_attachment_needs_same_organization_and_view_task(self):
+        """Вложение задачи открывает тот, кому доступна её карточка: своя организация и право view_task."""
+        path = 'tasks/task_1/photo.jpg'
+        self.assertEqual(self._status(self.task_user, path), 200)
+        self.assertEqual(self._status(self.superuser, path), 200)
+        # своя организация, но без права на задачи
+        self.assertEqual(self._status(self.station_user, path), 404)
+        # право есть, но организация чужая
+        self.assertEqual(self._status(self._other_org_user('media_stranger', ['view_task']), path), 404)
+
+    def test_knowledge_file_only_for_its_users(self):
+        """Файл инструкции открывает тот, у кого она в списке, и тот, кто её загрузил."""
+        path = 'knowledge/manual.pdf'
+        self._write(path)
+        author = make_user('know_author', org=self.org)
+        reader = make_user('know_reader', org=self.org)
+        knowledge = Knowledge.objects.create(created_by=author, file=path)
+        UserKnowledge.objects.create(user=reader, knowledge=knowledge, title='Инструкция')
+        self.assertEqual(self._status(author, path), 200)
+        self.assertEqual(self._status(reader, path), 200)
+        # коллега из той же организации, у которого этой инструкции нет
+        self.assertEqual(self._status(self.task_user, path), 404)
+        self.assertEqual(self._status(self._other_org_user('know_outsider'), path), 404)
+
+    def test_avatar_only_for_own_organization(self):
+        """Аватар виден самому пользователю и участникам его организации."""
+        path = f'user/user_{self.plain_user.pk}/avatar/face.jpg'
+        self._write(path)
+        Profile.objects.filter(user=self.plain_user).update(avatar=path)
+        self.assertEqual(self._status(self.plain_user, path), 200)
+        self.assertEqual(self._status(self.task_user, path), 200)
+        self.assertEqual(self._status(self._other_org_user('avatar_stranger'), path), 404)
+        # пользователь без организации видит только свой аватар
+        self.assertEqual(self._status(make_user('no_org_user'), path), 404)
+
+    def test_unreferenced_file_only_for_superuser(self):
+        """Файл, на который не ссылается ни одна запись, отдаётся только суперпользователю."""
+        for path in ('tasks/task_1/orphan.jpg', 'misc/backup.zip'):
+            self._write(path)
+            self.assertEqual(self._status(self.task_user, path), 404)
+            self.assertEqual(self._status(self.superuser, path), 200)
+
+    def test_anonymous_is_redirected_to_login(self):
+        """Без входа файл не отдаётся."""
+        r = self.client.get('/media/tasks/task_1/photo.jpg')
+        self.assertEqual(r.status_code, 302)
+
+    def test_images_and_pdf_open_in_browser(self):
+        """Фото и PDF отдаются для показа в браузере со своим типом."""
+        for name, content_type in (('photo.jpg', 'image/jpeg'), ('act.pdf', 'application/pdf')):
+            r = self._get(name)
+            self.assertEqual(r['Content-Type'], content_type)
+            self.assertTrue(r['Content-Disposition'].startswith('inline'))
+            self.assertEqual(r['X-Content-Type-Options'], 'nosniff')
+
+    def test_everything_else_is_downloaded(self):
+        """HTML, SVG, текст и документы отдаются только на скачивание и без исполняемого типа."""
+        for name in ('page.html', 'drawing.svg', 'notes.txt', 'report.docx'):
+            r = self._get(name)
+            self.assertEqual(r['Content-Type'], 'application/octet-stream', name)
+            self.assertEqual(r['Content-Disposition'], f'attachment; filename="{name}"')
+            self.assertEqual(r['X-Content-Type-Options'], 'nosniff')
+
+    def test_other_raster_image_keeps_type_but_downloads(self):
+        """BMP остаётся картинкой для <img> (аватар, окно просмотра), но при прямом открытии скачивается."""
+        r = self._get('scan.bmp')
+        self.assertTrue(r['Content-Type'].startswith('image/'))
+        self.assertTrue(r['Content-Disposition'].startswith('attachment'))
+
+    def test_production_passes_headers_to_nginx(self):
+        """В продакшне тип и «скачать» уходят в ответе с X-Accel-Redirect — Nginx их сохраняет."""
+        with self.settings(DEBUG=False):
+            r = self._get('page.html')
+        self.assertEqual(r['X-Accel-Redirect'], '/protected-media/tasks/task_1/page.html')
+        self.assertEqual(r['Content-Type'], 'application/octet-stream')
+        self.assertTrue(r['Content-Disposition'].startswith('attachment'))
+
+    def test_development_serves_file_with_same_headers(self):
+        """При DEBUG=True файл отдаёт сам Django — с теми же заголовками."""
+        with self.settings(DEBUG=True):
+            r = self._get('page.html')
+            content = b''.join(r.streaming_content)
+            r.close()
+        self.assertEqual(content, b'<script>alert(1)</script>')
+        self.assertEqual(r['Content-Type'], 'application/octet-stream')
+        self.assertTrue(r['Content-Disposition'].startswith('attachment'))
+        self.assertEqual(r['X-Content-Type-Options'], 'nosniff')
+
+    def test_path_traversal_returns_404(self):
+        """Выйти за пределы MEDIA_ROOT нельзя."""
+        self.assertEqual(self._get('../../../manage.py').status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# ContactView
+# ---------------------------------------------------------------------------
+
+class ContactViewTest(ViewTestBase):
+    DATA = {'name': 'Иван', 'email': 'ivan@example.com', 'message': 'Не открывается задача'}
+
+    def _post(self, data):
+        self.client.force_login(self.plain_user)
+        return self.client.post(self.url('signal1520:contact'), data)
+
+    def test_valid_form_sends_mail(self):
+        """Корректное обращение уходит письмом, пользователь видит подтверждение."""
+        r = self._post(self.DATA)
+        self.assertTrue(r.context['success'])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Не открывается задача', mail.outbox[0].body)
+
+    def test_invalid_form_shows_errors(self):
+        """Невалидная форма возвращается с ошибками, а не падает; письмо не отправляется."""
+        r = self._post({**self.DATA, 'email': 'не-адрес', 'message': ''})
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('success', r.context)
+        self.assertTrue(r.context['form'].errors)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_send_failure_is_not_reported_as_success(self):
+        """Если письмо не ушло, пользователь видит ошибку, а набранный текст остаётся в форме."""
+        with mock.patch('signal1520.views.send_mail', side_effect=OSError('smtp down')):
+            r = self._post(self.DATA)
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('success', r.context)
+        self.assertContains(r, 'Не удалось отправить обращение')
+        self.assertContains(r, 'Не открывается задача')
 
 
 # ---------------------------------------------------------------------------
