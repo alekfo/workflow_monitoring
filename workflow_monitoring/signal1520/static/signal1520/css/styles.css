@@ -150,6 +150,12 @@ footer .button {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
+/* Колонка: лента под плитками забирает всё место до футера */
+.dashboard {
+    display: flex;
+    flex-direction: column;
+}
+
 .dashboard-title {
     margin: 0 0 20px;
     color: #2c3e50;
@@ -231,6 +237,87 @@ footer .button {
 .chip-completed {
     background: #d5f5e3;
     border: 1px solid #aad4b8;
+}
+
+/* ---------- Главная: лента последних изменений ---------- */
+/* Блок занимает остаток высоты до футера; минимум — заголовок и три строки */
+.activity {
+    flex: 1 1 0;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    margin-top: 28px;
+}
+
+.activity-title {
+    flex: none;
+    margin: 0 0 10px;
+    color: #2c3e50;
+    font-size: 18px;
+}
+
+/* Строка, не поместившаяся целиком, переносится во вторую колонку за правым краем и обрезается:
+   видны только целые строки, прокрутки нет */
+.activity-list {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow: hidden;
+}
+
+.activity-row {
+    flex: none;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border-bottom: 1px solid #eef1f2;
+    color: #333;
+    font-size: 14px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+a.activity-row[href]:hover {
+    background: #f1fbfb;
+}
+
+.activity-row.is-gone {
+    color: #95a5a6;
+}
+
+.activity-time {
+    flex: none;
+    width: 82px;
+    color: #7f8c8d;
+    font-size: 13px;
+}
+
+.activity-user {
+    flex: none;
+    width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #2c3e50;
+    font-weight: bold;
+}
+
+.activity-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.activity-empty {
+    margin: 0;
+    padding: 9px 12px;
+    color: #7f8c8d;
 }
 
 /* ---------- Левая панель значков ---------- */
@@ -585,5 +672,39 @@ tr:hover {
     /* Блок, растянутый на две колонки, на телефоне занимает одну */
     .info-grid > * {
         grid-column: auto !important;
+    }
+
+    /* Лента: страница на телефоне прокручивается, «до футера» нет — пять последних событий, текст переносится */
+    .activity,
+    .activity-list {
+        flex: none;
+        min-height: 0;
+    }
+
+    .activity-list {
+        flex-wrap: nowrap;
+        overflow: visible;
+    }
+
+    .activity-row:nth-child(n+6) {
+        display: none;
+    }
+
+    .activity-row {
+        flex-wrap: wrap;
+        gap: 2px 10px;
+        padding: 9px 4px;
+    }
+
+    .activity-user {
+        flex: 1;
+        width: auto;
+        min-width: 0;
+    }
+
+    .activity-text {
+        flex: none;
+        width: 100%;
+        white-space: normal;
     }
 }

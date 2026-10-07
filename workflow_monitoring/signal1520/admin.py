@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
-from .models import Task, TaskStatusChange, Station, Comment, Attachment, Knowledge, UserKnowledge, Link, Road, System, Organization, EquipmentType, Warehouse, Equipment
+from .models import ActivityEvent, Task, TaskStatusChange, Station, Comment, Attachment, Knowledge, UserKnowledge, Link, Road, System, Organization, EquipmentType, Warehouse, Equipment
 
 
 @admin.register(Organization)
@@ -106,6 +106,23 @@ class TaskStatusChangeAdmin(admin.ModelAdmin):
     search_fields = ('task__description', 'task__station__name', 'changed_by__username')
     ordering = ('-changed_at',)
     list_select_related = ('task__station', 'changed_by')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ActivityEvent)
+class ActivityEventAdmin(admin.ModelAdmin):
+    """Лента изменений на главной: только просмотр и удаление"""
+    list_display = 'pk', 'created_at', 'organization', 'user', 'kind', 'text'
+    list_display_links = 'pk', 'created_at'
+    list_filter = ('organization', 'kind')
+    search_fields = ('text', 'user__username')
+    ordering = ('-created_at',)
+    list_select_related = ('organization', 'user')
 
     def has_add_permission(self, request):
         return False

@@ -191,6 +191,7 @@ Vasya видит только задачи своей организации.
 | `Station` | Объект/станция. Поля: name, road(FK), distance, system(FK, nullable), description, latitude, longitude, created_by(FK User, nullable, `SET_NULL`), organization(FK) |
 | `Task` | Задача. Поля: station(FK), description, status(new/in_progress/completed/cancelled), responsible_organization, responsible_user(FK User), due_date. Статус меняется только через `Task.change_status()` — см. «Статусы задач» |
 | `TaskStatusChange` | История смены статусов задачи. Поля: task(FK), from_status, to_status, changed_by(FK User, `SET_NULL`), changed_at. Последняя запись — `task.last_status_change` |
+| `ActivityEvent` | Событие ленты «Последние изменения» на главной. Поля: organization(FK), kind, user(FK, `SET_NULL`), task(FK, `SET_NULL`), station(FK, `SET_NULL`), text (готовая строка), created_at. Пишется через `ActivityEvent.log()` — см. «Лента изменений» |
 | `Comment` | Комментарий к задаче. Поля: task(FK), user(FK), body. Автор может править свой комментарий 24 часа после создания (`Comment.EDIT_WINDOW`, `can_be_edited_by`); изменённый помечается «изменён» (`is_edited`). Удаления нет |
 | `Attachment` | Вложение к задаче. Файлы хранятся в `tasks/task_<id>/` внутри MEDIA_ROOT |
 | `AlarmInfo` | Справочник алармов. Поля: number(PK), description, explanation. Данные загружаются скриптом migrate_alarms.py |
@@ -377,6 +378,30 @@ Vasya видит только задачи своей организации.
 («Can change Задача»), и лишние «Can change Смена статуса задачи» в админке с ним путали.
 
 Не закрыто: смена статуса через inline задач на странице станции в админке (`TaskInline`) в историю не попадает.
+
+---
+
+## Лента изменений на главной
+
+Под плитками сводки `TasksIndexView` показывает последние события организации из `ActivityEvent`.
+
+| Событие (`kind`) | Где пишется | Кто видит |
+|------------------|-------------|-----------|
+| `task_created` | `BugCreateView.form_valid` | `view_task` |
+| `task_status` | `Task.change_status` (карточка задачи и админка) | `view_task` |
+| `task_comment` | `BugDetailView.post` | `view_task` |
+| `task_attachment` | `BugDetailView.post` | `view_task` |
+| `station_created` | `StationCreateView.form_valid` | `view_station` |
+
+- Запись делает код явно, через `ActivityEvent.log(kind, user, task=... | station=...)`, а не сигналы:
+  сигнал не знает пользователя. Новое ключевое событие = новый `Kind`, строка в `build_text` и вызов `log()`.
+- Текст события — готовая строка без текста комментариев («Задача #25, Бутырская — добавлен комментарий»).
+  После удаления задачи или объекта событие остаётся, но перестаёт быть ссылкой.
+- Правка комментария, правка задачи, учёт оборудования и создание задач/объектов через админку в ленту не попадают.
+- Вьюха отдаёт `ACTIVITY_LIMIT = 40` последних; сколько из них показать, решает вёрстка (см. `FRONTEND.md`).
+- Миграция `0019` один раз заполнила ленту из существующих данных; у прошлых событий создания задач
+  и вложений автора нет (он не хранился) — в ленте вместо имени «—».
+- Своих прав у модели нет (`default_permissions = ()`), в админке — только просмотр и удаление.
 
 ---
 
@@ -572,7 +597,7 @@ CACHES = {
 
 ## Запуск тестов
 
-`python manage.py test` — 230 тестов (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
+`python manage.py test` — 237 тестов (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
 
 ---
 

@@ -22,14 +22,17 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.conf import settings
 from django.core.mail import send_mail
 
-from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge, Warehouse, Equipment, EquipmentType
+from .models import ActivityEvent, Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge, Warehouse, Equipment, EquipmentType
 from .forms import KnowledgeForm, ContactForm
 from .mixins import OrgMixin
 
 logger = logging.getLogger('signal1520')
 
 class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
-    """Главная страница: сводка по организации. Каждый блок показывается только при наличии права на раздел."""
+    """Главная страница: сводка по организации и лента последних изменений.
+    Каждый блок показывается только при наличии права на раздел."""
+
+    ACTIVITY_LIMIT = 40
 
     @staticmethod
     def _task_counts(queryset, today):
@@ -63,6 +66,20 @@ class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
             context['equipment_count'] = Equipment.objects.filter(warehouse__organization=org).count()
 
         context['has_summary'] = bool(context)
+
+        # Лента: события по задачам и объектам — только при праве на соответствующий раздел
+        kinds = []
+        if user.has_perm('signal1520.view_task'):
+            kinds += ActivityEvent.TASK_KINDS
+        if user.has_perm('signal1520.view_station'):
+            kinds += ActivityEvent.STATION_KINDS
+        if kinds:
+            context['show_activity'] = True
+            # с запасом: сколько строк показать, решает вёрстка — лишние не помещаются и скрыты
+            context['activity_events'] = (
+                ActivityEvent.objects.filter(organization=org, kind__in=kinds)
+                .select_related('user')[:self.ACTIVITY_LIMIT]
+            )
         return render(request, 'signal1520/index.html', context)
 
 class StationListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -142,6 +159,7 @@ class StationCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Creat
         form.instance.created_by = self.request.user
         form.instance.organization = self.get_org()
         response = super().form_valid(form)
+        ActivityEvent.log(ActivityEvent.Kind.STATION_CREATED, self.request.user, station=self.object)
         logger.info('Станция создана: "%s" pk=%s (org=%s, user=%s)',
                     self.object.name, self.object.pk, self.get_org().slug, self.request.user.username)
         return response
@@ -315,6 +333,7 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
                 description=request.POST.get('description', '')
             )
             attachment.save()
+            ActivityEvent.log(ActivityEvent.Kind.TASK_ATTACHMENT, request.user, task=self.object)
             logger.info('Вложение добавлено к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
@@ -343,6 +362,7 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
                     user=request.user,
                     body=comment_text
                 )
+                ActivityEvent.log(ActivityEvent.Kind.TASK_COMMENT, request.user, task=self.object)
                 logger.info('Комментарий добавлен к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
@@ -400,6 +420,7 @@ class BugCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateVie
     def form_valid(self, form):
         form.instance.responsible_user = self.request.user
         response = super().form_valid(form)
+        ActivityEvent.log(ActivityEvent.Kind.TASK_CREATED, self.request.user, task=self.object)
         logger.info('Задача создана: pk=%s, станция="%s" (org=%s, user=%s)',
                     self.object.pk, self.object.station, self.get_org().slug, self.request.user.username)
         return response

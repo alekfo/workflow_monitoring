@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from authentication.models import Profile
 from .models import (
-    AlarmInfo, Attachment, Comment, Equipment, EquipmentType,
+    ActivityEvent, AlarmInfo, Attachment, Comment, Equipment, EquipmentType,
     Knowledge, Organization, Road, Station, System, Task,
     UserKnowledge, Warehouse,
 )
@@ -2060,3 +2060,109 @@ class IndexSummaryTest(ViewTestBase):
         for key in ('my_tasks', 'org_tasks', 'stations_count', 'equipment_count', 'warehouses_count'):
             self.assertNotIn(key, r.context)
         self.assertContains(r, 'Выберите раздел в меню')
+
+
+# ---------------------------------------------------------------------------
+# Главная: лента последних изменений
+# ---------------------------------------------------------------------------
+
+class ActivityFeedTest(ViewTestBase):
+    def _texts(self, user):
+        self.client.force_login(user)
+        r = self.client.get(self.url('signal1520:index'))
+        return [event.text for event in r.context.get('activity_events', [])]
+
+    def test_task_actions_are_logged(self):
+        """Создание задачи, комментарий, вложение и смена статуса попадают в ленту с автором."""
+        self.client.force_login(self.task_user)
+        self.client.post(self.url('signal1520:create_bug'), {
+            'station': self.station.pk, 'description': 'Задача для ленты',
+            'responsible_organization': '', 'due_date': '',
+        })
+        task = Task.objects.get(description='Задача для ленты')
+        detail_url = self.url('signal1520:bug_details', pk=task.pk)
+        self.client.post(detail_url, {'comment_text': 'Комментарий'})
+        self.client.post(detail_url, {'file': SimpleUploadedFile('a.txt', b'x', content_type='text/plain')})
+        self.client.post(detail_url, data=json.dumps({'status': 'completed'}), content_type='application/json')
+
+        events = ActivityEvent.objects.filter(task=task).order_by('pk')
+        prefix = f'Задача #{task.pk}, Тест Станция — '
+        self.assertEqual([e.text for e in events], [
+            prefix + 'создана',
+            prefix + 'добавлен комментарий',
+            prefix + 'добавлено вложение',
+            prefix + 'статус «Выполнена»',
+        ])
+        for event in events:
+            self.assertEqual(event.user, self.task_user)
+            self.assertEqual(event.organization, self.org)
+
+    def test_station_creation_is_logged(self):
+        """Создание объекта попадает в ленту."""
+        self.client.force_login(self.station_user)
+        self.client.post(self.url('signal1520:create_station'), {
+            'name': 'Новый объект', 'road': self.road.pk, 'distance': 'ДЦС-2',
+            'system': self.system.pk, 'description': '', 'latitude': '', 'longitude': '',
+        })
+        event = ActivityEvent.objects.get(kind=ActivityEvent.Kind.STATION_CREATED)
+        self.assertEqual(event.text, 'Объект «Новый объект» — создан')
+        self.assertEqual(event.user, self.station_user)
+
+    def test_rejected_actions_are_not_logged(self):
+        """Пустой комментарий, правка комментария и отклонённая смена статуса событий не создают."""
+        comment = Comment.objects.create(task=self.task, user=self.task_user, body='Текст')
+        detail_url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.client.post(detail_url, {'comment_text': '   '})
+        self.client.post(detail_url, {'edit_comment_id': comment.pk, 'edit_comment_text': 'Правка'})
+        self.client.post(detail_url, data=json.dumps({'status': 'new'}), content_type='application/json')
+        self.assertFalse(ActivityEvent.objects.exists())
+
+    def test_feed_respects_section_permissions(self):
+        """События по задачам видны при view_task, по объектам — при view_station; без прав блока нет."""
+        ActivityEvent.log(ActivityEvent.Kind.TASK_CREATED, self.task_user, task=self.task)
+        ActivityEvent.log(ActivityEvent.Kind.STATION_CREATED, self.station_user, station=self.station)
+        task_text = f'Задача #{self.task.pk}, Тест Станция — создана'
+        station_text = 'Объект «Тест Станция» — создан'
+
+        self.assertEqual(self._texts(self.task_user), [station_text, task_text])
+        self.assertEqual(self._texts(self.station_user), [station_text])
+        only_tasks = make_user('only_tasks', org=self.org, codenames=['view_task'])
+        self.assertEqual(self._texts(only_tasks), [task_text])
+
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:index'))
+        self.assertNotIn('activity_events', r.context)
+        self.assertNotContains(r, 'Последние изменения')
+
+    def test_feed_shows_only_own_organization(self):
+        """События другой организации в ленту не попадают."""
+        other_org = Organization.objects.create(name='Other', slug='feed-other')
+        other_road = Road.objects.create(title='Дорога 2', organization=other_org)
+        other_station = Station.objects.create(
+            name='Чужая станция', road=other_road, created_by=self.superuser, organization=other_org,
+        )
+        ActivityEvent.log(ActivityEvent.Kind.STATION_CREATED, self.superuser, station=other_station)
+        self.assertEqual(self._texts(self.task_user), [])
+        self.assertContains(self.client.get(self.url('signal1520:index')), 'Изменений пока нет')
+
+    def test_event_survives_task_deletion(self):
+        """После удаления задачи событие остаётся в ленте, но уже не ссылка."""
+        ActivityEvent.log(ActivityEvent.Kind.TASK_CREATED, self.task_user, task=self.task)
+        detail_url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertContains(self.client.get(self.url('signal1520:index')), f'href="{detail_url}"')
+        self.task.delete()
+        r = self.client.get(self.url('signal1520:index'))
+        self.assertContains(r, 'Тест Станция — создана')
+        self.assertNotContains(r, f'href="{detail_url}"')
+
+    def test_feed_is_newest_first_and_limited(self):
+        """Лента идёт от новых к старым и отдаёт не больше ACTIVITY_LIMIT строк."""
+        for _ in range(45):
+            ActivityEvent.log(ActivityEvent.Kind.TASK_COMMENT, self.task_user, task=self.task)
+        newest = ActivityEvent.log(ActivityEvent.Kind.TASK_ATTACHMENT, self.task_user, task=self.task)
+        self.client.force_login(self.task_user)
+        events = list(self.client.get(self.url('signal1520:index')).context['activity_events'])
+        self.assertEqual(len(events), 40)
+        self.assertEqual(events[0], newest)

@@ -187,9 +187,11 @@ class Task(models.Model):
         with transaction.atomic():
             self.status = new_status
             self.save(update_fields=['status', 'updated_at'])
-            return TaskStatusChange.objects.create(
+            change = TaskStatusChange.objects.create(
                 task=self, from_status=old_status, to_status=new_status, changed_by=user,
             )
+            ActivityEvent.log(ActivityEvent.Kind.TASK_STATUS, user, task=self)
+            return change
 
     @property
     def last_status_change(self):
@@ -235,6 +237,99 @@ class TaskStatusChange(models.Model):
 
     def __str__(self):
         return f"Задача #{self.task_id}: {self.get_from_status_display()} → {self.get_to_status_display()}"
+
+
+class ActivityEvent(models.Model):
+    """Запись ленты «Последние изменения» на главной. Текст хранится готовой строкой и переживает удаление объекта."""
+
+    class Kind(models.TextChoices):
+        TASK_CREATED = 'task_created', 'Задача создана'
+        TASK_STATUS = 'task_status', 'Статус задачи изменён'
+        TASK_COMMENT = 'task_comment', 'Комментарий к задаче'
+        TASK_ATTACHMENT = 'task_attachment', 'Вложение к задаче'
+        STATION_CREATED = 'station_created', 'Объект создан'
+
+    # события по задачам видит обладатель view_task, по объектам — view_station
+    TASK_KINDS = (Kind.TASK_CREATED, Kind.TASK_STATUS, Kind.TASK_COMMENT, Kind.TASK_ATTACHMENT)
+    STATION_KINDS = (Kind.STATION_CREATED,)
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='activity_events',
+        verbose_name='Организация'
+    )
+    kind = models.CharField('Событие', max_length=20, choices=Kind.choices)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_events',
+        verbose_name='Кто'
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_events',
+        verbose_name='Задача'
+    )
+    station = models.ForeignKey(
+        Station,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_events',
+        verbose_name='Объект'
+    )
+    text = models.CharField('Текст', max_length=300)
+    # не auto_now_add: миграция 0019 заполняет ленту прошлыми событиями с их настоящим временем
+    created_at = models.DateTimeField('Когда', default=timezone.now)
+
+    class Meta:
+        verbose_name = 'Событие ленты'
+        verbose_name_plural = 'События ленты'
+        ordering = ['-created_at', '-pk']
+        indexes = [models.Index(fields=['organization', '-created_at'], name='activity_org_created_idx')]
+        default_permissions = ()
+
+    @staticmethod
+    def build_text(kind, task=None, station=None):
+        """Строка события. Миграция 0019 собирает такие же строки для прошлых событий."""
+        if kind == ActivityEvent.Kind.STATION_CREATED:
+            return f'Объект «{station.name}» — создан'
+        action = {
+            ActivityEvent.Kind.TASK_CREATED: 'создана',
+            ActivityEvent.Kind.TASK_STATUS: f'статус «{task.get_status_display()}»',
+            ActivityEvent.Kind.TASK_COMMENT: 'добавлен комментарий',
+            ActivityEvent.Kind.TASK_ATTACHMENT: 'добавлено вложение',
+        }[kind]
+        return f'Задача #{task.pk}, {task.station.name} — {action}'
+
+    @classmethod
+    def log(cls, kind, user, task=None, station=None):
+        """Записывает событие. Для события по задаче объект берётся из самой задачи."""
+        station = station or task.station
+        return cls.objects.create(
+            organization=station.organization,
+            kind=kind,
+            user=user,
+            task=task,
+            station=station,
+            text=cls.build_text(kind, task=task, station=station)[:300],
+        )
+
+    def author_name(self):
+        """Имя автора; пустая строка, если автор неизвестен (прошлые события) или удалён"""
+        user = self.user
+        if not user:
+            return ''
+        return user.get_full_name() or user.username
+
+    def __str__(self):
+        return self.text
 
 class Comment(models.Model):
     EDIT_WINDOW = timedelta(hours=24)

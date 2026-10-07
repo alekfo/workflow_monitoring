@@ -61,6 +61,29 @@
                 </a>
                 {% endif %}
             </div>
+
+            {% if show_activity %}
+            <section class="activity">
+                <h2 class="activity-title">Последние изменения</h2>
+                <div class="activity-list">
+                    {% for event in activity_events %}
+                    {% if event.kind == 'station_created' and event.station_id %}
+                    <a class="activity-row" href="{% url 'signal1520:station_details' pk=event.station_id org_slug=org_slug %}">
+                    {% elif event.kind != 'station_created' and event.task_id %}
+                    <a class="activity-row" href="{% url 'signal1520:bug_details' pk=event.task_id org_slug=org_slug %}">
+                    {% else %}
+                    <a class="activity-row is-gone" title="Объект удалён">
+                    {% endif %}
+                        <span class="activity-time">{{ event.created_at|date:"d.m H:i" }}</span>
+                        <span class="activity-user">{{ event.author_name|default:"—" }}</span>
+                        <span class="activity-text">{{ event.text }}</span>
+                    </a>
+                    {% empty %}
+                    <p class="activity-empty">Изменений пока нет.</p>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
         </div>
     </div>
 
