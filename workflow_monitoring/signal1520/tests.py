@@ -7,6 +7,7 @@ from django.contrib.auth.models import User, Permission
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from authentication.models import Profile
 from .models import (
@@ -665,6 +666,94 @@ class BugDetailPostCommentTest(ViewTestBase):
         )
         comment = Comment.objects.get(body='Проверка автора')
         self.assertEqual(comment.user, self.task_user)
+
+
+# ---------------------------------------------------------------------------
+# BugDetailView — POST: comment edit
+# ---------------------------------------------------------------------------
+
+class BugDetailEditCommentTest(ViewTestBase):
+    def setUp(self):
+        self.comment = Comment.objects.create(task=self.task, user=self.task_user, body='Исходный текст')
+
+    def _edit(self, user, text, comment=None):
+        self.client.force_login(user)
+        return self.client.post(
+            self.url('signal1520:bug_details', pk=self.task.pk),
+            {'edit_comment_id': (comment or self.comment).pk, 'edit_comment_text': text},
+        )
+
+    def _age_comment(self, hours):
+        """Сдвигает created_at и updated_at в прошлое в обход auto_now."""
+        moment = timezone.now() - datetime.timedelta(hours=hours)
+        Comment.objects.filter(pk=self.comment.pk).update(created_at=moment, updated_at=moment)
+
+    def test_author_edits_own_comment(self):
+        """Автор меняет текст своего комментария; новый комментарий не создаётся."""
+        r = self._edit(self.task_user, 'Новый текст')
+        self.assertEqual(r.status_code, 302)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Новый текст')
+        self.assertEqual(Comment.objects.count(), 1)
+
+    def test_other_user_cannot_edit(self):
+        """Чужой комментарий править нельзя даже с правом change_task — 403, текст прежний."""
+        other = make_user('other_task_u', org=self.org, codenames=['view_task', 'change_task'])
+        r = self._edit(other, 'Чужая правка')
+        self.assertEqual(r.status_code, 403)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Исходный текст')
+
+    def test_cannot_edit_after_window(self):
+        """Через 24 часа после создания автор править комментарий уже не может."""
+        self._age_comment(hours=25)
+        r = self._edit(self.task_user, 'Поздняя правка')
+        self.assertEqual(r.status_code, 403)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Исходный текст')
+
+    def test_can_edit_within_window(self):
+        """За час до истечения окна правка ещё проходит."""
+        self._age_comment(hours=23)
+        self._edit(self.task_user, 'Успел')
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Успел')
+
+    def test_empty_text_keeps_comment(self):
+        """Пустой текст не затирает комментарий."""
+        r = self._edit(self.task_user, '   ')
+        self.assertEqual(r.status_code, 302)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Исходный текст')
+
+    def test_comment_of_other_task_returns_404(self):
+        """Комментарий другой задачи через адрес этой задачи не правится."""
+        other_task = Task.objects.create(station=self.station, description='Другая задача')
+        foreign = Comment.objects.create(task=other_task, user=self.task_user, body='Чужая задача')
+        r = self._edit(self.task_user, 'Правка', comment=foreign)
+        self.assertEqual(r.status_code, 404)
+        foreign.refresh_from_db()
+        self.assertEqual(foreign.body, 'Чужая задача')
+
+    def test_edited_mark_shown_only_after_edit(self):
+        """Пометка «изменён» появляется только у отредактированного комментария."""
+        self._age_comment(hours=2)
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(url), 'comment-edited')
+        self._edit(self.task_user, 'Исправлено')
+        self.assertContains(self.client.get(url), 'comment-edited')
+
+    def test_edit_button_only_for_author_within_window(self):
+        """Кнопка правки видна автору в пределах окна и не видна остальным и после окна."""
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertContains(self.client.get(url), 'name="edit_comment_id"')
+        self.client.force_login(self.superuser)
+        self.assertNotContains(self.client.get(url), 'name="edit_comment_id"')
+        self._age_comment(hours=25)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(url), 'name="edit_comment_id"')
 
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ from urllib.parse import quote
 from pathlib import Path
 
 import openpyxl
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpResponse, HttpRequest, HttpResponseRedirect, JsonResponse
@@ -261,10 +261,11 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
     Детальная страница задачи.
 
     GET  — отображает задачу с комментариями и вложениями.
-    POST — обрабатывает три сценария:
+    POST — обрабатывает четыре сценария:
            1. Загрузка файла-вложения.
-           2. Добавление текстового комментария.
-           3. Изменение статуса задачи (JSON-запрос от JavaScript).
+           2. Правка своего комментария (только автор, в течение Comment.EDIT_WINDOW).
+           3. Добавление текстового комментария.
+           4. Изменение статуса задачи (JSON-запрос от JavaScript).
     """
 
     def test_func(self):
@@ -278,6 +279,14 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
     queryset = Task.objects.select_related("responsible_user", "station").prefetch_related("comments", "attachments")
     context_object_name = "bug"
     org_filter_field = 'station__organization'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        comments = list(self.object.comments.all())
+        for comment in comments:
+            comment.can_edit = comment.can_be_edited_by(self.request.user)
+        context['comments'] = comments
+        return context
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -293,7 +302,23 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
             logger.info('Вложение добавлено к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
-        # 2. Обработка добавления комментария (обычная форма)
+        # 2. Правка своего комментария (обычная форма)
+        if 'edit_comment_id' in request.POST:
+            comment_id = request.POST.get('edit_comment_id', '')
+            if not comment_id.isdigit():
+                raise Http404
+            comment = get_object_or_404(self.object.comments, pk=comment_id)
+            if not comment.can_be_edited_by(request.user):
+                raise PermissionDenied
+            comment_text = request.POST.get('edit_comment_text', '').strip()
+            if comment_text and comment_text != comment.body:
+                comment.body = comment_text
+                comment.save(update_fields=['body', 'updated_at'])
+                logger.info('Комментарий pk=%s к задаче pk=%s изменён (user=%s)',
+                            comment.pk, self.object.pk, request.user.username)
+            return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
+
+        # 3. Обработка добавления комментария (обычная форма)
         if 'comment_text' in request.POST:
             comment_text = request.POST.get('comment_text', '').strip()
             if comment_text:
@@ -305,7 +330,7 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
                 logger.info('Комментарий добавлен к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
-        # 3. Обработка изменения статуса (JSON-запрос от JavaScript)
+        # 4. Обработка изменения статуса (JSON-запрос от JavaScript)
         # Проверка прав на изменение статуса
         if not (request.user.is_superuser or
                 request.user.has_perm('signal1520.change_task') or

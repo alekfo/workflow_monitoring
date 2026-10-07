@@ -190,7 +190,7 @@ Vasya видит только задачи своей организации.
 | `System` | Справочник систем. Поля: id, organization(FK, nullable), title. FK из Station.system (nullable) |
 | `Station` | Объект/станция. Поля: name, road(FK), distance, system(FK, nullable), description, latitude, longitude, created_by(FK User, nullable, `SET_NULL`), organization(FK) |
 | `Task` | Задача. Поля: station(FK), description, status(new/in_progress/completed/cancelled), responsible_organization, responsible_user(FK User), due_date |
-| `Comment` | Комментарий к задаче. Поля: task(FK), user(FK), body |
+| `Comment` | Комментарий к задаче. Поля: task(FK), user(FK), body. Автор может править свой комментарий 24 часа после создания (`Comment.EDIT_WINDOW`, `can_be_edited_by`); изменённый помечается «изменён» (`is_edited`). Удаления нет |
 | `Attachment` | Вложение к задаче. Файлы хранятся в `tasks/task_<id>/` внутри MEDIA_ROOT |
 | `AlarmInfo` | Справочник алармов. Поля: number(PK), description, explanation. Данные загружаются скриптом migrate_alarms.py |
 | `Knowledge` | Единица базы знаний: файл (`file`, путь `knowledge/<filename>`) или внешняя ссылка (`external_link`). Один объект может быть привязан к нескольким пользователям через `UserKnowledge` |
@@ -539,7 +539,7 @@ CACHES = {
 
 ## Запуск тестов
 
-`python manage.py test` — 207 тестов (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
+`python manage.py test` — 215 тестов (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
 
 ---
 

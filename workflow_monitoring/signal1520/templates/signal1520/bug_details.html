@@ -67,6 +67,11 @@
             font-weight: 500;
         }
 
+        .info-value-text {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
         .status-badge {
             display: inline-block;
             padding: 4px 12px;
@@ -127,6 +132,48 @@
         .comment-body {
             color: #555;
             line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .comment-edit-btn {
+            margin-left: 8px;
+            padding: 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .comment-edit-form textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        .comment-edit-form textarea:focus {
+            outline: none;
+            border-color: #00B7B7;
+        }
+
+        .comment-edit-cancel {
+            margin: 10px 0 0 8px;
+            padding: 10px 24px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .comment-edit-cancel:hover {
+            background: #7f8c8d;
         }
 
         .comment-form {
@@ -356,20 +403,37 @@
                 </div>
                 <div class="info-card" style="grid-column: span 2;">
                     <div class="info-label">Описание</div>
-                    <div class="info-value">{{ bug.description|default:"—" }}</div>
+                    <div class="info-value info-value-text">{{ bug.description|default:"—" }}</div>
                 </div>
             </div>
 
             <!-- Комментарии -->
             <div class="section-title">💬 Комментарии</div>
             <ul class="comments-list">
-                {% for comment in bug.comments.all %}
+                {% for comment in comments %}
                     <li class="comment-item">
                         <div class="comment-header">
                             <span class="comment-author">👤 {{ comment.author_name }}</span>
-                            <span class="comment-date">{{ comment.created_at|date:"d.m.Y H:i" }}</span>
+                            <span class="comment-date">
+                                {{ comment.created_at|date:"d.m.Y H:i" }}
+                                {% if comment.is_edited %}
+                                    <span class="comment-edited">· изменён {{ comment.updated_at|date:"d.m.Y H:i" }}</span>
+                                {% endif %}
+                                {% if comment.can_edit %}
+                                    <button type="button" class="comment-edit-btn" data-comment-id="{{ comment.pk }}" title="Изменить комментарий (доступно 24 часа после добавления)">✏️</button>
+                                {% endif %}
+                            </span>
                         </div>
-                        <div class="comment-body">{{ comment.body|default:"—" }}</div>
+                        <div class="comment-body" id="comment-body-{{ comment.pk }}">{{ comment.body|default:"—" }}</div>
+                        {% if comment.can_edit %}
+                            <form method="post" class="comment-edit-form" id="comment-edit-form-{{ comment.pk }}" hidden>
+                                {% csrf_token %}
+                                <input type="hidden" name="edit_comment_id" value="{{ comment.pk }}">
+                                <textarea name="edit_comment_text" rows="3">{{ comment.body|default:"" }}</textarea>
+                                <button type="submit" class="btn-submit">Сохранить</button>
+                                <button type="button" class="comment-edit-cancel">Отмена</button>
+                            </form>
+                        {% endif %}
                     </li>
                 {% empty %}
                     <li class="comment-item" style="text-align: center; color: #95a5a6;">
@@ -557,6 +621,35 @@
                 }
             });
         }
+
+        // Комментарии – правка своего комментария
+        document.querySelectorAll('.comment-edit-btn').forEach(function(btn) {
+            const id = btn.dataset.commentId;
+            const body = document.getElementById('comment-body-' + id);
+            const form = document.getElementById('comment-edit-form-' + id);
+            const textarea = form.querySelector('textarea');
+            const original = textarea.value;
+
+            function toggle(editing) {
+                body.hidden = editing;
+                form.hidden = !editing;
+            }
+
+            btn.addEventListener('click', function() {
+                toggle(form.hidden);
+                if (!form.hidden) textarea.focus();
+            });
+            form.querySelector('.comment-edit-cancel').addEventListener('click', function() {
+                textarea.value = original;
+                toggle(false);
+            });
+            form.addEventListener('submit', function(event) {
+                if (textarea.value.trim() === '') {
+                    event.preventDefault();
+                    alert('Введите текст комментария');
+                }
+            });
+        });
     </script>
 
     <script>

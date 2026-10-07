@@ -1,8 +1,9 @@
 import os
-from datetime import date
+from datetime import date, timedelta
 
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 class Organization(models.Model):
@@ -163,6 +164,8 @@ class Task(models.Model):
         return f"Задача #{self.id} на станции {self.station.name}"
 
 class Comment(models.Model):
+    EDIT_WINDOW = timedelta(hours=24)
+
     task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
@@ -191,6 +194,17 @@ class Comment(models.Model):
         if user.first_name:
             return user.first_name
         return user.username
+
+    def can_be_edited_by(self, user):
+        """Править комментарий может только автор и только в течение EDIT_WINDOW после создания"""
+        if self.user_id is None or self.user_id != user.pk:
+            return False
+        return timezone.now() - self.created_at < self.EDIT_WINDOW
+
+    @property
+    def is_edited(self):
+        # created_at и updated_at при создании ставятся порознь и расходятся на доли секунды
+        return self.updated_at - self.created_at > timedelta(seconds=1)
 
     class Meta:
         verbose_name = 'Комментарий'

@@ -160,6 +160,10 @@ CSS-переменные заведены только для размеров �
 
 - `#status-container`, `#status-badge` (`data-status`), `#change-status-btn`: смена статуса — `fetch` POST
   с JSON `{status}` на адрес страницы; ответ `{success, status, status_display}`.
+- Правка комментария: у комментария с `comment.can_edit` (ставит вьюха: автор, 24 часа с создания) — кнопка
+  `.comment-edit-btn[data-comment-id]`, текст `#comment-body-<id>` и скрытая форма `#comment-edit-form-<id>`
+  с полями `edit_comment_id` и `edit_comment_text`. Пометка «изменён» — `.comment-edited` при `comment.is_edited`.
+  Удаления комментариев нет — так решено.
 - `#comment-form` с `textarea[name="comment_text"]`; `#attachment-form` с `input[name="file"]` и `textarea[name="description"]`.
 - `.view-image-link` + `data-image-url` — просмотр изображения в модальном окне `.modal` (z-index 1000, выше каркаса).
 
@@ -184,7 +188,7 @@ CSS-переменные заведены только для размеров �
 
 ## Проверка
 
-- `python manage.py test` — 207 тестов; окружение должно быть на Django 6.0.3 (см. `CLAUDE.md`).
+- `python manage.py test` — 215 тестов; окружение должно быть на Django 6.0.3 (см. `CLAUDE.md`).
 - Тесты проверяют ответы сервера, но не внешний вид: после правки вёрстки страницу нужно открыть в браузере.
   Если это не сделано — прямо сказать об этом в отчёте.
 - Шаблоны при `DEBUG=False` кэшируются: после правки шаблона нужен перезапуск `runserver`.
