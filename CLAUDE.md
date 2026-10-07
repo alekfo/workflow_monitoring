@@ -189,7 +189,8 @@ Vasya видит только задачи своей организации.
 | `Road` | Справочник дорог/линий/районов. Поля: id, organization(FK, nullable), title. FK из Station.road |
 | `System` | Справочник систем. Поля: id, organization(FK, nullable), title. FK из Station.system (nullable) |
 | `Station` | Объект/станция. Поля: name, road(FK), distance, system(FK, nullable), description, latitude, longitude, created_by(FK User, nullable, `SET_NULL`), organization(FK) |
-| `Task` | Задача. Поля: station(FK), description, status(new/in_progress/completed/cancelled), responsible_organization, responsible_user(FK User), due_date |
+| `Task` | Задача. Поля: station(FK), description, status(new/in_progress/completed/cancelled), responsible_organization, responsible_user(FK User), due_date. Статус меняется только через `Task.change_status()` — см. «Статусы задач» |
+| `TaskStatusChange` | История смены статусов задачи. Поля: task(FK), from_status, to_status, changed_by(FK User, `SET_NULL`), changed_at. Последняя запись — `task.last_status_change` |
 | `Comment` | Комментарий к задаче. Поля: task(FK), user(FK), body. Автор может править свой комментарий 24 часа после создания (`Comment.EDIT_WINDOW`, `can_be_edited_by`); изменённый помечается «изменён» (`is_edited`). Удаления нет |
 | `Attachment` | Вложение к задаче. Файлы хранятся в `tasks/task_<id>/` внутри MEDIA_ROOT |
 | `AlarmInfo` | Справочник алармов. Поля: number(PK), description, explanation. Данные загружаются скриптом migrate_alarms.py |
@@ -344,6 +345,38 @@ Vasya видит только задачи своей организации.
 
 `styles_stations.css` подключён в `signal1520/base.html` — загружается один раз для всего приложения.
 Стили каркаса (`.site-header`, `.logo`, `.side-rail`, `.rail-btn`, `.rail-flyout`, `.flyout-link`) лежат в `styles.css`; размеры — переменные `--header-height`, `--rail-width`, `--rail-btn-size`, на них же завязаны отступы `body`.
+
+---
+
+## Статусы задач
+
+Статус меняется только на карточке задачи (`BugDetailView`, JSON POST) и в админке; из формы
+`BugUpdateView` поле `status` убрано. Каждая смена идёт через `Task.change_status(new_status, user)`,
+который пишет запись в `TaskStatusChange`. На карточке под статусом показывается последний переход:
+дата, время и кто его сделал. У задач, закрытых до появления истории (миграция `0017`), подписи нет.
+
+Допустимые переходы — `Task.allowed_statuses(user)`:
+
+| Из статуса | Куда | Кто |
+|------------|------|-----|
+| Новая | В работе, Выполнена, Отменена | суперпользователь, `change_task`, ответственный (`Task.can_be_managed_by`) |
+| В работе | Выполнена, Отменена | те же |
+| Выполнена, Отменена | В работе | только суперпользователь |
+
+В «Новая» вернуть задачу нельзя никому. Недопустимый переход — `403` с текстом ошибки в JSON.
+
+Выполненная и отменённая задача (`Task.is_closed`) закрыта: `BugUpdateView` отдаёт 403 всем, кроме суперпользователя;
+загрузка вложения — 403 всем, включая суперпользователя (чтобы добавить файл, он сначала возвращает задачу в работу).
+Кнопки и форма вложения на карточке показываются неактивными.
+Комментарии к закрытой задаче остаются открытыми — так решено (например, «дефект проявился снова»).
+
+В админке история — раздел «Смены статусов задач» и inline на странице задачи, оба только для просмотра
+(добавление и правка запрещены, удаление оставлено, иначе не удалить задачу с историей). Видит его только суперпользователь.
+
+У `TaskStatusChange` нет собственных прав (`default_permissions = ()`): право менять статус — это `change_task`
+(«Can change Задача»), и лишние «Can change Смена статуса задачи» в админке с ним путали.
+
+Не закрыто: смена статуса через inline задач на странице станции в админке (`TaskInline`) в историю не попадает.
 
 ---
 
@@ -539,7 +572,7 @@ CACHES = {
 
 ## Запуск тестов
 
-`python manage.py test` — 215 тестов (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
+`python manage.py test` — 230 тестов (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
 
 ---
 

@@ -72,6 +72,62 @@
             overflow-wrap: anywhere;
         }
 
+        .status-change-info {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        #change-status-btn.is-locked,
+        .back-link.is-locked,
+        .back-link.is-locked:hover {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* у кнопки курсор задан inline-стилем */
+        #change-status-btn.is-locked {
+            cursor: not-allowed !important;
+        }
+
+        .back-link.is-locked,
+        .back-link.is-locked:hover {
+            background: #95a5a6;
+        }
+
+        .attachment-fields {
+            margin: 0;
+            padding: 0;
+            border: none;
+            min-width: 0;
+        }
+
+        .attachment-fields:disabled {
+            opacity: 0.5;
+        }
+
+        .attachment-fields:disabled,
+        .attachment-fields:disabled * {
+            cursor: not-allowed;
+        }
+
+        .attachment-fields:disabled .file-input-label:hover {
+            background: #ecf0f1;
+            transform: none;
+        }
+
+        .attachment-fields:disabled .btn-submit:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .locked-note {
+            margin: 0 0 12px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
         .status-badge {
             display: inline-block;
             padding: 4px 12px;
@@ -388,10 +444,15 @@
                         <span class="status-badge status-{{ bug.status|lower|cut:'_' }}" id="status-badge" data-status="{{ bug.status }}">
                             {{ bug.get_status_display }}
                         </span>
-                        {% if user.is_superuser or perms.signal1520.change_task or bug.responsible_user == user %}
-                            <button id="change-status-btn" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 14px; color: #00B7B7;" title="Изменить статус">✏️</button>
+                        {% if can_manage %}
+                            <button id="change-status-btn" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 14px; color: #00B7B7;"{% if allowed_statuses %} title="Изменить статус"{% else %} class="is-locked" disabled title="Задача закрыта: изменить статус может только администратор"{% endif %}>✏️</button>
                         {% endif %}
                     </div>
+                    {% if last_status_change %}
+                        <div class="status-change-info" id="status-change-info">
+                            {{ last_status_change.changed_at|date:"d.m.Y H:i" }} · {{ last_status_change.author_name }}
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="info-card">
                     <div class="info-label">Ответственная организация</div>
@@ -496,6 +557,10 @@
             <div class="comment-form">
                 <form method="post" enctype="multipart/form-data" id="attachment-form">
                     {% csrf_token %}
+                    {% if not can_attach %}
+                        <p class="locked-note">Задача закрыта: добавлять вложения нельзя.</p>
+                    {% endif %}
+                    <fieldset class="attachment-fields"{% if not can_attach %} disabled{% endif %}>
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 14px;">Выберите файл:</label>
                         <div class="file-input-wrapper">
@@ -509,17 +574,21 @@
                         <textarea name="description" rows="2" placeholder="Описание файла..." style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; transition: border-color 0.3s; resize: vertical;" onfocus="this.style.borderColor='#00B7B7'; this.style.boxShadow='0 0 0 3px rgba(0,183,183,0.1)'" onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'"></textarea>
                     </div>
                     <button type="submit" class="btn-submit">📎 Добавить вложение</button>
+                    </fieldset>
                 </form>
             </div>
 
-            {% if user.is_superuser or perms.tasks_control.change_task or bug.responsible_user == user %}
+            {% if can_edit_task %}
                 <a href="{% url 'signal1520:bug_update' pk=bug.pk org_slug=org_slug %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">✏️ Редактировать задачу</a>
+            {% elif can_manage %}
+                <span class="back-link is-locked" title="Задача закрыта: редактировать может только администратор">✏️ Редактировать задачу</span>
             {% endif %}
 
 
 
         </div>
     </div>
+   {{ allowed_statuses|json_script:"allowed-statuses" }}
    <script>
         // Изменение статуса (без DOMContentLoaded)
         (function() {
@@ -534,22 +603,19 @@
                 const select = document.createElement('select');
                 select.className = 'status-select';
 
-                const statuses = [
-                    {value: 'new', label: 'Новая'},
-                    {value: 'in_progress', label: 'В работе'},
-                    {value: 'completed', label: 'Выполнена'},
-                    {value: 'cancelled', label: 'Отменена'}
-                ];
+                // Текущий статус и те, в которые сервер разрешает перевести задачу
+                const current = document.createElement('option');
+                current.value = statusBadge.dataset.status;
+                current.textContent = statusBadge.textContent.trim();
+                select.appendChild(current);
 
+                const statuses = JSON.parse(document.getElementById('allowed-statuses').textContent);
                 statuses.forEach(s => {
                     const option = document.createElement('option');
                     option.value = s.value;
                     option.textContent = s.label;
                     select.appendChild(option);
                 });
-
-                const currentStatus = statusBadge.dataset.status;
-                select.value = currentStatus;
 
                 statusBadge.style.display = 'none';
                 statusBadge.parentNode.insertBefore(select, statusBadge.nextSibling);
@@ -567,11 +633,8 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            statusBadge.textContent = data.status_display;
-                            statusBadge.className = `status-badge status-${data.status.replace('_', '')}`;
-                            statusBadge.dataset.status = data.status;
-                            statusBadge.style.display = 'inline-block';
-                            select.remove();
+                            // От статуса зависят подпись «когда и кем», доступные переходы и блокировки — перерисовываем страницу
+                            window.location.reload();
                         } else {
                             alert('Ошибка: ' + data.error);
                             statusBadge.style.display = 'inline-block';

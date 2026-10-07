@@ -811,6 +811,123 @@ class BugDetailPostStatusTest(ViewTestBase):
         r = self._patch_status(no_perm, 'in_progress')
         self.assertEqual(r.status_code, 403)
 
+    def _set_status(self, status):
+        Task.objects.filter(pk=self.task.pk).update(status=status)
+
+    def test_change_is_recorded_in_history(self):
+        """Смена статуса создаёт запись истории: из какого статуса, в какой и кем."""
+        self._patch_status(self.task_user, 'in_progress')
+        change = self.task.status_changes.get()
+        self.assertEqual(change.from_status, 'new')
+        self.assertEqual(change.to_status, 'in_progress')
+        self.assertEqual(change.changed_by, self.task_user)
+
+    def test_rejected_change_is_not_recorded(self):
+        """Отклонённый переход не меняет статус и не попадает в историю."""
+        self._set_status('in_progress')
+        r = self._patch_status(self.task_user, 'new')
+        self.assertEqual(r.status_code, 403)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, 'in_progress')
+        self.assertFalse(self.task.status_changes.exists())
+
+    def test_cannot_return_to_new(self):
+        """Вернуть задачу в «Новая» не может никто, включая суперпользователя."""
+        self._set_status('in_progress')
+        self.assertEqual(self._patch_status(self.superuser, 'new').status_code, 403)
+        self._set_status('completed')
+        self.assertEqual(self._patch_status(self.superuser, 'new').status_code, 403)
+
+    def test_closed_task_locked_for_non_superuser(self):
+        """Выполненную и отменённую задачу не переоткрывают ни обладатель change_task, ни ответственный."""
+        for closed in ('completed', 'cancelled'):
+            self._set_status(closed)
+            for user in (self.task_user, self.plain_user):
+                r = self._patch_status(user, 'in_progress')
+                self.assertEqual(r.status_code, 403)
+            self.task.refresh_from_db()
+            self.assertEqual(self.task.status, closed)
+
+    def test_superuser_reopens_closed_task(self):
+        """Суперпользователь возвращает закрытую задачу в работу, но не меняет один закрытый статус на другой."""
+        self._set_status('completed')
+        self.assertEqual(self._patch_status(self.superuser, 'cancelled').status_code, 403)
+        self.assertEqual(self._patch_status(self.superuser, 'in_progress').status_code, 200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, 'in_progress')
+
+    def test_reopened_task_is_manageable_again(self):
+        """После переоткрытия суперпользователем задачу снова закрывает обладатель change_task без ответственности."""
+        changer = make_user('only_change', org=self.org, codenames=['view_task', 'change_task'])
+        self.assertEqual(self._patch_status(self.task_user, 'completed').status_code, 200)
+        self.assertEqual(self._patch_status(self.superuser, 'in_progress').status_code, 200)
+        self.client.force_login(changer)
+        r = self.client.get(self.url('signal1520:bug_details', pk=self.task.pk))
+        self.assertTrue(r.context['can_manage'])
+        self.assertEqual([s['value'] for s in r.context['allowed_statuses']], ['completed', 'cancelled'])
+        self.assertNotContains(r, 'class="is-locked" disabled')
+        self.assertEqual(self._patch_status(changer, 'cancelled').status_code, 200)
+
+    def test_admin_change_is_recorded_in_history(self):
+        """Смена статуса через админку тоже пишется в историю."""
+        self.client.force_login(self.superuser)
+        data = {
+            'station': self.station.pk,
+            'description': self.task.description,
+            'status': 'completed',
+            'responsible_organization': '',
+            'responsible_user': self.plain_user.pk,
+            'due_date': '',
+        }
+        for prefix in ('status_changes', 'comments', 'attachments'):
+            data[f'{prefix}-TOTAL_FORMS'] = 0
+            data[f'{prefix}-INITIAL_FORMS'] = 0
+        r = self.client.post(reverse('admin:signal1520_task_change', args=[self.task.pk]), data)
+        self.assertEqual(r.status_code, 302)
+        change = self.task.status_changes.get()
+        self.assertEqual((change.from_status, change.to_status), ('new', 'completed'))
+        self.assertEqual(change.changed_by, self.superuser)
+
+    def test_admin_history_is_read_only(self):
+        """В админке история статусов открывается списком и карточкой, но не создаётся и не правится."""
+        change = self.task.change_status('in_progress', self.task_user)
+        self.client.force_login(self.superuser)
+        r = self.client.get(reverse('admin:signal1520_taskstatuschange_changelist'))
+        self.assertContains(r, 'task_u')
+        change_url = reverse('admin:signal1520_taskstatuschange_change', args=[change.pk])
+        self.assertEqual(self.client.get(change_url).status_code, 200)
+        self.assertEqual(self.client.post(change_url, {'to_status': 'completed'}).status_code, 403)
+        self.assertEqual(self.client.get(reverse('admin:signal1520_taskstatuschange_add')).status_code, 403)
+        # задача с историей по-прежнему удаляется из админки
+        r = self.client.post(reverse('admin:signal1520_task_delete', args=[self.task.pk]), {'post': 'yes'})
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(Task.objects.filter(pk=self.task.pk).exists())
+
+    def test_card_shows_last_change(self):
+        """На карточке под статусом — кто сделал последний переход; у задачи без истории подписи нет."""
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(url), 'id="status-change-info"')
+        self._patch_status(self.task_user, 'in_progress')
+        self._patch_status(self.task_user, 'completed')
+        r = self.client.get(url)
+        self.assertContains(r, 'id="status-change-info"')
+        self.assertEqual(r.context['last_status_change'].to_status, 'completed')
+        self.assertContains(r, 'task_u')
+
+    def test_status_button_disabled_on_closed_task(self):
+        """У закрытой задачи кнопка смены статуса неактивна для всех, кроме суперпользователя."""
+        self._set_status('cancelled')
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        r = self.client.get(url)
+        self.assertEqual(r.context['allowed_statuses'], [])
+        self.assertContains(r, 'class="is-locked" disabled')
+        self.client.force_login(self.superuser)
+        r = self.client.get(url)
+        self.assertEqual([s['value'] for s in r.context['allowed_statuses']], ['in_progress'])
+        self.assertNotContains(r, 'class="is-locked" disabled')
+
 
 # ---------------------------------------------------------------------------
 # BugDetailView — POST: file upload
@@ -827,6 +944,37 @@ class BugDetailPostFileTest(ViewTestBase):
         )
         self.assertEqual(r.status_code, 302)
         self.assertTrue(Attachment.objects.filter(task=self.task).exists())
+
+    def _upload(self, user):
+        self.client.force_login(user)
+        f = SimpleUploadedFile('closed.txt', b'file content', content_type='text/plain')
+        return self.client.post(self.url('signal1520:bug_details', pk=self.task.pk), {'file': f})
+
+    def test_upload_blocked_on_closed_task(self):
+        """К выполненной и отменённой задаче вложение не добавляет никто, включая суперпользователя."""
+        for closed in ('completed', 'cancelled'):
+            Task.objects.filter(pk=self.task.pk).update(status=closed)
+            for user in (self.task_user, self.superuser):
+                self.assertEqual(self._upload(user).status_code, 403)
+            self.assertFalse(Attachment.objects.filter(task=self.task).exists())
+
+    def test_upload_allowed_after_reopen(self):
+        """После возврата задачи в работу вложения снова добавляются."""
+        Task.objects.filter(pk=self.task.pk).update(status='completed')
+        self.task.refresh_from_db()
+        self.task.change_status('in_progress', self.superuser)
+        self.assertEqual(self._upload(self.superuser).status_code, 302)
+        self.assertTrue(Attachment.objects.filter(task=self.task).exists())
+
+    def test_comment_allowed_on_closed_task(self):
+        """Комментарии к закрытой задаче остаются открытыми."""
+        Task.objects.filter(pk=self.task.pk).update(status='completed')
+        self.client.force_login(self.task_user)
+        self.client.post(
+            self.url('signal1520:bug_details', pk=self.task.pk),
+            {'comment_text': 'Дефект проявился снова'},
+        )
+        self.assertTrue(Comment.objects.filter(task=self.task, body='Дефект проявился снова').exists())
 
 
 # ---------------------------------------------------------------------------
@@ -937,6 +1085,33 @@ class BugUpdateViewTest(ViewTestBase):
         self.client.force_login(self.superuser)
         r = self.client.get(self.url('signal1520:bug_update', pk=self.task.pk))
         self.assertEqual(r.status_code, 200)
+
+    def test_status_not_changed_through_form(self):
+        """Статус из формы убран: значение из POST игнорируется."""
+        self.client.force_login(self.task_user)
+        self.client.post(self.url('signal1520:bug_update', pk=self.task.pk), {
+            'station': self.station.pk,
+            'description': 'Правка без статуса',
+            'status': Task.Status.COMPLETED,
+            'responsible_organization': '',
+        })
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.description, 'Правка без статуса')
+        self.assertEqual(self.task.status, Task.Status.NEW)
+
+    def test_closed_task_editable_only_by_superuser(self):
+        """Закрытую задачу правит только суперпользователь; остальным — 403 и неактивная кнопка на карточке."""
+        Task.objects.filter(pk=self.task.pk).update(status=Task.Status.COMPLETED)
+        update_url = self.url('signal1520:bug_update', pk=self.task.pk)
+        detail_url = self.url('signal1520:bug_details', pk=self.task.pk)
+        for user in (self.task_user, self.plain_user):
+            self.client.force_login(user)
+            self.assertEqual(self.client.get(update_url).status_code, 403)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(detail_url), update_url)
+        self.client.force_login(self.superuser)
+        self.assertEqual(self.client.get(update_url).status_code, 200)
+        self.assertContains(self.client.get(detail_url), update_url)
 
 
 # ---------------------------------------------------------------------------

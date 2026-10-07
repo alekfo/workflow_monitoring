@@ -258,24 +258,6 @@
                 {% endif %}
             </div>
 
-            <!-- Поле status -->
-            <div class="form-group">
-                <label for="{{ form.status.id_for_label }}">
-                    {{ form.status.label }}
-                </label>
-                {{ form.status }}
-                {% if form.status.errors %}
-                    <span class="error-message">
-                        {% for error in form.status.errors %}
-                            {{ error }}
-                        {% endfor %}
-                    </span>
-                {% endif %}
-                {% if form.status.help_text %}
-                    <span class="help-text">{{ form.status.help_text }}</span>
-                {% endif %}
-            </div>
-
             <!-- Поле responsible_organization -->
             <div class="form-group">
                 <label for="{{ form.responsible_organization.id_for_label }}">

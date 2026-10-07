@@ -159,7 +159,13 @@ CSS-переменные заведены только для размеров �
 ### Карточка задачи — `bug_details.html`
 
 - `#status-container`, `#status-badge` (`data-status`), `#change-status-btn`: смена статуса — `fetch` POST
-  с JSON `{status}` на адрес страницы; ответ `{success, status, status_display}`.
+  с JSON `{status}` на адрес страницы; ответ `{success, status, status_display}`, после успеха страница перезагружается.
+  Список статусов в выпадающем списке берётся из `#allowed-statuses` (`json_script` из переменной `allowed_statuses`).
+  Кнопка показывается при `can_manage`; без доступных переходов она `disabled` с классом `.is-locked`.
+- `#status-change-info` — дата, время и автор последней смены статуса (`last_status_change`).
+- У закрытой задачи: поля вложения в `fieldset.attachment-fields[disabled]` при `not can_attach` — для всех, включая
+  суперпользователя; «Редактировать задачу» — `span.back-link.is-locked` вместо ссылки при `not can_edit_task`
+  (не для суперпользователя). На заблокированном — курсор `not-allowed`. Комментарии не блокируются.
 - Правка комментария: у комментария с `comment.can_edit` (ставит вьюха: автор, 24 часа с создания) — кнопка
   `.comment-edit-btn[data-comment-id]`, текст `#comment-body-<id>` и скрытая форма `#comment-edit-form-<id>`
   с полями `edit_comment_id` и `edit_comment_text`. Пометка «изменён» — `.comment-edited` при `comment.is_edited`.
@@ -188,7 +194,7 @@ CSS-переменные заведены только для размеров �
 
 ## Проверка
 
-- `python manage.py test` — 215 тестов; окружение должно быть на Django 6.0.3 (см. `CLAUDE.md`).
+- `python manage.py test` — 230 тестов; окружение должно быть на Django 6.0.3 (см. `CLAUDE.md`).
 - Тесты проверяют ответы сервера, но не внешний вид: после правки вёрстки страницу нужно открыть в браузере.
   Если это не сделано — прямо сказать об этом в отчёте.
 - Шаблоны при `DEBUG=False` кэшируются: после правки шаблона нужен перезапуск `runserver`.

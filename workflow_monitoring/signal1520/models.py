@@ -1,7 +1,7 @@
 import os
 from datetime import date, timedelta
 
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -160,8 +160,81 @@ class Task(models.Model):
                 return 'row-due-soon'
         return ''
 
+    @property
+    def is_closed(self):
+        return self.status in (self.Status.COMPLETED, self.Status.CANCELLED)
+
+    def can_be_managed_by(self, user):
+        """Править задачу и менять её статус могут суперпользователь, обладатель change_task и ответственный"""
+        return (user.is_superuser
+                or user.has_perm('signal1520.change_task')
+                or (self.responsible_user_id is not None and self.responsible_user_id == user.pk))
+
+    def allowed_statuses(self, user):
+        """Статусы, в которые пользователь может перевести задачу. В «Новая» вернуть нельзя никому,
+        закрытую задачу переоткрывает только суперпользователь."""
+        if self.is_closed:
+            return [self.Status.IN_PROGRESS] if user.is_superuser else []
+        if not self.can_be_managed_by(user):
+            return []
+        if self.status == self.Status.NEW:
+            return [self.Status.IN_PROGRESS, self.Status.COMPLETED, self.Status.CANCELLED]
+        return [self.Status.COMPLETED, self.Status.CANCELLED]
+
+    def change_status(self, new_status, user):
+        """Меняет статус и записывает переход в историю. Права и допустимость перехода проверяет вызывающий код."""
+        old_status = self.status
+        with transaction.atomic():
+            self.status = new_status
+            self.save(update_fields=['status', 'updated_at'])
+            return TaskStatusChange.objects.create(
+                task=self, from_status=old_status, to_status=new_status, changed_by=user,
+            )
+
+    @property
+    def last_status_change(self):
+        return self.status_changes.first()
+
     def __str__(self):
         return f"Задача #{self.id} на станции {self.station.name}"
+
+
+class TaskStatusChange(models.Model):
+    """Запись о переводе задачи из одного статуса в другой: кто и когда."""
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='status_changes',
+        verbose_name='Задача'
+    )
+    from_status = models.CharField('Из статуса', max_length=20, choices=Task.Status.choices)
+    to_status = models.CharField('В статус', max_length=20, choices=Task.Status.choices)
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='task_status_changes',
+        verbose_name='Кто изменил'
+    )
+    changed_at = models.DateTimeField('Когда изменён', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Смена статуса задачи'
+        verbose_name_plural = 'Смены статусов задач'
+        ordering = ['-changed_at', '-pk']
+        # своих прав у истории нет: в админке их путают с «Can change Задача», а на смену статуса они не влияют
+        default_permissions = ()
+
+    def author_name(self):
+        """Возвращает отображаемое имя того, кто сменил статус"""
+        user = self.changed_by
+        if not user:
+            return "Удалённый пользователь"
+        return user.get_full_name() or user.username
+
+    def __str__(self):
+        return f"Задача #{self.task_id}: {self.get_from_status_display()} → {self.get_to_status_display()}"
 
 class Comment(models.Model):
     EDIT_WINDOW = timedelta(hours=24)

@@ -286,13 +286,29 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
         for comment in comments:
             comment.can_edit = comment.can_be_edited_by(self.request.user)
         context['comments'] = comments
+
+        task, user = self.object, self.request.user
+        allowed = task.allowed_statuses(user)
+        context['can_manage'] = task.can_be_managed_by(user)
+        context['can_edit_task'] = context['can_manage'] and self._closed_task_unlocked(task, user)
+        # вложения к закрытой задаче не добавляет никто: суперпользователь сначала возвращает её в работу
+        context['can_attach'] = not task.is_closed
+        context['allowed_statuses'] = [{'value': s.value, 'label': s.label} for s in allowed]
+        context['last_status_change'] = task.last_status_change
         return context
+
+    @staticmethod
+    def _closed_task_unlocked(task, user):
+        """Выполненную и отменённую задачу правит только суперпользователь."""
+        return not task.is_closed or user.is_superuser
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
 
         # 1. --- Обработка вложения ---
         if 'file' in request.FILES:
+            if self.object.is_closed:
+                raise PermissionDenied
             attachment = Attachment(
                 task=self.object,
                 file=request.FILES['file'],
@@ -332,23 +348,28 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
 
         # 4. Обработка изменения статуса (JSON-запрос от JavaScript)
         # Проверка прав на изменение статуса
-        if not (request.user.is_superuser or
-                request.user.has_perm('signal1520.change_task') or
-                self.object.responsible_user == request.user):
+        if not self.object.can_be_managed_by(request.user):
             return JsonResponse({'error': 'Недостаточно прав'}, status=403)
 
         try:
             data = json.loads(request.body)
             new_status = data.get('status')
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError):
             return JsonResponse({'error': 'Неверные данные'}, status=400)
 
         valid_statuses = [choice[0] for choice in Task.Status.choices]
         if new_status not in valid_statuses:
             return JsonResponse({'error': 'Недопустимый статус'}, status=400)
 
-        self.object.status = new_status
-        self.object.save()
+        # Допустимость перехода: в «Новая» вернуть нельзя, закрытую задачу переоткрывает только суперпользователь
+        if new_status not in self.object.allowed_statuses(request.user):
+            if self.object.is_closed:
+                error = 'Задача закрыта: изменить статус может только администратор'
+            else:
+                error = 'Такой переход статуса недопустим'
+            return JsonResponse({'error': error}, status=403)
+
+        self.object.change_status(new_status, request.user)
         logger.info('Статус задачи pk=%s изменён на "%s" (user=%s)',
                     self.object.pk, new_status, request.user.username)
         return JsonResponse({
@@ -391,20 +412,19 @@ class BugCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateVie
         return redirect(reverse('authentication:error'))
 
 class BugUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    """Форма редактирования задачи. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику."""
+    """Форма редактирования задачи. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику.
+    Выполненную и отменённую задачу правит только суперпользователь. Статус здесь не меняется — только на карточке задачи."""
 
     def test_func(self):
         bug = self.get_object()
         if self.request.user.is_superuser:
             return True
-        if self.request.user.has_perm('signal1520.change_task'):
-            return True
-        if bug.responsible_user == self.request.user:
-            return True
-        return False
+        if bug.is_closed:
+            return False
+        return bug.can_be_managed_by(self.request.user)
 
     model = Task
-    fields = "station", "description", "status", "responsible_organization", "due_date"
+    fields = "station", "description", "responsible_organization", "due_date"
     template_name = 'signal1520/bug_update_form.html'
     org_filter_field = 'station__organization'
 
