@@ -50,16 +50,19 @@ class ProfileForm(forms.ModelForm):
 
 class CustomUserCreationForm(UserCreationForm):
     first_name = forms.CharField(
+        label='Имя',
         max_length=30,
         required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите имя'})
     )
     last_name = forms.CharField(
+        label='Фамилия',
         max_length=30,
         required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите фамилию'})
     )
     email = forms.EmailField(
+        label='Электронная почта',
         required=True,
         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'example@mail.com'})
     )

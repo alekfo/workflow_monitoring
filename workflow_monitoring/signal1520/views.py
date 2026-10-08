@@ -7,7 +7,7 @@ from urllib.parse import quote
 from pathlib import Path
 
 import openpyxl
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpResponse, HttpRequest, HttpResponseRedirect, JsonResponse
@@ -17,19 +17,24 @@ from django.views import View
 from django.db import models
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
+from django.utils.http import content_disposition_header
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 
 from django.conf import settings
 from django.core.mail import send_mail
 
-from .models import Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge, Warehouse, Equipment, EquipmentType
+from authentication.models import Profile
+from .models import ActivityEvent, Station, Task, Comment, Attachment, AlarmInfo, Road, System, Knowledge, UserKnowledge, Warehouse, Equipment, EquipmentType
 from .forms import KnowledgeForm, ContactForm
 from .mixins import OrgMixin
 
 logger = logging.getLogger('signal1520')
 
 class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
-    """Главная страница: сводка по организации. Каждый блок показывается только при наличии права на раздел."""
+    """Главная страница: сводка по организации и лента последних изменений.
+    Каждый блок показывается только при наличии права на раздел."""
+
+    ACTIVITY_LIMIT = 40
 
     @staticmethod
     def _task_counts(queryset, today):
@@ -63,6 +68,20 @@ class TasksIndexView(OrgMixin, LoginRequiredMixin, View):
             context['equipment_count'] = Equipment.objects.filter(warehouse__organization=org).count()
 
         context['has_summary'] = bool(context)
+
+        # Лента: события по задачам и объектам — только при праве на соответствующий раздел
+        kinds = []
+        if user.has_perm('signal1520.view_task'):
+            kinds += ActivityEvent.TASK_KINDS
+        if user.has_perm('signal1520.view_station'):
+            kinds += ActivityEvent.STATION_KINDS
+        if kinds:
+            context['show_activity'] = True
+            # с запасом: сколько строк показать, решает вёрстка — лишние не помещаются и скрыты
+            context['activity_events'] = (
+                ActivityEvent.objects.filter(organization=org, kind__in=kinds)
+                .select_related('user')[:self.ACTIVITY_LIMIT]
+            )
         return render(request, 'signal1520/index.html', context)
 
 class StationListView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -142,6 +161,7 @@ class StationCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Creat
         form.instance.created_by = self.request.user
         form.instance.organization = self.get_org()
         response = super().form_valid(form)
+        ActivityEvent.log(ActivityEvent.Kind.STATION_CREATED, self.request.user, station=self.object)
         logger.info('Станция создана: "%s" pk=%s (org=%s, user=%s)',
                     self.object.name, self.object.pk, self.get_org().slug, self.request.user.username)
         return response
@@ -261,10 +281,11 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
     Детальная страница задачи.
 
     GET  — отображает задачу с комментариями и вложениями.
-    POST — обрабатывает три сценария:
+    POST — обрабатывает четыре сценария:
            1. Загрузка файла-вложения.
-           2. Добавление текстового комментария.
-           3. Изменение статуса задачи (JSON-запрос от JavaScript).
+           2. Правка своего комментария (только автор, в течение Comment.EDIT_WINDOW).
+           3. Добавление текстового комментария.
+           4. Изменение статуса задачи (JSON-запрос от JavaScript).
     """
 
     def test_func(self):
@@ -279,21 +300,62 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
     context_object_name = "bug"
     org_filter_field = 'station__organization'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        comments = list(self.object.comments.all())
+        for comment in comments:
+            comment.can_edit = comment.can_be_edited_by(self.request.user)
+        context['comments'] = comments
+
+        task, user = self.object, self.request.user
+        allowed = task.allowed_statuses(user)
+        context['can_manage'] = task.can_be_managed_by(user)
+        context['can_edit_task'] = context['can_manage'] and self._closed_task_unlocked(task, user)
+        # вложения к закрытой задаче не добавляет никто: суперпользователь сначала возвращает её в работу
+        context['can_attach'] = not task.is_closed
+        context['allowed_statuses'] = [{'value': s.value, 'label': s.label} for s in allowed]
+        context['last_status_change'] = task.last_status_change
+        return context
+
+    @staticmethod
+    def _closed_task_unlocked(task, user):
+        """Выполненную и отменённую задачу правит только суперпользователь."""
+        return not task.is_closed or user.is_superuser
+
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
 
         # 1. --- Обработка вложения ---
         if 'file' in request.FILES:
+            if self.object.is_closed:
+                raise PermissionDenied
             attachment = Attachment(
                 task=self.object,
                 file=request.FILES['file'],
                 description=request.POST.get('description', '')
             )
             attachment.save()
+            ActivityEvent.log(ActivityEvent.Kind.TASK_ATTACHMENT, request.user, task=self.object)
             logger.info('Вложение добавлено к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
-        # 2. Обработка добавления комментария (обычная форма)
+        # 2. Правка своего комментария (обычная форма)
+        if 'edit_comment_id' in request.POST:
+            comment_id = request.POST.get('edit_comment_id', '')
+            if not comment_id.isdigit():
+                raise Http404
+            comment = get_object_or_404(self.object.comments, pk=comment_id)
+            if not comment.can_be_edited_by(request.user):
+                raise PermissionDenied
+            comment_text = request.POST.get('edit_comment_text', '').strip()
+            if comment_text and comment_text != comment.body:
+                comment.body = comment_text
+                comment.save(update_fields=['body', 'updated_at'])
+                logger.info('Комментарий pk=%s к задаче pk=%s изменён (user=%s)',
+                            comment.pk, self.object.pk, request.user.username)
+            return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
+
+        # 3. Обработка добавления комментария (обычная форма)
         if 'comment_text' in request.POST:
             comment_text = request.POST.get('comment_text', '').strip()
             if comment_text:
@@ -302,28 +364,34 @@ class BugDetailView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, DetailVie
                     user=request.user,
                     body=comment_text
                 )
+                ActivityEvent.log(ActivityEvent.Kind.TASK_COMMENT, request.user, task=self.object)
                 logger.info('Комментарий добавлен к задаче pk=%s (user=%s)', self.object.pk, request.user.username)
             return redirect(reverse('signal1520:bug_details', kwargs=self.org_kwargs(pk=self.object.pk)))
 
-        # 3. Обработка изменения статуса (JSON-запрос от JavaScript)
+        # 4. Обработка изменения статуса (JSON-запрос от JavaScript)
         # Проверка прав на изменение статуса
-        if not (request.user.is_superuser or
-                request.user.has_perm('signal1520.change_task') or
-                self.object.responsible_user == request.user):
+        if not self.object.can_be_managed_by(request.user):
             return JsonResponse({'error': 'Недостаточно прав'}, status=403)
 
         try:
             data = json.loads(request.body)
             new_status = data.get('status')
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError):
             return JsonResponse({'error': 'Неверные данные'}, status=400)
 
         valid_statuses = [choice[0] for choice in Task.Status.choices]
         if new_status not in valid_statuses:
             return JsonResponse({'error': 'Недопустимый статус'}, status=400)
 
-        self.object.status = new_status
-        self.object.save()
+        # Допустимость перехода: в «Новая» вернуть нельзя, закрытую задачу переоткрывает только суперпользователь
+        if new_status not in self.object.allowed_statuses(request.user):
+            if self.object.is_closed:
+                error = 'Задача закрыта: изменить статус может только администратор'
+            else:
+                error = 'Такой переход статуса недопустим'
+            return JsonResponse({'error': error}, status=403)
+
+        self.object.change_status(new_status, request.user)
         logger.info('Статус задачи pk=%s изменён на "%s" (user=%s)',
                     self.object.pk, new_status, request.user.username)
         return JsonResponse({
@@ -354,6 +422,7 @@ class BugCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateVie
     def form_valid(self, form):
         form.instance.responsible_user = self.request.user
         response = super().form_valid(form)
+        ActivityEvent.log(ActivityEvent.Kind.TASK_CREATED, self.request.user, task=self.object)
         logger.info('Задача создана: pk=%s, станция="%s" (org=%s, user=%s)',
                     self.object.pk, self.object.station, self.get_org().slug, self.request.user.username)
         return response
@@ -366,20 +435,19 @@ class BugCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, CreateVie
         return redirect(reverse('authentication:error'))
 
 class BugUpdateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
-    """Форма редактирования задачи. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику."""
+    """Форма редактирования задачи. Доступна суперпользователям, пользователям с правом change_task и ответственному сотруднику.
+    Выполненную и отменённую задачу правит только суперпользователь. Статус здесь не меняется — только на карточке задачи."""
 
     def test_func(self):
         bug = self.get_object()
         if self.request.user.is_superuser:
             return True
-        if self.request.user.has_perm('signal1520.change_task'):
-            return True
-        if bug.responsible_user == self.request.user:
-            return True
-        return False
+        if bug.is_closed:
+            return False
+        return bug.can_be_managed_by(self.request.user)
 
     model = Task
-    fields = "station", "description", "status", "responsible_organization", "due_date"
+    fields = "station", "description", "responsible_organization", "due_date"
     template_name = 'signal1520/bug_update_form.html'
     org_filter_field = 'station__organization'
 
@@ -599,7 +667,10 @@ class KnowledgeCreateView(OrgMixin, LoginRequiredMixin, UserPassesTestMixin, Vie
         used_ids = UserKnowledge.objects.filter(
             user=self.request.user
         ).values_list('knowledge_id', flat=True)
-        return Knowledge.objects.filter(file__gt='').exclude(pk__in=used_ids)
+        # только файлы, загруженные участниками своей организации: у Knowledge нет своего FK на организацию
+        return Knowledge.objects.filter(
+            file__gt='', created_by__profile__organization=self.get_org(),
+        ).exclude(pk__in=used_ids)
 
     def _build_form(self, data=None, files=None):
         form = KnowledgeForm(data, files)
@@ -963,54 +1034,111 @@ class ContactView(OrgMixin, LoginRequiredMixin, View):
 
     def post(self, request, **kwargs):
         form = ContactForm(request.POST)
-        if form.is_valid():
-            name = form.cleaned_data['name']
-            email = form.cleaned_data['email']
-            message = form.cleaned_data['message']
-            body = (
-                f"Имя: {name}\n"
-                f"Email: {email}\n"
-                f"Пользователь: {request.user.username}\n"
-                f"Организация: {getattr(request.user.profile.organization, 'name', '—')}\n"
-                f"\n{message}"
+        if not form.is_valid():
+            return render(request, 'signal1520/contact.html', {'form': form})
+
+        name = form.cleaned_data['name']
+        email = form.cleaned_data['email']
+        message = form.cleaned_data['message']
+        body = (
+            f"Имя: {name}\n"
+            f"Email: {email}\n"
+            f"Пользователь: {request.user.username}\n"
+            f"Организация: {getattr(request.user.profile.organization, 'name', '—')}\n"
+            f"\n{message}"
+        )
+        try:
+            sent = send_mail(
+                subject=f"Обращение от {name}",
+                message=body,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[settings.SUPPORT_EMAIL],
+                fail_silently=False,
             )
-            try:
-                send_mail(
-                    subject=f"Обращение от {name}",
-                    message=body,
-                    from_email=settings.EMAIL_HOST_USER,
-                    recipient_list=[settings.SUPPORT_EMAIL],
-                    fail_silently=False,
-                )
-                logger.info('Обращение отправлено (user=%s, email=%s)', request.user.username, email)
-            except Exception as exc:
-                logger.error('Ошибка отправки обращения (user=%s): %s', request.user.username, exc)
-            fresh_form = ContactForm(initial=self._initial(request.user))
-            return render(request, 'signal1520/contact.html', {'form': fresh_form, 'success': True})
+            # без получателя Django молча ничего не отправляет и возвращает 0
+            if not sent:
+                raise RuntimeError('письмо не отправлено: не задан SUPPORT_EMAIL')
+        except Exception as exc:
+            logger.error('Ошибка отправки обращения (user=%s): %s', request.user.username, exc)
+            # текст обращения остаётся в форме, чтобы его не пришлось набирать заново
+            form.add_error(None, 'Не удалось отправить обращение. Попробуйте ещё раз позже.')
+            return render(request, 'signal1520/contact.html', {'form': form})
+
+        logger.info('Обращение отправлено (user=%s, email=%s)', request.user.username, email)
+        fresh_form = ContactForm(initial=self._initial(request.user))
+        return render(request, 'signal1520/contact.html', {'form': fresh_form, 'success': True})
 
 
 class ProtectedMediaView(LoginRequiredMixin, View):
-    """Раздаёт медиа-файлы только аутентифицированным пользователям."""
+    """Раздаёт медиа-файлы только тем, кому доступна страница с этим файлом (см. _has_access).
+
+    В браузере открываются только типы из INLINE_TYPES, всё остальное отдаётся на скачивание:
+    загруженный .html или .svg со скриптом иначе выполнился бы на нашем домене от имени открывшего."""
+
+    INLINE_TYPES = frozenset({'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'})
+
+    @classmethod
+    def _safe_headers(cls, file_path):
+        """Content-Type и Content-Disposition для файла."""
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        if content_type in cls.INLINE_TYPES:
+            return content_type, content_disposition_header(False, file_path.name)
+        # прочие растровые картинки (например .bmp в аватаре) остаются картинками для <img>,
+        # но при прямом открытии тоже скачиваются; svg к ним не относится — в нём бывают скрипты
+        if not (content_type or '').startswith('image/') or content_type == 'image/svg+xml':
+            content_type = 'application/octet-stream'
+        return content_type, content_disposition_header(True, file_path.name)
+
+    @staticmethod
+    def _has_access(user, name):
+        """Файл доступен тому же, кому доступна страница, где он показан. name — путь внутри MEDIA_ROOT.
+
+        Файл, на который не ссылается ни одна запись в базе, не отдаётся никому, кроме суперпользователя."""
+        if user.is_superuser:
+            return True
+        try:
+            org = user.profile.organization
+        except ObjectDoesNotExist:
+            org = None
+        section = name.split('/', 1)[0]
+        if section == 'tasks':
+            # вложение задачи — как карточка задачи: своя организация и право view_task
+            return (org is not None and user.has_perm('signal1520.view_task')
+                    and Attachment.objects.filter(file=name, task__station__organization=org).exists())
+        if section == 'knowledge':
+            # инструкция — тому, у кого она в списке, и тому, кто её загрузил
+            return Knowledge.objects.filter(file=name).filter(
+                models.Q(user_knowledge__user=user) | models.Q(created_by=user)
+            ).exists()
+        if section == 'user':
+            # аватар — как профиль: свой и участников своей организации
+            visible = models.Q(user=user)
+            if org is not None:
+                visible |= models.Q(organization=org)
+            return Profile.objects.filter(avatar=name).filter(visible).exists()
+        return False
 
     def get(self, request, path):
         media_root = Path(settings.MEDIA_ROOT).resolve()
         file_path = (media_root / path).resolve()
         try:
-            file_path.relative_to(media_root)
+            name = file_path.relative_to(media_root).as_posix()
         except ValueError:
             raise Http404
         if not file_path.is_file():
             raise Http404
+        # 404, а не 403: по ответу нельзя узнать, существует ли чужой файл
+        if not self._has_access(request.user, name):
+            logger.warning('Отказ в доступе к файлу "%s" (user=%s)', name, request.user.username)
+            raise Http404
 
+        content_type, disposition = self._safe_headers(file_path)
         if settings.DEBUG:
-            content_type, _ = mimetypes.guess_type(str(file_path))
-            return FileResponse(
-                open(file_path, 'rb'),
-                content_type=content_type or 'application/octet-stream',
-            )
-
-        # Продакшн: Nginx отдаёт файл сам через X-Accel-Redirect
-        content_type, _ = mimetypes.guess_type(str(file_path))
-        response = HttpResponse(content_type=content_type or 'application/octet-stream')
-        response['X-Accel-Redirect'] = f'/protected-media/{quote(path, safe="/")}'
+            response = FileResponse(open(file_path, 'rb'), content_type=content_type)
+        else:
+            # Продакшн: Nginx отдаёт файл сам через X-Accel-Redirect, заголовки ответа сохраняет
+            response = HttpResponse(content_type=content_type)
+            response['X-Accel-Redirect'] = f'/protected-media/{quote(path, safe="/")}'
+        response['Content-Disposition'] = disposition
+        response['X-Content-Type-Options'] = 'nosniff'
         return response

@@ -61,6 +61,40 @@
                 </a>
                 {% endif %}
             </div>
+
+            {% if show_activity %}
+            <section class="activity">
+                <h2 class="activity-title">Последние изменения</h2>
+                <div class="activity-list">
+                    {% for event in activity_events %}
+                    {% if event.kind == 'station_created' and event.station_id %}
+                    <a class="activity-row" href="{% url 'signal1520:station_details' pk=event.station_id org_slug=org_slug %}">
+                    {% elif event.kind != 'station_created' and event.task_id %}
+                    <a class="activity-row" href="{% url 'signal1520:bug_details' pk=event.task_id org_slug=org_slug %}">
+                    {% else %}
+                    <a class="activity-row is-gone" title="Объект удалён">
+                    {% endif %}
+                        {# значок по типу события #}
+                        <span class="activity-icon">
+                            {% if event.kind == 'task_created' %}<svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                            {% elif event.kind == 'task_status' %}<svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/></svg>
+                            {% elif event.kind == 'task_comment' %}<svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
+                            {% elif event.kind == 'task_attachment' %}<svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5l-8.5 8.5a5 5 0 0 1-7-7L13 4.5a3.3 3.3 0 0 1 4.7 4.7L9.5 17.4a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg>
+                            {% else %}<svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 10h4a1 1 0 0 1 1 1v10"/><path d="M2 21h20"/></svg>
+                            {% endif %}
+                        </span>
+                        {% with parts=event.text_parts %}
+                        <span class="activity-text"><span class="activity-subject">{{ parts.0 }}</span>{% if parts.1 %} — {{ parts.1 }}{% endif %}</span>
+                        {% endwith %}
+                        <span class="activity-user">{{ event.author_name|default:"—" }}</span>
+                        <span class="activity-time">{{ event.created_at|date:"d.m H:i" }}</span>
+                    </a>
+                    {% empty %}
+                    <p class="activity-empty">Изменений пока нет.</p>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
         </div>
     </div>
 

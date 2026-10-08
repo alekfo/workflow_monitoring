@@ -1,8 +1,9 @@
 import os
-from datetime import date
+from datetime import date, timedelta
 
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 class Organization(models.Model):
@@ -159,10 +160,185 @@ class Task(models.Model):
                 return 'row-due-soon'
         return ''
 
+    @property
+    def is_closed(self):
+        return self.status in (self.Status.COMPLETED, self.Status.CANCELLED)
+
+    def can_be_managed_by(self, user):
+        """Править задачу и менять её статус могут суперпользователь, обладатель change_task и ответственный"""
+        return (user.is_superuser
+                or user.has_perm('signal1520.change_task')
+                or (self.responsible_user_id is not None and self.responsible_user_id == user.pk))
+
+    def allowed_statuses(self, user):
+        """Статусы, в которые пользователь может перевести задачу. В «Новая» вернуть нельзя никому,
+        закрытую задачу переоткрывает только суперпользователь."""
+        if self.is_closed:
+            return [self.Status.IN_PROGRESS] if user.is_superuser else []
+        if not self.can_be_managed_by(user):
+            return []
+        if self.status == self.Status.NEW:
+            return [self.Status.IN_PROGRESS, self.Status.COMPLETED, self.Status.CANCELLED]
+        return [self.Status.COMPLETED, self.Status.CANCELLED]
+
+    def change_status(self, new_status, user):
+        """Меняет статус и записывает переход в историю. Права и допустимость перехода проверяет вызывающий код."""
+        old_status = self.status
+        with transaction.atomic():
+            self.status = new_status
+            self.save(update_fields=['status', 'updated_at'])
+            change = TaskStatusChange.objects.create(
+                task=self, from_status=old_status, to_status=new_status, changed_by=user,
+            )
+            ActivityEvent.log(ActivityEvent.Kind.TASK_STATUS, user, task=self)
+            return change
+
+    @property
+    def last_status_change(self):
+        return self.status_changes.first()
+
     def __str__(self):
         return f"Задача #{self.id} на станции {self.station.name}"
 
+
+class TaskStatusChange(models.Model):
+    """Запись о переводе задачи из одного статуса в другой: кто и когда."""
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='status_changes',
+        verbose_name='Задача'
+    )
+    from_status = models.CharField('Из статуса', max_length=20, choices=Task.Status.choices)
+    to_status = models.CharField('В статус', max_length=20, choices=Task.Status.choices)
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='task_status_changes',
+        verbose_name='Кто изменил'
+    )
+    changed_at = models.DateTimeField('Когда изменён', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Смена статуса задачи'
+        verbose_name_plural = 'Смены статусов задач'
+        ordering = ['-changed_at', '-pk']
+        # своих прав у истории нет: в админке их путают с «Can change Задача», а на смену статуса они не влияют
+        default_permissions = ()
+
+    def author_name(self):
+        """Возвращает отображаемое имя того, кто сменил статус"""
+        user = self.changed_by
+        if not user:
+            return "Удалённый пользователь"
+        return user.get_full_name() or user.username
+
+    def __str__(self):
+        return f"Задача #{self.task_id}: {self.get_from_status_display()} → {self.get_to_status_display()}"
+
+
+class ActivityEvent(models.Model):
+    """Запись ленты «Последние изменения» на главной. Текст хранится готовой строкой и переживает удаление объекта."""
+
+    class Kind(models.TextChoices):
+        TASK_CREATED = 'task_created', 'Задача создана'
+        TASK_STATUS = 'task_status', 'Статус задачи изменён'
+        TASK_COMMENT = 'task_comment', 'Комментарий к задаче'
+        TASK_ATTACHMENT = 'task_attachment', 'Вложение к задаче'
+        STATION_CREATED = 'station_created', 'Объект создан'
+
+    # события по задачам видит обладатель view_task, по объектам — view_station
+    TASK_KINDS = (Kind.TASK_CREATED, Kind.TASK_STATUS, Kind.TASK_COMMENT, Kind.TASK_ATTACHMENT)
+    STATION_KINDS = (Kind.STATION_CREATED,)
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='activity_events',
+        verbose_name='Организация'
+    )
+    kind = models.CharField('Событие', max_length=20, choices=Kind.choices)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_events',
+        verbose_name='Кто'
+    )
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_events',
+        verbose_name='Задача'
+    )
+    station = models.ForeignKey(
+        Station,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_events',
+        verbose_name='Объект'
+    )
+    text = models.CharField('Текст', max_length=300)
+    # не auto_now_add: миграция 0019 заполняет ленту прошлыми событиями с их настоящим временем
+    created_at = models.DateTimeField('Когда', default=timezone.now)
+
+    class Meta:
+        verbose_name = 'Событие ленты'
+        verbose_name_plural = 'События ленты'
+        ordering = ['-created_at', '-pk']
+        indexes = [models.Index(fields=['organization', '-created_at'], name='activity_org_created_idx')]
+        default_permissions = ()
+
+    @staticmethod
+    def build_text(kind, task=None, station=None):
+        """Строка события. Миграция 0019 собирает такие же строки для прошлых событий."""
+        if kind == ActivityEvent.Kind.STATION_CREATED:
+            return f'Объект «{station.name}» — создан'
+        action = {
+            ActivityEvent.Kind.TASK_CREATED: 'создана',
+            ActivityEvent.Kind.TASK_STATUS: f'статус «{task.get_status_display()}»',
+            ActivityEvent.Kind.TASK_COMMENT: 'добавлен комментарий',
+            ActivityEvent.Kind.TASK_ATTACHMENT: 'добавлено вложение',
+        }[kind]
+        return f'Задача #{task.pk}, {task.station.name} — {action}'
+
+    @classmethod
+    def log(cls, kind, user, task=None, station=None):
+        """Записывает событие. Для события по задаче объект берётся из самой задачи."""
+        station = station or task.station
+        return cls.objects.create(
+            organization=station.organization,
+            kind=kind,
+            user=user,
+            task=task,
+            station=station,
+            text=cls.build_text(kind, task=task, station=station)[:300],
+        )
+
+    def text_parts(self):
+        """Текст события двумя частями для ленты: о чём («Задача #25, Бутырская») и что произошло («создана»)"""
+        subject, sep, action = self.text.rpartition(' — ')
+        return (subject, action) if sep else (self.text, '')
+
+    def author_name(self):
+        """Имя автора; пустая строка, если автор неизвестен (прошлые события) или удалён"""
+        user = self.user
+        if not user:
+            return ''
+        return user.get_full_name() or user.username
+
+    def __str__(self):
+        return self.text
+
 class Comment(models.Model):
+    EDIT_WINDOW = timedelta(hours=24)
+
     task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
@@ -191,6 +367,17 @@ class Comment(models.Model):
         if user.first_name:
             return user.first_name
         return user.username
+
+    def can_be_edited_by(self, user):
+        """Править комментарий может только автор и только в течение EDIT_WINDOW после создания"""
+        if self.user_id is None or self.user_id != user.pk:
+            return False
+        return timezone.now() - self.created_at < self.EDIT_WINDOW
+
+    @property
+    def is_edited(self):
+        # created_at и updated_at при создании ставятся порознь и расходятся на доли секунды
+        return self.updated_at - self.created_at > timedelta(seconds=1)
 
     class Meta:
         verbose_name = 'Комментарий'

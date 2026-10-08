@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
 <style>
     .form-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .form-header { background: linear-gradient(135deg, #00B7B7 0%, #333333 100%); padding: 25px 30px; color: white; }
+    .form-header { background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%); padding: 25px 30px; color: white; }
     .form-header h1 { margin: 0 0 10px; font-size: 28px; color: white; border: none; padding: 0; }
     .form-header p { margin: 0; opacity: 0.9; font-size: 14px; }
     .form-body { padding: 30px; }
@@ -21,7 +21,7 @@
         background: white; color: #2c3e50;
     }
     .form-body input[type="text"]:focus,
-    .form-body input[type="date"]:focus { outline: none; border-color: #00B7B7; box-shadow: 0 0 0 3px rgba(0,183,183,0.1); }
+    .form-body input[type="date"]:focus { outline: none; border-color: #0f8f93; box-shadow: 0 0 0 3px rgba(15, 143, 147,0.1); }
     .form-body select {
         width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px;
         font-size: 15px; transition: all 0.3s ease; box-sizing: border-box; font-family: inherit;
@@ -29,7 +29,7 @@
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2300B7B7' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
         background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px;
     }
-    .form-body select:focus { outline: none; border-color: #00B7B7; box-shadow: 0 0 0 3px rgba(0,183,183,0.1); }
+    .form-body select:focus { outline: none; border-color: #0f8f93; box-shadow: 0 0 0 3px rgba(15, 143, 147,0.1); }
     .error-message { color: #e74c3c; font-size: 12px; margin-top: 5px; display: block; }
     .help-text { color: #7f8c8d; font-size: 12px; margin-top: 5px; display: block; }
     .form-actions { display: flex; gap: 15px; margin-top: 30px; flex-wrap: wrap; }
@@ -49,7 +49,7 @@
 
 <div class="form-container">
     <div class="form-header">
-        <h1>🔧 Добавление оборудования</h1>
+        <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M14.5 5.5a4.5 4.5 0 0 0-5.9 5.9L3 17v4h4l5.6-5.6a4.5 4.5 0 0 0 5.9-5.9l-3 3-2.5-.5-.5-2.5z"/></svg>Добавление оборудования</h1>
         <p>Привяжите единицу оборудования к складу и объекту</p>
     </div>
     <div class="form-body">
@@ -101,7 +101,7 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn-submit">✅ Добавить оборудование</button>
+                <button type="submit" class="btn-submit"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Добавить оборудование</button>
                 <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-cancel">← Отмена</a>
             </div>
         </form>

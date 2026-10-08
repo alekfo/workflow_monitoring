@@ -4,7 +4,7 @@
 {% block title %}Пользователи{% endblock %}
 
 {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}">
+    <link rel="stylesheet" href="{% static 'authentication/css/auth_styles.css' %}?v=20261008">
     <style>
         .users-container {
             padding: 0;
@@ -21,7 +21,7 @@
         }
 
         .users-header {
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
             color: white;
             padding: 30px 40px;
             display: flex;
@@ -89,7 +89,7 @@
 
         .user-card-avatar {
             height: 150px;
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -128,7 +128,7 @@
         }
 
         .user-card-username {
-            color: #00B7B7;
+            color: #0f8f93;
             font-size: 14px;
             margin-bottom: 10px;
         }
@@ -180,14 +180,14 @@
         <div class="users-card">
             <div class="users-header">
                 <div>
-                    <h1>👥 Пользователи системы</h1>
+                    <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4.5a4 4 0 0 1 0 7M18 14.5a7 7 0 0 1 4 6.5"/></svg>Пользователи системы</h1>
                     <p>Все зарегистрированные пользователи</p>
                 </div>
                 <a href="{% url 'authentication:about_me' %}" class="back-link">← Мой профиль</a>
             </div>
 
             <div class="users-stats">
-                📊 Всего пользователей: {{ users|length }}
+                Всего пользователей: {{ users|length }}
             </div>
 
             <div class="users-grid">
@@ -195,12 +195,12 @@
                     <a href="{% url 'authentication:user_detail' pk=user_obj.pk %}" class="user-card">
                         <div class="user-card-avatar">
                             {% if user_obj.profile.avatar %}
-                                <img src="{{ user_obj.profile.avatar.url }}" alt="{{ user_obj.username }}">
-                            {% else %}
-                                <div class="avatar-placeholder">
-                                    👤
-                                </div>
+                                {# файл аватара не загрузился (удалён, нет доступа) — показываем заглушку #}
+                                <img src="{{ user_obj.profile.avatar.url }}" alt="{{ user_obj.username }}" onerror="this.style.display='none'; this.nextElementSibling.style.display=''">
                             {% endif %}
+                                <div class="avatar-placeholder"{% if user_obj.profile.avatar %} style="display: none"{% endif %}>
+                                    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                                </div>
                         </div>
                         <div class="user-card-info">
                             <div class="user-card-name">
@@ -211,18 +211,18 @@
                             </div>
                             <div class="user-card-details">
                                 {% if user_obj.first_name or user_obj.last_name %}
-                                    <div>📝 {{ user_obj.first_name }} {{ user_obj.last_name }}</div>
+                                    <div>{{ user_obj.first_name }} {{ user_obj.last_name }}</div>
                                 {% endif %}
                                 {% if user_obj.email %}
-                                    <div>📧 {{ user_obj.email }}</div>
+                                    <div>{{ user_obj.email }}</div>
                                 {% endif %}
-                                <div>📅 {{ user_obj.date_joined|date:"d.m.Y" }}</div>
+                                <div>{{ user_obj.date_joined|date:"d.m.Y" }}</div>
                             </div>
                         </div>
                     </a>
                 {% empty %}
                     <div class="empty-state">
-                        <div class="empty-state-icon">👻</div>
+                        <div class="empty-state-icon"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#95a5a6"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
                         <h3>Пользователи не найдены</h3>
                         <p>Пока нет зарегистрированных пользователей</p>
                     </div>

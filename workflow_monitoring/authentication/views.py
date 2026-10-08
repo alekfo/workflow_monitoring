@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LogoutView, LoginView, PasswordChangeView
 from django.contrib import messages
-from django.utils import timezone
+from django.utils import timezone, translation
 from django.core.mail import EmailMessage
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -144,6 +144,15 @@ class RegisterView(CreateView):
     #для юзера уже есть форма с необходимой валидацией, в тч двойная проверка пароля
     form_class = CustomUserCreationForm
     template_name = "authentication/register.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # LANGUAGE_CODE проекта — 'en-us', поэтому подписи полей, требования к паролю и ошибки
+        # формы выводились по-английски. Русский язык включается только на время этой страницы.
+        with translation.override('ru'):
+            response = super().dispatch(request, *args, **kwargs)
+            if hasattr(response, 'render'):
+                response.render()
+        return response
 
     def post(self, request, *args, **kwargs):
         ip = (

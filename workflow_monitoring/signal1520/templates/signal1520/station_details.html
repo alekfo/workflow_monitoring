@@ -13,7 +13,7 @@
         }
 
         .station-header {
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
             padding: 25px 30px;
             color: white;
         }
@@ -46,13 +46,13 @@
             background: #f8f9fa;
             padding: 15px;
             border-radius: 10px;
-            border-left: 3px solid #00B7B7;
+            border-left: 3px solid #0f8f93;
         }
 
         .info-label {
             font-size: 12px;
             text-transform: uppercase;
-            color: #00B7B7;
+            color: #0f8f93;
             font-weight: 600;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -71,7 +71,7 @@
             color: #2c3e50;
             margin: 30px 0 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #00B7B7;
+            border-bottom: 2px solid #0f8f93;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -81,7 +81,7 @@
 
         .tasks-count {
             font-size: 14px;
-            color: #00B7B7;
+            color: #0f8f93;
             background: #e0f7f7;
             padding: 4px 12px;
             border-radius: 20px;
@@ -188,7 +188,7 @@
 
         .task-info-label {
             font-weight: 600;
-            color: #00B7B7;
+            color: #0f8f93;
             font-size: 11px;
             text-transform: uppercase;
             margin-bottom: 4px;
@@ -242,9 +242,9 @@
 <div class="page-content">
     <div class="station-detail-container">
         <div class="station-header">
-            <h1>🏭 {{ station.name }}</h1>
+            <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 10h4a1 1 0 0 1 1 1v10"/><path d="M2 21h20"/><path d="M8 8h3M8 12h3M8 16h3"/></svg>{{ station.name }}</h1>
             <div class="station-meta">
-                📍 {{ station.road }}
+                {{ station.road }}
             </div>
         </div>
 
@@ -287,7 +287,7 @@
 
             <!-- Задачи на станции с раскрывающимся списком -->
             <div class="section-title">
-                <span>📋 Задачи на объекте</span>
+                <span><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>Задачи на объекте</span>
                 <span class="tasks-count">{{ station.tasks.all|length }} задача(и)</span>
             </div>
 
@@ -340,15 +340,15 @@
                     </div>
                 {% empty %}
                     <div class="empty-tasks">
-                        📭 На объекте нет задач
+                        На объекте нет задач
                     </div>
                 {% endfor %}
                 <a href="{% url 'signal1520:create_bug' org_slug=org_slug %}" class="back-link">Добавить задачу</a>
             </div>
 
             {% if user.is_superuser or signal1520.change_station or station.created_by == user %}
-                <a href="{% url 'signal1520:station_update' pk=station.pk org_slug=org_slug %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">
-                    ✏️ Редактировать объект
+                <a href="{% url 'signal1520:station_update' pk=station.pk org_slug=org_slug %}" class="back-link" style="background: #0f8f93;">
+                    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg>Редактировать объект
                 </a>
             {% endif %}
         </div>

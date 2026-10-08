@@ -9,19 +9,25 @@
 }
 
 /* Общие стили для страниц аутентификации */
+/* Экраны без каркаса: без отступа по краям и тем же шрифтом, что всё приложение */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
 .auth-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
+    background: linear-gradient(135deg, #d5e0e5 0%, #5fcaca 100%);
     padding: 20px;
 }
 
 .auth-card {
     background: white;
     border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 12px 40px rgba(20, 60, 65, 0.18);
     width: 100%;
     max-width: 450px;
     overflow: hidden;
@@ -40,7 +46,7 @@
 }
 
 .auth-header {
-    background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+    background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
     color: white;
     padding: 30px;
     text-align: center;
@@ -87,8 +93,8 @@
 
 .form-control:focus {
     outline: none;
-    border-color: #00B7B7;
-    box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
+    border-color: #0f8f93;
+    box-shadow: 0 0 0 3px rgba(15, 143, 147, 0.1);
 }
 
 .form-control.error {
@@ -112,7 +118,7 @@
 .btn-auth {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+    background: #0f8f93;
     color: white;
     border: none;
     border-radius: 10px;
@@ -124,8 +130,9 @@
 }
 
 .btn-auth:hover {
+    background: #0b777b;
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 183, 183, 0.4);
+    box-shadow: 0 5px 15px rgba(15, 143, 147, 0.35);
 }
 
 .btn-auth:active {
@@ -155,14 +162,14 @@
 }
 
 .auth-footer a {
-    color: #00B7B7;
+    color: #0f8f93;
     text-decoration: none;
     font-weight: 600;
     transition: color 0.3s;
 }
 
 .auth-footer a:hover {
-    color: #009999;
+    color: #0b777b;
     text-decoration: underline;
 }
 
@@ -191,14 +198,14 @@
 }
 
 .privacy-policy-group:focus-within {
-    border-color: #00B7B7;
+    border-color: #0f8f93;
 }
 
 .privacy-policy-group input[type="checkbox"] {
     width: 18px;
     height: 18px;
     margin-top: 2px;
-    accent-color: #00B7B7;
+    accent-color: #0f8f93;
     cursor: pointer;
     flex-shrink: 0;
 }
@@ -213,7 +220,7 @@
 }
 
 .privacy-policy-group label a {
-    color: #00B7B7;
+    color: #0f8f93;
     font-weight: 600;
     text-decoration: none;
 }

@@ -5,7 +5,7 @@
     {% if org_slug %}
     <!-- Задачи -->
     <div class="rail-group">
-        <button type="button" title="Задачи" aria-label="Задачи" aria-expanded="false" aria-controls="flyout-tasks"
+        <button type="button" aria-label="Задачи" aria-expanded="false" aria-controls="flyout-tasks"
                 class="rail-btn{% if name in 'bugs_list bugs_list_my bug_details create_bug bug_update' %} is-current{% endif %}">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <rect x="5" y="4" width="14" height="17" rx="2"/>
@@ -25,7 +25,7 @@
 
     <!-- Объекты -->
     <div class="rail-group">
-        <button type="button" title="Объекты" aria-label="Объекты" aria-expanded="false" aria-controls="flyout-objects"
+        <button type="button" aria-label="Объекты" aria-expanded="false" aria-controls="flyout-objects"
                 class="rail-btn{% if name in 'station_list station_details create_station station_update' %} is-current{% endif %}">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/>
@@ -45,7 +45,7 @@
 
     <!-- Учет оборудования -->
     <div class="rail-group">
-        <button type="button" title="Учет оборудования" aria-label="Учет оборудования" aria-expanded="false" aria-controls="flyout-equipment"
+        <button type="button" aria-label="Учет оборудования" aria-expanded="false" aria-controls="flyout-equipment"
                 class="rail-btn{% if name in 'warehouse_list warehouse_create warehouse_detail warehouse_update equipment_list equipment_create equipment_detail equipment_update equipment_type_create' %} is-current{% endif %}">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M21 8l-9-5-9 5v8l9 5 9-5z"/>
@@ -64,7 +64,7 @@
 
     <!-- Отчеты -->
     <div class="rail-group">
-        <button type="button" title="Отчеты" aria-label="Отчеты" aria-expanded="false" aria-controls="flyout-reports"
+        <button type="button" aria-label="Отчеты" aria-expanded="false" aria-controls="flyout-reports"
                 class="rail-btn">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 20h16"/>
@@ -81,7 +81,7 @@
 
     <!-- Графики -->
     <div class="rail-group">
-        <button type="button" title="Графики" aria-label="Графики" aria-expanded="false" aria-controls="flyout-charts"
+        <button type="button" aria-label="Графики" aria-expanded="false" aria-controls="flyout-charts"
                 class="rail-btn">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 4v16h16"/>
@@ -98,7 +98,7 @@
 
     <!-- База знаний -->
     <div class="rail-group">
-        <button type="button" title="База знаний" aria-label="База знаний" aria-expanded="false" aria-controls="flyout-knowledge"
+        <button type="button" aria-label="База знаний" aria-expanded="false" aria-controls="flyout-knowledge"
                 class="rail-btn{% if name in 'alarm_list knowledge_list knowledge_create' %} is-current{% endif %}">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 19.5V5a2 2 0 0 1 2-2h13v14H6.5A2.5 2.5 0 0 0 4 19.5z"/>
@@ -119,7 +119,7 @@
 
     <!-- Мой профиль -->
     <div class="rail-group">
-        <button type="button" title="Мой профиль" aria-label="Мой профиль" aria-expanded="false" aria-controls="flyout-profile"
+        <button type="button" aria-label="Мой профиль" aria-expanded="false" aria-controls="flyout-profile"
                 class="rail-btn{% if name in 'about_me profile_update users_list user_detail' %} is-current{% endif %}">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="8" r="4"/>
@@ -140,7 +140,7 @@
 
     <!-- Настройки -->
     <div class="rail-group">
-        <button type="button" title="Настройки" aria-label="Настройки" aria-expanded="false" aria-controls="flyout-settings"
+        <button type="button" aria-label="Настройки" aria-expanded="false" aria-controls="flyout-settings"
                 class="rail-btn{% if name == 'password_change' %} is-current{% endif %}">
             <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h8M18 7h2M4 17h2M12 17h8"/>

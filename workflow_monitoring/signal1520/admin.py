@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
 
-from .models import Task, Station, Comment, Attachment, Knowledge, UserKnowledge, Link, Road, System, Organization, EquipmentType, Warehouse, Equipment
+from .models import ActivityEvent, Task, TaskStatusChange, Station, Comment, Attachment, Knowledge, UserKnowledge, Link, Road, System, Organization, EquipmentType, Warehouse, Equipment
 
 
 @admin.register(Organization)
@@ -86,9 +86,64 @@ class TaskInline(admin.TabularInline):
     show_change_link = True  # Ссылка на полное редактирование
 
 
+class TaskStatusChangeInline(admin.TabularInline):
+    """История смены статусов: только просмотр, записи создаются при смене статуса"""
+    model = TaskStatusChange
+    extra = 0
+    fields = readonly_fields = ('from_status', 'to_status', 'changed_by', 'changed_at')
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(TaskStatusChange)
+class TaskStatusChangeAdmin(admin.ModelAdmin):
+    """История смены статусов: только просмотр. Удаление оставлено, иначе админка не даст удалить задачу с историей"""
+    list_display = 'pk', 'task', 'from_status', 'to_status', 'changed_by', 'changed_at'
+    list_display_links = 'pk', 'task'
+    list_filter = ('to_status', 'task__station__organization')
+    search_fields = ('task__description', 'task__station__name', 'changed_by__username')
+    ordering = ('-changed_at',)
+    list_select_related = ('task__station', 'changed_by')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ActivityEvent)
+class ActivityEventAdmin(admin.ModelAdmin):
+    """Лента изменений на главной: только просмотр и удаление"""
+    list_display = 'pk', 'created_at', 'organization', 'user', 'kind', 'text'
+    list_display_links = 'pk', 'created_at'
+    list_filter = ('organization', 'kind')
+    search_fields = ('text', 'user__username')
+    ordering = ('-created_at',)
+    list_select_related = ('organization', 'user')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    inlines = [CommentInline, AttachmentInline]
+    inlines = [TaskStatusChangeInline, CommentInline, AttachmentInline]
+
+    def save_model(self, request, obj, form, change):
+        # смена статуса через админку тоже попадает в историю
+        if change and 'status' in form.changed_data:
+            new_status = obj.status
+            obj.status = form.initial['status']
+            super().save_model(request, obj, form, change)
+            obj.change_status(new_status, request.user)
+        else:
+            super().save_model(request, obj, form, change)
 
     list_display = "pk", "station", "short_description", "status", "responsible_organization", "responsible_user", "created_at", "due_date", "updated_at"
     list_display_links = "pk", "station"

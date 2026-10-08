@@ -62,14 +62,14 @@
 <div class="page-content">
 <div class="stations-container">
     <div class="stations-header">
-        <h2>🚨 Алармы (справочник)</h2>
+        <h2><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg>Алармы (справочник)</h2>
         <div style="display: flex; gap: 10px; align-items: center;">
             <form method="get" action="" class="search-form" id="search-form" data-base-url="{% url 'signal1520:alarm_list' org_slug=org_slug %}">
                 <input type="text" name="search" placeholder="Поиск по номеру аларма..."
                        value="{{ request.GET.search|default:'' }}">
-                <button type="submit">🔍 Найти</button>
+                <button type="submit"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Найти</button>
                 {% if request.GET.search %}
-                    <a href="?" class="reset-btn" style="background:#e74c3c; padding:10px 20px; border-radius:8px; color:white; text-decoration:none; font-weight:bold;">✖️ Сбросить</a>
+                    <a href="?" class="reset-btn" style="background:#e74c3c; padding:10px 20px; border-radius:8px; color:white; text-decoration:none; font-weight:bold;"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M6 6l12 12M18 6L6 18"/></svg>Сбросить</a>
                 {% endif %}
             </form>
         </div>
@@ -105,7 +105,7 @@
                 <tr class="empty-table-row">
                     <td colspan="3">
                         <div class="empty-state">
-                            📭 Алармы не найдены
+                            Алармы не найдены
                         </div>
                     </td>
                 </tr>

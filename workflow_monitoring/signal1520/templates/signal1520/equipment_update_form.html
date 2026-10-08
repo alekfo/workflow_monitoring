@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="{% static 'signal1520/css/styles_stations.css' %}">
 <style>
     .form-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .form-header { background: linear-gradient(135deg, #00B7B7 0%, #333333 100%); padding: 25px 30px; color: white; }
+    .form-header { background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%); padding: 25px 30px; color: white; }
     .form-header h1 { margin: 0 0 10px; font-size: 28px; color: white; border: none; padding: 0; }
     .form-header p { margin: 0; opacity: 0.9; font-size: 14px; }
     .form-body { padding: 30px; }
@@ -24,7 +24,7 @@
     .form-body input[type="text"]:focus,
     .form-body input[type="date"]:focus,
     .form-body select:focus {
-        outline: none; border-color: #00B7B7; box-shadow: 0 0 0 3px rgba(0,183,183,0.1);
+        outline: none; border-color: #0f8f93; box-shadow: 0 0 0 3px rgba(15, 143, 147,0.1);
     }
     .form-body select {
         cursor: pointer; appearance: none; -webkit-appearance: none;
@@ -50,7 +50,7 @@
 
 <div class="form-container">
     <div class="form-header">
-        <h1>✏️ Редактирование оборудования</h1>
+        <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg>Редактирование оборудования</h1>
         <p>{{ object.type }} — {{ object.warehouse }}</p>
     </div>
     <div class="form-body">
@@ -102,7 +102,7 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn-submit">💾 Сохранить изменения</button>
+                <button type="submit" class="btn-submit"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7M8 20v-6h8v6"/></svg>Сохранить изменения</button>
                 <a href="{% url 'signal1520:equipment_detail' pk=object.pk org_slug=org_slug %}" class="btn-cancel">← Отмена</a>
             </div>
         </form>
