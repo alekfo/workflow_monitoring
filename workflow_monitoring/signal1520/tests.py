@@ -2350,7 +2350,7 @@ class ActivityFeedTest(ViewTestBase):
         self.assertContains(self.client.get(self.url('signal1520:index')), f'href="{detail_url}"')
         self.task.delete()
         r = self.client.get(self.url('signal1520:index'))
-        self.assertContains(r, 'Тест Станция — создана')
+        self.assertContains(r, 'Тест Станция</span> — создана')
         self.assertNotContains(r, f'href="{detail_url}"')
 
     def test_feed_is_newest_first_and_limited(self):

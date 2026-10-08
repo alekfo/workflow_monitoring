@@ -7,22 +7,22 @@
 <div class="page-content">
     <div class="stations-container">
         <div class="stations-header">
-            <h2>🔧 Список оборудования</h2>
+            <h2><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M14.5 5.5a4.5 4.5 0 0 0-5.9 5.9L3 17v4h4l5.6-5.6a4.5 4.5 0 0 0 5.9-5.9l-3 3-2.5-.5-.5-2.5z"/></svg>Список оборудования</h2>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <form method="get" action="" id="search-form" style="display: flex; gap: 5px;"
                       data-base-url="{% url 'signal1520:equipment_list' org_slug=org_slug %}">
                     <input type="text" name="search" placeholder="Поиск по типу, складу, объекту..."
                            value="{{ request.GET.search|default:'' }}"
                            style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 260px;">
-                    <button type="submit" class="btn-create" style="background: #95a5a6; box-shadow: none; padding: 8px 16px;">🔍 Найти</button>
+                    <button type="submit" class="btn-create" style="background: #95a5a6; box-shadow: none; padding: 8px 16px;"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Найти</button>
                     <a href="?" id="reset-search" class="btn-create"
-                       style="background: #e74c3c; box-shadow: none; padding: 8px 16px; {% if not request.GET.search %}display: none;{% endif %}">✖️ Сбросить</a>
+                       style="background: #e74c3c; box-shadow: none; padding: 8px 16px; {% if not request.GET.search %}display: none;{% endif %}"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M6 6l12 12M18 6L6 18"/></svg>Сбросить</a>
                 </form>
                 {% if can_add_equipment %}
-                <a href="{% url 'signal1520:equipment_create' org_slug=org_slug %}" class="btn-create">➕ Добавить оборудование</a>
+                <a href="{% url 'signal1520:equipment_create' org_slug=org_slug %}" class="btn-create"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 5v14M5 12h14"/></svg>Добавить оборудование</a>
                 {% endif %}
                 {% if can_add_type %}
-                <a href="{% url 'signal1520:equipment_type_create' org_slug=org_slug %}" class="btn-create" style="background: linear-gradient(135deg, #8e44ad, #6c3483);">🗂 Добавить тип оборудования</a>
+                <a href="{% url 'signal1520:equipment_type_create' org_slug=org_slug %}" class="btn-create" style="background: linear-gradient(135deg, #8e44ad, #6c3483);"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>Добавить тип оборудования</a>
                 {% endif %}
             </div>
         </div>
@@ -54,7 +54,7 @@
                         <tr class="empty-table-row">
                             <td colspan="5">
                                 <div class="empty-state">
-                                    📭 Оборудование не найдено
+                                    Оборудование не найдено
                                     <br>
                                     <small>Добавьте первую единицу оборудования, нажав на кнопку выше</small>
                                 </div>
@@ -77,7 +77,7 @@
                         <a href="?page={{ page_obj.paginator.num_pages }}&search={{ request.GET.search|urlencode }}" class="pagination-btn">Последняя »</a>
                     {% endif %}
                 {% endif %}
-                <a href="{% url 'signal1520:equipment_export' org_slug=org_slug %}" class="pagination-btn" style="background: #27ae60; color: white;">⬇ Выгрузить</a>
+                <a href="{% url 'signal1520:equipment_export' org_slug=org_slug %}" class="pagination-btn" style="background: #27ae60; color: white;"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>Выгрузить</a>
             </div>
         </div>
     </div>

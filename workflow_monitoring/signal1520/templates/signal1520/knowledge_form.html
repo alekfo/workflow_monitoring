@@ -12,7 +12,7 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .form-header {
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
             padding: 25px 30px;
             color: white;
         }
@@ -46,8 +46,8 @@
         }
         .form-control:focus {
             outline: none;
-            border-color: #00B7B7;
-            box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
+            border-color: #0f8f93;
+            box-shadow: 0 0 0 3px rgba(15, 143, 147, 0.1);
         }
         textarea.form-control { resize: vertical; min-height: 90px; }
         select.form-control { cursor: pointer; background: white; }
@@ -155,7 +155,7 @@
 <div class="page-content">
 <div class="form-container">
     <div class="form-header">
-        <h1>📖 Добавить инструкцию</h1>
+        <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>Добавить инструкцию</h1>
         <p>Загрузите документ, выберите из существующих или добавьте ссылку</p>
     </div>
 
@@ -202,7 +202,7 @@
                     <input type="file" name="{{ form.file.html_name }}"
                            id="{{ form.file.id_for_label }}"
                            onchange="updateKnowledgeFileName(this)">
-                    <label for="{{ form.file.id_for_label }}" class="file-input-label">📁 Выбрать файл</label>
+                    <label for="{{ form.file.id_for_label }}" class="file-input-label"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Выбрать файл</label>
                     <span class="file-name" id="knowledge-file-name">Файл не выбран</span>
                 </div>
                 <span class="help-text">PDF, Word, Excel, изображения и другие форматы</span>
@@ -248,7 +248,7 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn-submit">✅ Сохранить</button>
+                <button type="submit" class="btn-submit"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Сохранить</button>
                 <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-cancel">← Отмена</a>
             </div>
         </form>

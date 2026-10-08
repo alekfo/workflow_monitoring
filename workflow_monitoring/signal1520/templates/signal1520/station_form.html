@@ -16,7 +16,7 @@
     }
 
     .form-header {
-        background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+        background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
         padding: 25px 30px;
         color: white;
     }
@@ -79,8 +79,8 @@
     .form-body select:focus,
     .form-body textarea:focus {
         outline: none;
-        border-color: #00B7B7;
-        box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
+        border-color: #0f8f93;
+        box-shadow: 0 0 0 3px rgba(15, 143, 147, 0.1);
     }
 
     .form-body select {
@@ -177,7 +177,7 @@
 
 <div class="form-container">
     <div class="form-header">
-        <h1>🏭 Добавление новой станции</h1>
+        <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"/><path d="M15 10h4a1 1 0 0 1 1 1v10"/><path d="M2 21h20"/><path d="M8 8h3M8 12h3M8 16h3"/></svg>Добавление новой станции</h1>
         <p>Заполните информацию о станции или объекте</p>
     </div>
 
@@ -306,7 +306,7 @@
             <input type="hidden" name="force_create" id="force-create" value="">
             <div class="form-actions">
                 <button type="submit" class="btn-submit">
-                    ✅ Создать объект
+                    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Создать объект
                 </button>
                 <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-cancel">
                     ← Отмена
@@ -319,8 +319,8 @@
 <!-- Модальное окно предупреждения о дублях -->
 <div id="duplicate-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:12px; max-width:520px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.2); overflow:hidden;">
-        <div style="background:linear-gradient(135deg,#00B7B7 0%,#333333 100%); padding:20px 24px; color:#fff;">
-            <div style="font-size:18px; font-weight:700;">⚠️ Похожие объекты уже существуют</div>
+        <div style="background:linear-gradient(135deg, #14a3a5 0%, #34545b 100%); padding:20px 24px; color:#fff;">
+            <div style="font-size:18px; font-weight:700;"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>Похожие объекты уже существуют</div>
             <div style="font-size:13px; opacity:0.9; margin-top:4px;">Найдены объекты с похожим названием в вашей организации</div>
         </div>
         <div style="padding:20px 24px;">
@@ -372,7 +372,7 @@ validateForm('station-form', [
             duplicateList.replaceChildren();
             data.stations.forEach(s => {
                 const div = document.createElement('div');
-                div.style.cssText = 'padding:8px 12px;border-left:3px solid #00B7B7;margin-bottom:8px;background:#f8fffe;border-radius:4px;';
+                div.style.cssText = 'padding:8px 12px;border-left:3px solid #0f8f93;margin-bottom:8px;background:#f8fffe;border-radius:4px;';
                 const name = document.createElement('span');
                 name.style.cssText = 'font-weight:600;color:#2c3e50;';
                 name.textContent = s.name;

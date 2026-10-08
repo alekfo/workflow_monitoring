@@ -13,7 +13,7 @@
         }
 
         .bug-header {
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
             padding: 25px 30px;
             color: white;
         }
@@ -49,13 +49,13 @@
             background: #f8f9fa;
             padding: 15px;
             border-radius: 10px;
-            border-left: 3px solid #00B7B7;
+            border-left: 3px solid #0f8f93;
         }
 
         .info-label {
             font-size: 12px;
             text-transform: uppercase;
-            color: #00B7B7;
+            color: #0f8f93;
             font-weight: 600;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -147,7 +147,7 @@
             color: #2c3e50;
             margin: 30px 0 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #00B7B7;
+            border-bottom: 2px solid #0f8f93;
         }
 
         .comments-list {
@@ -177,7 +177,7 @@
 
         .comment-author {
             font-weight: 600;
-            color: #00B7B7;
+            color: #0f8f93;
         }
 
         .comment-date {
@@ -214,7 +214,7 @@
 
         .comment-edit-form textarea:focus {
             outline: none;
-            border-color: #00B7B7;
+            border-color: #0f8f93;
         }
 
         .comment-edit-cancel {
@@ -252,13 +252,13 @@
 
         .comment-form textarea:focus {
             outline: none;
-            border-color: #00B7B7;
+            border-color: #0f8f93;
         }
 
         .btn-submit {
             margin-top: 10px;
             padding: 10px 24px;
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            background: #0f8f93;
             color: white;
             border: none;
             border-radius: 8px;
@@ -269,7 +269,7 @@
 
         .btn-submit:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 183, 183, 0.4);
+            box-shadow: 0 4px 12px rgba(15, 143, 147, 0.4);
         }
 
         .attachments-list {
@@ -277,6 +277,7 @@
             padding: 0;
             margin: 0;
             display: grid;
+            grid-template-columns: minmax(0, 1fr);   /* длинное имя файла не распирает список шире карточки */
             gap: 15px;
         }
 
@@ -300,12 +301,14 @@
 
         .attachment-info {
             flex: 1;
+            min-width: 0;
         }
 
         .attachment-name {
             font-weight: 600;
             color: #2c3e50;
             margin-bottom: 4px;
+            overflow-wrap: anywhere;
         }
 
         .attachment-desc {
@@ -331,7 +334,7 @@
 
         .status-select {
             padding: 4px 8px;
-            border: 2px solid #00B7B7;
+            border: 2px solid #0f8f93;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 600;
@@ -423,11 +426,11 @@
 <div class="page-content">
     <div class="bug-detail-container">
         <div class="bug-header">
-            <h1>🔍 Задача #{{ bug.pk }}</h1>
+            <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 2.5h6v3H9z"/><path d="M9 13l2 2 4-4"/></svg>Задача #{{ bug.pk }}</h1>
             <div class="bug-meta">
-                <span>📅 {{ bug.created_at|date:"d.m.Y" }}</span>
+                <span>{{ bug.created_at|date:"d.m.Y" }}</span>
                 {% if bug.due_date %}
-                    <span>⏰ Срок: {{ bug.due_date|date:"d.m.Y" }}</span>
+                    <span>Срок: {{ bug.due_date|date:"d.m.Y" }}</span>
                 {% endif %}
             </div>
         </div>
@@ -445,7 +448,7 @@
                             {{ bug.get_status_display }}
                         </span>
                         {% if can_manage %}
-                            <button id="change-status-btn" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 14px; color: #00B7B7;"{% if allowed_statuses %} title="Изменить статус"{% else %} class="is-locked" disabled title="Задача закрыта: изменить статус может только администратор"{% endif %}>✏️</button>
+                            <button id="change-status-btn" style="margin-left: 10px; background: none; border: none; cursor: pointer; font-size: 14px; color: #0f8f93;"{% if allowed_statuses %} title="Изменить статус"{% else %} class="is-locked" disabled title="Задача закрыта: изменить статус может только администратор"{% endif %}><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg></button>
                         {% endif %}
                     </div>
                     {% if last_status_change %}
@@ -469,19 +472,19 @@
             </div>
 
             <!-- Комментарии -->
-            <div class="section-title">💬 Комментарии</div>
+            <div class="section-title"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 5h16v11H9l-5 4z"/></svg>Комментарии</div>
             <ul class="comments-list">
                 {% for comment in comments %}
                     <li class="comment-item">
                         <div class="comment-header">
-                            <span class="comment-author">👤 {{ comment.author_name }}</span>
+                            <span class="comment-author">{{ comment.author_name }}</span>
                             <span class="comment-date">
                                 {{ comment.created_at|date:"d.m.Y H:i" }}
                                 {% if comment.is_edited %}
                                     <span class="comment-edited">· изменён {{ comment.updated_at|date:"d.m.Y H:i" }}</span>
                                 {% endif %}
                                 {% if comment.can_edit %}
-                                    <button type="button" class="comment-edit-btn" data-comment-id="{{ comment.pk }}" title="Изменить комментарий (доступно 24 часа после добавления)">✏️</button>
+                                    <button type="button" class="comment-edit-btn" data-comment-id="{{ comment.pk }}" title="Изменить комментарий (доступно 24 часа после добавления)"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg></button>
                                 {% endif %}
                             </span>
                         </div>
@@ -498,7 +501,7 @@
                     </li>
                 {% empty %}
                     <li class="comment-item" style="text-align: center; color: #95a5a6;">
-                        📭 Нет комментариев
+                        Нет комментариев
                     </li>
                 {% endfor %}
             </ul>
@@ -508,20 +511,20 @@
                 <form method="post" id="comment-form">
                     {% csrf_token %}
                     <textarea name="comment_text" rows="3" placeholder="Введите ваш комментарий..."></textarea>
-                    <button type="submit" class="btn-submit">➕ Добавить комментарий</button>
+                    <button type="submit" class="btn-submit"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 5v14M5 12h14"/></svg>Добавить комментарий</button>
                 </form>
             </div>
 
             <!-- Вложения -->
-            <div class="section-title">📎 Вложения</div>
+            <div class="section-title"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M20 11.5l-8.5 8.5a5 5 0 0 1-7-7L13 4.5a3.3 3.3 0 0 1 4.7 4.7L9.5 17.4a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg>Вложения</div>
             <ul class="attachments-list">
                 {% for attachment in bug.attachments.all %}
                     <li class="attachment-item">
                         <div class="attachment-icon">
                             {% if attachment.is_image %}
-                                🖼️
+                                <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#5f7480"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>
                             {% else %}
-                                📄
+                                <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#5f7480"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
                             {% endif %}
                         </div>
                         <div class="attachment-info">
@@ -546,14 +549,14 @@
                     </li>
                 {% empty %}
                     <li style="text-align: center; color: #95a5a6; padding: 20px;">
-                        📭 Нет вложений
+                        Нет вложений
                     </li>
                 {% endfor %}
             </ul>
 
             <!-- Форма добавления вложения -->
             <hr style="border: none; border-top: 2px solid #f0f0f0; margin: 24px 0;">
-            <div class="section-title" style="margin-bottom: 12px;">➕ Добавить вложение</div>
+            <div class="section-title" style="margin-bottom: 12px;"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 5v14M5 12h14"/></svg>Добавить вложение</div>
             <div class="comment-form">
                 <form method="post" enctype="multipart/form-data" id="attachment-form">
                     {% csrf_token %}
@@ -565,23 +568,23 @@
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 14px;">Выберите файл:</label>
                         <div class="file-input-wrapper">
                             <input type="file" name="file" id="attachment-file" required onchange="updateAttachmentFileName(this)">
-                            <label for="attachment-file" class="file-input-label">📁 Выбрать файл</label>
+                            <label for="attachment-file" class="file-input-label"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Выбрать файл</label>
                             <span class="file-name" id="attachment-file-name">Файл не выбран</span>
                         </div>
                     </div>
                     <div style="margin-bottom: 10px;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 14px;">Описание (необязательно):</label>
-                        <textarea name="description" rows="2" placeholder="Описание файла..." style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; transition: border-color 0.3s; resize: vertical;" onfocus="this.style.borderColor='#00B7B7'; this.style.boxShadow='0 0 0 3px rgba(0,183,183,0.1)'" onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'"></textarea>
+                        <textarea name="description" rows="2" placeholder="Описание файла..." style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; transition: border-color 0.3s; resize: vertical;" onfocus="this.style.borderColor='#0f8f93'; this.style.boxShadow='0 0 0 3px rgba(15, 143, 147,0.1)'" onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'"></textarea>
                     </div>
-                    <button type="submit" class="btn-submit">📎 Добавить вложение</button>
+                    <button type="submit" class="btn-submit"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M20 11.5l-8.5 8.5a5 5 0 0 1-7-7L13 4.5a3.3 3.3 0 0 1 4.7 4.7L9.5 17.4a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg>Добавить вложение</button>
                     </fieldset>
                 </form>
             </div>
 
             {% if can_edit_task %}
-                <a href="{% url 'signal1520:bug_update' pk=bug.pk org_slug=org_slug %}" class="back-link" style="background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);">✏️ Редактировать задачу</a>
+                <a href="{% url 'signal1520:bug_update' pk=bug.pk org_slug=org_slug %}" class="back-link" style="background: #0f8f93;"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg>Редактировать задачу</a>
             {% elif can_manage %}
-                <span class="back-link is-locked" title="Задача закрыта: редактировать может только администратор">✏️ Редактировать задачу</span>
+                <span class="back-link is-locked" title="Задача закрыта: редактировать может только администратор"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/></svg>Редактировать задачу</span>
             {% endif %}
 
 

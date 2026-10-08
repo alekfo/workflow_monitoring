@@ -15,7 +15,7 @@
         margin: 0 auto;
     }
     .form-header {
-        background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+        background: linear-gradient(135deg, #14a3a5 0%, #34545b 100%);
         padding: 25px 30px;
         color: white;
     }
@@ -49,8 +49,8 @@
     .form-body input[type="email"]:focus,
     .form-body textarea:focus {
         outline: none;
-        border-color: #00B7B7;
-        box-shadow: 0 0 0 3px rgba(0, 183, 183, 0.1);
+        border-color: #0f8f93;
+        box-shadow: 0 0 0 3px rgba(15, 143, 147, 0.1);
     }
     .form-body textarea { resize: vertical; min-height: 130px; }
     .error-message { color: #e74c3c; font-size: 12px; margin-top: 5px; display: block; }
@@ -108,7 +108,7 @@
     .success-modal .btn-ok {
         display: inline-block;
         padding: 12px 32px;
-        background: linear-gradient(135deg, #00B7B7 0%, #009999 100%);
+        background: #0f8f93;
         color: white;
         border: none;
         border-radius: 10px;
@@ -118,7 +118,7 @@
         text-decoration: none;
         transition: all 0.3s ease;
     }
-    .success-modal .btn-ok:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,183,183,0.4); }
+    .success-modal .btn-ok:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(15, 143, 147,0.4); }
 
     @media (max-width: 768px) {
         .form-body { padding: 20px; }
@@ -129,7 +129,7 @@
 {% if success %}
 <div class="success-overlay visible" id="successOverlay">
     <div class="success-modal">
-        <div class="icon">✅</div>
+        <div class="icon"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#27ae60"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg></div>
         <h2>Сообщение отправлено!</h2>
         <p>Мы получили ваше обращение и ответим в ближайшее время.</p>
         <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-ok">Вернуться в меню</a>
@@ -139,7 +139,7 @@
 
 <div class="form-container">
     <div class="form-header">
-        <h1>📞 Обратная связь</h1>
+        <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>Обратная связь</h1>
         <p>Опишите проблему — мы постараемся помочь</p>
     </div>
     <div class="form-body">
@@ -183,7 +183,7 @@
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn-submit">📨 Отправить</button>
+                <button type="submit" class="btn-submit"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M21 3L3 10.5l7 3 3 7z"/><path d="M21 3L10 13.5"/></svg>Отправить</button>
                 <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-cancel">← Главное меню</a>
             </div>
         </form>

@@ -9,7 +9,8 @@ body {
     margin: 0;
     padding: calc(var(--header-height) + 20px) 20px 20px calc(var(--rail-width) + 20px);
     box-sizing: border-box;
-    background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
+    /* один градиент на весь экран; шапка и панель значков — полупрозрачные поверх него */
+    background: linear-gradient(135deg, #d5e0e5 0%, #5fcaca 100%) fixed;
     color: #333;
     display: flex;
     flex-direction: column;
@@ -30,12 +31,14 @@ body {
     gap: 20px;
     padding: 0 20px 0 14px;
     box-sizing: border-box;
-    background: #333333;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    background: rgba(255, 255, 255, 0.62);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.7);
 }
 
 .logo {
-    color: white;
+    color: #1f2d33;
     font-size: 22px;
     font-weight: bold;
     letter-spacing: 0.5px;
@@ -43,7 +46,7 @@ body {
 }
 
 .logo span {
-    color: #00B7B7;
+    color: #009c9c;
 }
 
 .header-left {
@@ -63,12 +66,13 @@ body {
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: white;
+    color: #1f2d33;
     cursor: pointer;
 }
 
 .nav-toggle[aria-expanded="true"] {
-    background: #00B7B7;
+    background: #0f8f93;
+    color: white;
 }
 
 .rail-label {
@@ -83,18 +87,19 @@ body {
 
 .logout-btn {
     padding: 7px 18px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid #c3ced3;
     border-radius: 6px;
-    color: white;
+    color: #37474f;
     font-size: 14px;
     font-weight: bold;
     text-decoration: none;
-    transition: background 0.2s, border-color 0.2s;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .logout-btn:hover {
-    background: #00B7B7;
-    border-color: #00B7B7;
+    background: #0f8f93;
+    border-color: #0f8f93;
+    color: white;
 }
 
 footer {
@@ -145,9 +150,9 @@ footer .button {
 /* ---------- Главная: сводка ---------- */
 .dashboard {
     background: white;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 28px rgba(20, 60, 65, 0.14);
 }
 
 /* Колонка: лента под плитками забирает всё место до футера */
@@ -176,7 +181,7 @@ footer .button {
     display: flex;
     flex-direction: column;
     padding: 18px 20px;
-    border-left: 4px solid #00B7B7;
+    border-left: 4px solid #0f8f93;
     border-radius: 10px;
     background: #f8f9fa;
     color: #2c3e50;
@@ -186,11 +191,11 @@ footer .button {
 
 .stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 14px rgba(0, 183, 183, 0.3);
+    box-shadow: 0 4px 14px rgba(15, 143, 147, 0.3);
 }
 
 .stat-label {
-    color: #00B7B7;
+    color: #0f8f93;
     font-size: 12px;
     font-weight: bold;
     letter-spacing: 1px;
@@ -243,7 +248,7 @@ footer .button {
 /* Блок занимает остаток высоты до футера; минимум — заголовок и три строки */
 .activity {
     flex: 1 1 0;
-    min-height: 150px;
+    min-height: 171px;
     display: flex;
     flex-direction: column;
     margin-top: 28px;
@@ -251,9 +256,13 @@ footer .button {
 
 .activity-title {
     flex: none;
-    margin: 0 0 10px;
-    color: #2c3e50;
-    font-size: 18px;
+    height: 16px;
+    margin: 0 0 12px;
+    color: #0f8f93;
+    font-size: 13px;
+    line-height: 16px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 /* Строка, не поместившаяся целиком, переносится во вторую колонку за правым краем и обрезается:
@@ -266,45 +275,52 @@ footer .button {
     flex-wrap: wrap;
     align-content: flex-start;
     overflow: hidden;
+    border: 1px solid #e3eaed;
+    border-radius: 10px;
 }
 
+/* Высота строки фиксирована (--activity-row): по ней рамка списка подгоняется под целое число строк */
 .activity-row {
+    --activity-row: 47px;
     flex: none;
     display: flex;
-    align-items: baseline;
-    gap: 16px;
+    align-items: center;
+    gap: 14px;
     width: 100%;
+    height: var(--activity-row);
     box-sizing: border-box;
-    padding: 9px 12px;
-    border-bottom: 1px solid #eef1f2;
-    color: #333;
+    padding: 0 16px;
+    border-top: 1px solid #eef2f3;
+    color: #4a5a63;
     font-size: 14px;
     text-decoration: none;
     white-space: nowrap;
 }
 
+.activity-row:first-child {
+    border-top-color: transparent;
+}
+
 a.activity-row[href]:hover {
-    background: #f1fbfb;
+    background: #f3fafa;
 }
 
-.activity-row.is-gone {
-    color: #95a5a6;
-}
-
-.activity-time {
+/* значок типа события */
+.activity-icon {
     flex: none;
-    width: 82px;
-    color: #7f8c8d;
-    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e4f2f3;
+    color: #0f8f93;
 }
 
-.activity-user {
-    flex: none;
-    width: 170px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #2c3e50;
-    font-weight: bold;
+.activity-icon .rail-icon {
+    width: 15px;
+    height: 15px;
 }
 
 .activity-text {
@@ -314,10 +330,59 @@ a.activity-row[href]:hover {
     text-overflow: ellipsis;
 }
 
+.activity-subject {
+    color: #2c3e50;
+    font-weight: bold;
+}
+
+.activity-user {
+    flex: none;
+    width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #5f7480;
+    text-align: right;
+}
+
+.activity-time {
+    flex: none;
+    width: 86px;
+    color: #95a5a6;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+/* событие по удалённой задаче или объекту: не ссылка */
+.activity-row.is-gone,
+.activity-row.is-gone .activity-subject {
+    color: #a3afb5;
+}
+
+.activity-row.is-gone .activity-icon {
+    background: #eef1f2;
+    color: #a3afb5;
+}
+
 .activity-empty {
     margin: 0;
-    padding: 9px 12px;
+    padding: 14px 16px;
     color: #7f8c8d;
+}
+
+/* Рамка списка заканчивается ровно под последней целой строкой: высота округляется вниз до числа строк.
+   28px — заголовок с отступом, 2px — рамка. Без поддержки round() под последней строкой остаётся пустая полоска. */
+@supports (max-height: round(down, 100cqh, 1px)) {
+    @media (min-width: 769px) {
+        .activity {
+            container-type: size;
+        }
+
+        .activity-list {
+            flex: none;
+            max-height: round(down, calc(100cqh - 30px), 47px);
+        }
+    }
 }
 
 /* ---------- Левая панель значков ---------- */
@@ -334,8 +399,10 @@ a.activity-row[href]:hover {
     gap: 8px;
     padding: 14px 0;
     box-sizing: border-box;
-    background: #333333;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.25);
+    background: rgba(255, 255, 255, 0.62);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-right: 1px solid rgba(255, 255, 255, 0.7);
 }
 
 /* Значок и его ряд кнопок-разделов */
@@ -350,11 +417,12 @@ a.activity-row[href]:hover {
     justify-content: center;
     width: var(--rail-btn-size);
     height: var(--rail-btn-size);
+    position: relative;        /* опора для подсказки */
     padding: 0;
     border: none;
     border-radius: 10px;
     background: transparent;
-    color: #cfd8dc;
+    color: #5f7480;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
 }
@@ -367,21 +435,80 @@ a.activity-row[href]:hover {
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
+    transition: transform 0.18s ease-out;
+}
+
+/* При наведении значок слегка увеличивается */
+.rail-btn:hover .rail-icon {
+    transform: scale(1.18);
+}
+
+/* Подсказка с названием раздела — справа от значка, появляется сразу.
+   Текст берётся из aria-label; системной подсказки (title) у кнопок нет: она показывалась с задержкой. */
+.rail-btn::after {
+    content: attr(aria-label);
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 14px);
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #1f2d33;
+    color: white;
+    font: 600 13px/1 Arial, sans-serif;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(31, 45, 51, 0.25);
+}
+
+/* стрелка подсказки */
+.rail-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 9px);
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: #1f2d33;
+    rotate: 45deg;
+}
+
+.rail-btn::before,
+.rail-btn::after {
+    opacity: 0;
+    pointer-events: none;
+    translate: -6px -50%;
+    transition: opacity 0.12s ease-out, translate 0.12s ease-out;
+}
+
+.rail-btn:hover::before,
+.rail-btn:hover::after,
+.rail-btn:focus-visible::before,
+.rail-btn:focus-visible::after {
+    opacity: 1;
+    translate: 0 -50%;
+}
+
+/* у раскрытого значка вместо подсказки — его ряд кнопок */
+.rail-btn[aria-expanded="true"]::before,
+.rail-btn[aria-expanded="true"]::after {
+    display: none;
 }
 
 .rail-btn:hover {
-    background: rgba(0, 183, 183, 0.35);
-    color: white;
+    background: rgba(15, 143, 147, 0.14);
+    color: #007f7f;
 }
 
 /* Значок раздела, в котором сейчас находится пользователь */
 .rail-btn.is-current {
-    color: #00B7B7;
+    background: rgba(15, 143, 147, 0.14);
+    color: #008f8f;
 }
 
 /* Раскрытый значок сливается со своим рядом кнопок в одну полосу */
 .rail-btn[aria-expanded="true"] {
-    background: #00B7B7;
+    background: #0f8f93;
     color: white;
     border-radius: 10px 0 0 10px;
 }
@@ -402,7 +529,7 @@ a.activity-row[href]:hover {
 
 .rail-flyout.is-open {
     visibility: visible;
-    box-shadow: 6px 6px 18px rgba(0, 0, 0, 0.35);
+    box-shadow: 4px 6px 16px rgba(31, 45, 51, 0.18);
     transition: visibility 0s, box-shadow 0.25s ease-out 0.25s;
 }
 
@@ -426,7 +553,10 @@ a.activity-row[href]:hover {
     .rail-flyout,
     .rail-flyout.is-open,
     .flyout-row,
-    .rail-flyout.is-open .flyout-row {
+    .rail-flyout.is-open .flyout-row,
+    .rail-icon,
+    .rail-btn::before,
+    .rail-btn::after {
         transition: none;
     }
 }
@@ -436,7 +566,7 @@ a.activity-row[href]:hover {
     align-items: center;
     padding: 0 18px;
     border-left: 1px solid rgba(255, 255, 255, 0.35);
-    background: #00B7B7;
+    background: #0f8f93;
     color: white;
     font-size: 14px;
     font-weight: bold;
@@ -445,7 +575,7 @@ a.activity-row[href]:hover {
 }
 
 a.flyout-link:hover {
-    background: #009999;
+    background: #0b777b;
 }
 
 .flyout-link.is-disabled {
@@ -457,20 +587,19 @@ a.flyout-link:hover {
 .button {
     display: inline-block;
     padding: 12px 24px;
-    background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+    background: #0f8f93;
     color: white;
     width: 200px;
     text-decoration: none;
     text-align: center;
-    border-radius: none;
+    border-radius: 6px;
     font-weight: bold;
     transition: background 0.3s;
     box-sizing: border-box;
 }
 
 .button:hover {
-    background: linear-gradient(135deg, #333333 0%, #00B7B7 100%);
-    transform: scale(1.02); /* лёгкое увеличение */
+    background: #0b777b;
 }
 
 .button:active {
@@ -516,17 +645,10 @@ tr:hover {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(31, 45, 51, 0.06);
     padding: 5px 12px;
     border-radius: 30px;
     font-weight: 500;
-    backdrop-filter: blur(4px);
-    transition: all 0.2s ease;
-}
-
-.user-info:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
 }
 
 .user-icon {
@@ -537,20 +659,18 @@ tr:hover {
 .user-name {
     font-size: 0.95em;
     letter-spacing: 0.3px;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    color: #1f2d33;
 }
 
 .user-org-divider {
-    color: rgba(255, 255, 255, 0.35);
+    color: #b0bec5;
     font-size: 0.85em;
 }
 
 .user-org {
     font-size: 0.85em;
     letter-spacing: 0.3px;
-    color: rgba(255, 255, 255, 0.8);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    color: #546e7a;
 }
 /* ---------- Телефон: бургер вместо панели значков ---------- */
 @media (max-width: 768px) {
@@ -602,6 +722,8 @@ tr:hover {
         gap: 6px;
         padding: 10px 12px 20px;
         overflow-y: auto;
+        background: rgba(255, 255, 255, 0.96);   /* список меню закрывает страницу: почти непрозрачный */
+        border-right: none;
     }
 
     .side-rail.is-open {
@@ -622,14 +744,20 @@ tr:hover {
         padding: 10px 6px 8px;
         border-radius: 0;
         background: transparent;
-        color: white;
+        color: #1f2d33;
         font-size: 15px;
         font-weight: bold;
         pointer-events: none;      /* на телефоне это заголовок группы, а не кнопка */
     }
 
     .rail-btn.is-current {
-        color: #00B7B7;
+        color: #008f8f;
+    }
+
+    /* на телефоне название группы написано рядом со значком — подсказка не нужна */
+    .rail-btn::before,
+    .rail-btn::after {
+        display: none;
     }
 
     .rail-label {
@@ -660,9 +788,18 @@ tr:hover {
     .rail-flyout.is-open .flyout-link {
         padding: 12px 14px;
         border-left: none;
-        border-top: 1px solid #555;
-        background: #444;
+        border-top: 1px solid #e3eaed;
+        background: #f1f5f6;
+        color: #1f2d33;
         font-weight: normal;
+    }
+
+    .rail-flyout a.flyout-link:hover {
+        background: #dff3f3;
+    }
+
+    .rail-flyout .flyout-link.is-disabled {
+        color: #90a4ae;
     }
 
     .rail-flyout .flyout-link:first-child {
@@ -683,28 +820,39 @@ tr:hover {
 
     .activity-list {
         flex-wrap: nowrap;
-        overflow: visible;
+        overflow: hidden;
     }
 
     .activity-row:nth-child(n+6) {
         display: none;
     }
 
+    /* первая строка — значок и текст, вторая — автор и время */
     .activity-row {
         flex-wrap: wrap;
-        gap: 2px 10px;
-        padding: 9px 4px;
+        align-items: flex-start;
+        gap: 4px 12px;
+        height: auto;
+        padding: 10px 12px;
+        white-space: normal;
+    }
+
+    .activity-text {
+        flex: 1 1 calc(100% - 40px);
+        padding-top: 5px;
     }
 
     .activity-user {
         flex: 1;
         width: auto;
         min-width: 0;
+        margin-left: 40px;
+        font-size: 13px;
+        text-align: left;
+        white-space: nowrap;
     }
 
-    .activity-text {
-        flex: none;
-        width: 100%;
-        white-space: normal;
+    .activity-time {
+        width: auto;
     }
 }

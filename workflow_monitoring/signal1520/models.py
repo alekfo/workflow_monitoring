@@ -321,6 +321,11 @@ class ActivityEvent(models.Model):
             text=cls.build_text(kind, task=task, station=station)[:300],
         )
 
+    def text_parts(self):
+        """Текст события двумя частями для ленты: о чём («Задача #25, Бутырская») и что произошло («создана»)"""
+        subject, sep, action = self.text.rpartition(' — ')
+        return (subject, action) if sep else (self.text, '')
+
     def author_name(self):
         """Имя автора; пустая строка, если автор неизвестен (прошлые события) или удалён"""
         user = self.user
