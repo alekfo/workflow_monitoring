@@ -10,7 +10,7 @@ import openpyxl
 from django.contrib.auth.models import User, Permission
 from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -1344,6 +1344,8 @@ class ProtectedMediaViewTest(ViewTestBase):
 # ContactView
 # ---------------------------------------------------------------------------
 
+# адреса заданы явно: в CI нет .env, а без получателя письмо не отправляется
+@override_settings(SUPPORT_EMAIL='support@example.com', EMAIL_HOST_USER='noreply@example.com')
 class ContactViewTest(ViewTestBase):
     DATA = {'name': 'Иван', 'email': 'ivan@example.com', 'message': 'Не открывается задача'}
 
@@ -1364,6 +1366,14 @@ class ContactViewTest(ViewTestBase):
         self.assertEqual(r.status_code, 200)
         self.assertNotIn('success', r.context)
         self.assertTrue(r.context['form'].errors)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_missing_support_email_is_not_reported_as_success(self):
+        """Если адрес поддержки не настроен, письмо не уходит — пользователь видит ошибку, а не «отправлено»."""
+        with self.settings(SUPPORT_EMAIL=''):
+            r = self._post(self.DATA)
+        self.assertNotIn('success', r.context)
+        self.assertContains(r, 'Не удалось отправить обращение')
         self.assertEqual(len(mail.outbox), 0)
 
     def test_send_failure_is_not_reported_as_success(self):

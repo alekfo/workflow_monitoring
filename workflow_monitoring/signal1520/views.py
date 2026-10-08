@@ -1048,13 +1048,16 @@ class ContactView(OrgMixin, LoginRequiredMixin, View):
             f"\n{message}"
         )
         try:
-            send_mail(
+            sent = send_mail(
                 subject=f"Обращение от {name}",
                 message=body,
                 from_email=settings.EMAIL_HOST_USER,
                 recipient_list=[settings.SUPPORT_EMAIL],
                 fail_silently=False,
             )
+            # без получателя Django молча ничего не отправляет и возвращает 0
+            if not sent:
+                raise RuntimeError('письмо не отправлено: не задан SUPPORT_EMAIL')
         except Exception as exc:
             logger.error('Ошибка отправки обращения (user=%s): %s', request.user.username, exc)
             # текст обращения остаётся в форме, чтобы его не пришлось набирать заново
