@@ -90,15 +90,15 @@
 <div class="page-content">
 <div class="stations-container">
     <div class="stations-header">
-        <h2>📖 Инструкции</h2>
+        <h2><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h12"/></svg>Инструкции</h2>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <a href="{% url 'signal1520:knowledge_create' org_slug=org_slug %}" class="btn-create">➕ Добавить</a>
+            <a href="{% url 'signal1520:knowledge_create' org_slug=org_slug %}" class="btn-create"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 5v14M5 12h14"/></svg>Добавить</a>
         </div>
     </div>
 
     <!-- Документы -->
     <div class="knowledge-section">
-        <h3>📄 Документы</h3>
+        <h3><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>Документы</h3>
         {% if docs %}
         <div class="table-wrapper">
         <table class="stations-table">
@@ -118,10 +118,10 @@
                     <td>{{ uk.description|default:"—" }}</td>
                     <td>
                         <a href="{{ uk.knowledge.file.url }}" target="_blank" class="file-link">
-                            📎 {{ uk.knowledge.filename }}
+                            {{ uk.knowledge.filename }}
                         </a>
                         <a href="{{ uk.knowledge.file.url }}" download="{{ uk.knowledge.filename }}" class="btn-download">
-                            ⬇️ Скачать
+                            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>Скачать
                         </a>
                     </td>
                     <td>{{ uk.created_at|date:"d.m.Y" }}</td>
@@ -129,7 +129,7 @@
                         <button class="btn-delete"
                                 data-pk="{{ uk.pk }}"
                                 data-url="{% url 'signal1520:knowledge_delete' pk=uk.pk org_slug=org_slug %}">
-                            🗑️ Удалить
+                            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Удалить
                         </button>
                     </td>
                 </tr>
@@ -144,7 +144,7 @@
 
     <!-- Ссылки -->
     <div class="knowledge-section">
-        <h3>🔗 Ссылки</h3>
+        <h3><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Ссылки</h3>
         {% if links %}
         <ul class="links-list">
             {% for uk in links %}
@@ -161,7 +161,7 @@
                 <button class="btn-delete"
                         data-pk="{{ uk.pk }}"
                         data-url="{% url 'signal1520:knowledge_delete' pk=uk.pk org_slug=org_slug %}">
-                    🗑️ Удалить
+                    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Удалить
                 </button>
             </li>
             {% endfor %}

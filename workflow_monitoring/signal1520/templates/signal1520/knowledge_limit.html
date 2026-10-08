@@ -50,7 +50,7 @@
         .btn-back {
             display: inline-block;
             padding: 12px 32px;
-            background: linear-gradient(135deg, #00B7B7 0%, #333333 100%);
+            background: #0f8f93;
             color: white;
             text-decoration: none;
             border-radius: 10px;
@@ -60,7 +60,7 @@
         }
         .btn-back:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 183, 183, 0.4);
+            box-shadow: 0 5px 15px rgba(15, 143, 147, 0.4);
             color: white;
         }
     </style>
@@ -70,11 +70,11 @@
 <div class="page-content">
 <div class="limit-container">
     <div class="limit-header">
-        <h1>⛔ Лимит файлов исчерпан</h1>
+        <h1><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.15em;margin-right:0.4em"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>Лимит файлов исчерпан</h1>
         <p>Добавление новых файлов недоступно</p>
     </div>
     <div class="limit-body">
-        <div class="limit-icon">📁</div>
+        <div class="limit-icon"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:#95a5a6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
         <div class="limit-message">Превышен лимит по добавлению файлов.</div>
         <div class="limit-hint">Обратитесь к разработчикам.</div>
         <a href="{% url 'signal1520:index' org_slug=org_slug %}" class="btn-back">← Вернуться в главное меню</a>

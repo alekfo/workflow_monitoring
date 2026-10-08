@@ -1,16 +1,22 @@
 import datetime
 import io
 import json
+import tempfile
+from pathlib import Path
+
+from unittest import mock
 
 import openpyxl
 from django.contrib.auth.models import User, Permission
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from authentication.models import Profile
 from .models import (
-    AlarmInfo, Attachment, Comment, Equipment, EquipmentType,
+    ActivityEvent, AlarmInfo, Attachment, Comment, Equipment, EquipmentType,
     Knowledge, Organization, Road, Station, System, Task,
     UserKnowledge, Warehouse,
 )
@@ -668,6 +674,94 @@ class BugDetailPostCommentTest(ViewTestBase):
 
 
 # ---------------------------------------------------------------------------
+# BugDetailView — POST: comment edit
+# ---------------------------------------------------------------------------
+
+class BugDetailEditCommentTest(ViewTestBase):
+    def setUp(self):
+        self.comment = Comment.objects.create(task=self.task, user=self.task_user, body='Исходный текст')
+
+    def _edit(self, user, text, comment=None):
+        self.client.force_login(user)
+        return self.client.post(
+            self.url('signal1520:bug_details', pk=self.task.pk),
+            {'edit_comment_id': (comment or self.comment).pk, 'edit_comment_text': text},
+        )
+
+    def _age_comment(self, hours):
+        """Сдвигает created_at и updated_at в прошлое в обход auto_now."""
+        moment = timezone.now() - datetime.timedelta(hours=hours)
+        Comment.objects.filter(pk=self.comment.pk).update(created_at=moment, updated_at=moment)
+
+    def test_author_edits_own_comment(self):
+        """Автор меняет текст своего комментария; новый комментарий не создаётся."""
+        r = self._edit(self.task_user, 'Новый текст')
+        self.assertEqual(r.status_code, 302)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Новый текст')
+        self.assertEqual(Comment.objects.count(), 1)
+
+    def test_other_user_cannot_edit(self):
+        """Чужой комментарий править нельзя даже с правом change_task — 403, текст прежний."""
+        other = make_user('other_task_u', org=self.org, codenames=['view_task', 'change_task'])
+        r = self._edit(other, 'Чужая правка')
+        self.assertEqual(r.status_code, 403)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Исходный текст')
+
+    def test_cannot_edit_after_window(self):
+        """Через 24 часа после создания автор править комментарий уже не может."""
+        self._age_comment(hours=25)
+        r = self._edit(self.task_user, 'Поздняя правка')
+        self.assertEqual(r.status_code, 403)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Исходный текст')
+
+    def test_can_edit_within_window(self):
+        """За час до истечения окна правка ещё проходит."""
+        self._age_comment(hours=23)
+        self._edit(self.task_user, 'Успел')
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Успел')
+
+    def test_empty_text_keeps_comment(self):
+        """Пустой текст не затирает комментарий."""
+        r = self._edit(self.task_user, '   ')
+        self.assertEqual(r.status_code, 302)
+        self.comment.refresh_from_db()
+        self.assertEqual(self.comment.body, 'Исходный текст')
+
+    def test_comment_of_other_task_returns_404(self):
+        """Комментарий другой задачи через адрес этой задачи не правится."""
+        other_task = Task.objects.create(station=self.station, description='Другая задача')
+        foreign = Comment.objects.create(task=other_task, user=self.task_user, body='Чужая задача')
+        r = self._edit(self.task_user, 'Правка', comment=foreign)
+        self.assertEqual(r.status_code, 404)
+        foreign.refresh_from_db()
+        self.assertEqual(foreign.body, 'Чужая задача')
+
+    def test_edited_mark_shown_only_after_edit(self):
+        """Пометка «изменён» появляется только у отредактированного комментария."""
+        self._age_comment(hours=2)
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(url), 'comment-edited')
+        self._edit(self.task_user, 'Исправлено')
+        self.assertContains(self.client.get(url), 'comment-edited')
+
+    def test_edit_button_only_for_author_within_window(self):
+        """Кнопка правки видна автору в пределах окна и не видна остальным и после окна."""
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertContains(self.client.get(url), 'name="edit_comment_id"')
+        self.client.force_login(self.superuser)
+        self.assertNotContains(self.client.get(url), 'name="edit_comment_id"')
+        self._age_comment(hours=25)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(url), 'name="edit_comment_id"')
+
+
+# ---------------------------------------------------------------------------
 # BugDetailView — POST: status change (JSON)
 # ---------------------------------------------------------------------------
 
@@ -722,6 +816,123 @@ class BugDetailPostStatusTest(ViewTestBase):
         r = self._patch_status(no_perm, 'in_progress')
         self.assertEqual(r.status_code, 403)
 
+    def _set_status(self, status):
+        Task.objects.filter(pk=self.task.pk).update(status=status)
+
+    def test_change_is_recorded_in_history(self):
+        """Смена статуса создаёт запись истории: из какого статуса, в какой и кем."""
+        self._patch_status(self.task_user, 'in_progress')
+        change = self.task.status_changes.get()
+        self.assertEqual(change.from_status, 'new')
+        self.assertEqual(change.to_status, 'in_progress')
+        self.assertEqual(change.changed_by, self.task_user)
+
+    def test_rejected_change_is_not_recorded(self):
+        """Отклонённый переход не меняет статус и не попадает в историю."""
+        self._set_status('in_progress')
+        r = self._patch_status(self.task_user, 'new')
+        self.assertEqual(r.status_code, 403)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, 'in_progress')
+        self.assertFalse(self.task.status_changes.exists())
+
+    def test_cannot_return_to_new(self):
+        """Вернуть задачу в «Новая» не может никто, включая суперпользователя."""
+        self._set_status('in_progress')
+        self.assertEqual(self._patch_status(self.superuser, 'new').status_code, 403)
+        self._set_status('completed')
+        self.assertEqual(self._patch_status(self.superuser, 'new').status_code, 403)
+
+    def test_closed_task_locked_for_non_superuser(self):
+        """Выполненную и отменённую задачу не переоткрывают ни обладатель change_task, ни ответственный."""
+        for closed in ('completed', 'cancelled'):
+            self._set_status(closed)
+            for user in (self.task_user, self.plain_user):
+                r = self._patch_status(user, 'in_progress')
+                self.assertEqual(r.status_code, 403)
+            self.task.refresh_from_db()
+            self.assertEqual(self.task.status, closed)
+
+    def test_superuser_reopens_closed_task(self):
+        """Суперпользователь возвращает закрытую задачу в работу, но не меняет один закрытый статус на другой."""
+        self._set_status('completed')
+        self.assertEqual(self._patch_status(self.superuser, 'cancelled').status_code, 403)
+        self.assertEqual(self._patch_status(self.superuser, 'in_progress').status_code, 200)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, 'in_progress')
+
+    def test_reopened_task_is_manageable_again(self):
+        """После переоткрытия суперпользователем задачу снова закрывает обладатель change_task без ответственности."""
+        changer = make_user('only_change', org=self.org, codenames=['view_task', 'change_task'])
+        self.assertEqual(self._patch_status(self.task_user, 'completed').status_code, 200)
+        self.assertEqual(self._patch_status(self.superuser, 'in_progress').status_code, 200)
+        self.client.force_login(changer)
+        r = self.client.get(self.url('signal1520:bug_details', pk=self.task.pk))
+        self.assertTrue(r.context['can_manage'])
+        self.assertEqual([s['value'] for s in r.context['allowed_statuses']], ['completed', 'cancelled'])
+        self.assertNotContains(r, 'class="is-locked" disabled')
+        self.assertEqual(self._patch_status(changer, 'cancelled').status_code, 200)
+
+    def test_admin_change_is_recorded_in_history(self):
+        """Смена статуса через админку тоже пишется в историю."""
+        self.client.force_login(self.superuser)
+        data = {
+            'station': self.station.pk,
+            'description': self.task.description,
+            'status': 'completed',
+            'responsible_organization': '',
+            'responsible_user': self.plain_user.pk,
+            'due_date': '',
+        }
+        for prefix in ('status_changes', 'comments', 'attachments'):
+            data[f'{prefix}-TOTAL_FORMS'] = 0
+            data[f'{prefix}-INITIAL_FORMS'] = 0
+        r = self.client.post(reverse('admin:signal1520_task_change', args=[self.task.pk]), data)
+        self.assertEqual(r.status_code, 302)
+        change = self.task.status_changes.get()
+        self.assertEqual((change.from_status, change.to_status), ('new', 'completed'))
+        self.assertEqual(change.changed_by, self.superuser)
+
+    def test_admin_history_is_read_only(self):
+        """В админке история статусов открывается списком и карточкой, но не создаётся и не правится."""
+        change = self.task.change_status('in_progress', self.task_user)
+        self.client.force_login(self.superuser)
+        r = self.client.get(reverse('admin:signal1520_taskstatuschange_changelist'))
+        self.assertContains(r, 'task_u')
+        change_url = reverse('admin:signal1520_taskstatuschange_change', args=[change.pk])
+        self.assertEqual(self.client.get(change_url).status_code, 200)
+        self.assertEqual(self.client.post(change_url, {'to_status': 'completed'}).status_code, 403)
+        self.assertEqual(self.client.get(reverse('admin:signal1520_taskstatuschange_add')).status_code, 403)
+        # задача с историей по-прежнему удаляется из админки
+        r = self.client.post(reverse('admin:signal1520_task_delete', args=[self.task.pk]), {'post': 'yes'})
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(Task.objects.filter(pk=self.task.pk).exists())
+
+    def test_card_shows_last_change(self):
+        """На карточке под статусом — кто сделал последний переход; у задачи без истории подписи нет."""
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(url), 'id="status-change-info"')
+        self._patch_status(self.task_user, 'in_progress')
+        self._patch_status(self.task_user, 'completed')
+        r = self.client.get(url)
+        self.assertContains(r, 'id="status-change-info"')
+        self.assertEqual(r.context['last_status_change'].to_status, 'completed')
+        self.assertContains(r, 'task_u')
+
+    def test_status_button_disabled_on_closed_task(self):
+        """У закрытой задачи кнопка смены статуса неактивна для всех, кроме суперпользователя."""
+        self._set_status('cancelled')
+        url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        r = self.client.get(url)
+        self.assertEqual(r.context['allowed_statuses'], [])
+        self.assertContains(r, 'class="is-locked" disabled')
+        self.client.force_login(self.superuser)
+        r = self.client.get(url)
+        self.assertEqual([s['value'] for s in r.context['allowed_statuses']], ['in_progress'])
+        self.assertNotContains(r, 'class="is-locked" disabled')
+
 
 # ---------------------------------------------------------------------------
 # BugDetailView — POST: file upload
@@ -738,6 +949,37 @@ class BugDetailPostFileTest(ViewTestBase):
         )
         self.assertEqual(r.status_code, 302)
         self.assertTrue(Attachment.objects.filter(task=self.task).exists())
+
+    def _upload(self, user):
+        self.client.force_login(user)
+        f = SimpleUploadedFile('closed.txt', b'file content', content_type='text/plain')
+        return self.client.post(self.url('signal1520:bug_details', pk=self.task.pk), {'file': f})
+
+    def test_upload_blocked_on_closed_task(self):
+        """К выполненной и отменённой задаче вложение не добавляет никто, включая суперпользователя."""
+        for closed in ('completed', 'cancelled'):
+            Task.objects.filter(pk=self.task.pk).update(status=closed)
+            for user in (self.task_user, self.superuser):
+                self.assertEqual(self._upload(user).status_code, 403)
+            self.assertFalse(Attachment.objects.filter(task=self.task).exists())
+
+    def test_upload_allowed_after_reopen(self):
+        """После возврата задачи в работу вложения снова добавляются."""
+        Task.objects.filter(pk=self.task.pk).update(status='completed')
+        self.task.refresh_from_db()
+        self.task.change_status('in_progress', self.superuser)
+        self.assertEqual(self._upload(self.superuser).status_code, 302)
+        self.assertTrue(Attachment.objects.filter(task=self.task).exists())
+
+    def test_comment_allowed_on_closed_task(self):
+        """Комментарии к закрытой задаче остаются открытыми."""
+        Task.objects.filter(pk=self.task.pk).update(status='completed')
+        self.client.force_login(self.task_user)
+        self.client.post(
+            self.url('signal1520:bug_details', pk=self.task.pk),
+            {'comment_text': 'Дефект проявился снова'},
+        )
+        self.assertTrue(Comment.objects.filter(task=self.task, body='Дефект проявился снова').exists())
 
 
 # ---------------------------------------------------------------------------
@@ -849,6 +1091,33 @@ class BugUpdateViewTest(ViewTestBase):
         r = self.client.get(self.url('signal1520:bug_update', pk=self.task.pk))
         self.assertEqual(r.status_code, 200)
 
+    def test_status_not_changed_through_form(self):
+        """Статус из формы убран: значение из POST игнорируется."""
+        self.client.force_login(self.task_user)
+        self.client.post(self.url('signal1520:bug_update', pk=self.task.pk), {
+            'station': self.station.pk,
+            'description': 'Правка без статуса',
+            'status': Task.Status.COMPLETED,
+            'responsible_organization': '',
+        })
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.description, 'Правка без статуса')
+        self.assertEqual(self.task.status, Task.Status.NEW)
+
+    def test_closed_task_editable_only_by_superuser(self):
+        """Закрытую задачу правит только суперпользователь; остальным — 403 и неактивная кнопка на карточке."""
+        Task.objects.filter(pk=self.task.pk).update(status=Task.Status.COMPLETED)
+        update_url = self.url('signal1520:bug_update', pk=self.task.pk)
+        detail_url = self.url('signal1520:bug_details', pk=self.task.pk)
+        for user in (self.task_user, self.plain_user):
+            self.client.force_login(user)
+            self.assertEqual(self.client.get(update_url).status_code, 403)
+        self.client.force_login(self.task_user)
+        self.assertNotContains(self.client.get(detail_url), update_url)
+        self.client.force_login(self.superuser)
+        self.assertEqual(self.client.get(update_url).status_code, 200)
+        self.assertContains(self.client.get(detail_url), update_url)
+
 
 # ---------------------------------------------------------------------------
 # AlarmListView
@@ -914,6 +1183,207 @@ class KnowledgeCreateViewTest(ViewTestBase):
         self.client.force_login(self.superuser)
         r = self.client.get(self.url('signal1520:knowledge_create'))
         self.assertEqual(r.status_code, 200)
+
+    def _knowledge_fixtures(self):
+        user = make_user('know_user', org=self.org, codenames=['add_userknowledge'])
+        colleague = make_user('know_colleague', org=self.org)
+        other_org = Organization.objects.create(name='Other', slug='know-other')
+        stranger = make_user('know_stranger', org=other_org)
+        own = Knowledge.objects.create(created_by=colleague, file='knowledge/own_org.pdf')
+        foreign = Knowledge.objects.create(created_by=stranger, file='knowledge/foreign_org.pdf')
+        return user, own, foreign
+
+    def test_existing_files_limited_to_own_organization(self):
+        """В списке «Выбрать из существующих» — только файлы, загруженные участниками своей организации."""
+        user, own, foreign = self._knowledge_fixtures()
+        self.client.force_login(user)
+        r = self.client.get(self.url('signal1520:knowledge_create'))
+        offered = list(r.context['form'].fields['existing_knowledge'].queryset)
+        self.assertEqual(offered, [own])
+
+    def test_cannot_attach_file_of_other_organization(self):
+        """Файл чужой организации нельзя привязать к себе, даже подставив его id в запрос."""
+        user, own, foreign = self._knowledge_fixtures()
+        self.client.force_login(user)
+        r = self.client.post(self.url('signal1520:knowledge_create'), {
+            'title': 'Чужой файл', 'existing_knowledge': foreign.pk,
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(UserKnowledge.objects.filter(user=user).exists())
+        self.client.post(self.url('signal1520:knowledge_create'), {
+            'title': 'Свой файл', 'existing_knowledge': own.pk,
+        })
+        self.assertTrue(UserKnowledge.objects.filter(user=user, knowledge=own).exists())
+
+
+# ---------------------------------------------------------------------------
+# ProtectedMediaView
+# ---------------------------------------------------------------------------
+
+class ProtectedMediaViewTest(ViewTestBase):
+    def setUp(self):
+        media = tempfile.TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        self.enterContext(self.settings(MEDIA_ROOT=media.name))
+        self.media = Path(media.name)
+        for name in ('photo.jpg', 'act.pdf', 'page.html', 'drawing.svg', 'notes.txt', 'scan.bmp', 'report.docx'):
+            self._write(f'tasks/task_1/{name}')
+            Attachment.objects.create(task=self.task, file=f'tasks/task_1/{name}')
+
+    def _write(self, name):
+        path = self.media / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b'<script>alert(1)</script>')
+
+    def _get(self, name, user=None):
+        self.client.force_login(user or self.task_user)
+        return self.client.get(f'/media/tasks/task_1/{name}')
+
+    def _status(self, user, path):
+        self.client.force_login(user)
+        return self.client.get(f'/media/{path}').status_code
+
+    def _other_org_user(self, username, codenames=()):
+        other_org, _ = Organization.objects.get_or_create(name='Other', slug='media-other')
+        return make_user(username, org=other_org, codenames=codenames)
+
+    def test_attachment_needs_same_organization_and_view_task(self):
+        """Вложение задачи открывает тот, кому доступна её карточка: своя организация и право view_task."""
+        path = 'tasks/task_1/photo.jpg'
+        self.assertEqual(self._status(self.task_user, path), 200)
+        self.assertEqual(self._status(self.superuser, path), 200)
+        # своя организация, но без права на задачи
+        self.assertEqual(self._status(self.station_user, path), 404)
+        # право есть, но организация чужая
+        self.assertEqual(self._status(self._other_org_user('media_stranger', ['view_task']), path), 404)
+
+    def test_knowledge_file_only_for_its_users(self):
+        """Файл инструкции открывает тот, у кого она в списке, и тот, кто её загрузил."""
+        path = 'knowledge/manual.pdf'
+        self._write(path)
+        author = make_user('know_author', org=self.org)
+        reader = make_user('know_reader', org=self.org)
+        knowledge = Knowledge.objects.create(created_by=author, file=path)
+        UserKnowledge.objects.create(user=reader, knowledge=knowledge, title='Инструкция')
+        self.assertEqual(self._status(author, path), 200)
+        self.assertEqual(self._status(reader, path), 200)
+        # коллега из той же организации, у которого этой инструкции нет
+        self.assertEqual(self._status(self.task_user, path), 404)
+        self.assertEqual(self._status(self._other_org_user('know_outsider'), path), 404)
+
+    def test_avatar_only_for_own_organization(self):
+        """Аватар виден самому пользователю и участникам его организации."""
+        path = f'user/user_{self.plain_user.pk}/avatar/face.jpg'
+        self._write(path)
+        Profile.objects.filter(user=self.plain_user).update(avatar=path)
+        self.assertEqual(self._status(self.plain_user, path), 200)
+        self.assertEqual(self._status(self.task_user, path), 200)
+        self.assertEqual(self._status(self._other_org_user('avatar_stranger'), path), 404)
+        # пользователь без организации видит только свой аватар
+        self.assertEqual(self._status(make_user('no_org_user'), path), 404)
+
+    def test_unreferenced_file_only_for_superuser(self):
+        """Файл, на который не ссылается ни одна запись, отдаётся только суперпользователю."""
+        for path in ('tasks/task_1/orphan.jpg', 'misc/backup.zip'):
+            self._write(path)
+            self.assertEqual(self._status(self.task_user, path), 404)
+            self.assertEqual(self._status(self.superuser, path), 200)
+
+    def test_anonymous_is_redirected_to_login(self):
+        """Без входа файл не отдаётся."""
+        r = self.client.get('/media/tasks/task_1/photo.jpg')
+        self.assertEqual(r.status_code, 302)
+
+    def test_images_and_pdf_open_in_browser(self):
+        """Фото и PDF отдаются для показа в браузере со своим типом."""
+        for name, content_type in (('photo.jpg', 'image/jpeg'), ('act.pdf', 'application/pdf')):
+            r = self._get(name)
+            self.assertEqual(r['Content-Type'], content_type)
+            self.assertTrue(r['Content-Disposition'].startswith('inline'))
+            self.assertEqual(r['X-Content-Type-Options'], 'nosniff')
+
+    def test_everything_else_is_downloaded(self):
+        """HTML, SVG, текст и документы отдаются только на скачивание и без исполняемого типа."""
+        for name in ('page.html', 'drawing.svg', 'notes.txt', 'report.docx'):
+            r = self._get(name)
+            self.assertEqual(r['Content-Type'], 'application/octet-stream', name)
+            self.assertEqual(r['Content-Disposition'], f'attachment; filename="{name}"')
+            self.assertEqual(r['X-Content-Type-Options'], 'nosniff')
+
+    def test_other_raster_image_keeps_type_but_downloads(self):
+        """BMP остаётся картинкой для <img> (аватар, окно просмотра), но при прямом открытии скачивается."""
+        r = self._get('scan.bmp')
+        self.assertTrue(r['Content-Type'].startswith('image/'))
+        self.assertTrue(r['Content-Disposition'].startswith('attachment'))
+
+    def test_production_passes_headers_to_nginx(self):
+        """В продакшне тип и «скачать» уходят в ответе с X-Accel-Redirect — Nginx их сохраняет."""
+        with self.settings(DEBUG=False):
+            r = self._get('page.html')
+        self.assertEqual(r['X-Accel-Redirect'], '/protected-media/tasks/task_1/page.html')
+        self.assertEqual(r['Content-Type'], 'application/octet-stream')
+        self.assertTrue(r['Content-Disposition'].startswith('attachment'))
+
+    def test_development_serves_file_with_same_headers(self):
+        """При DEBUG=True файл отдаёт сам Django — с теми же заголовками."""
+        with self.settings(DEBUG=True):
+            r = self._get('page.html')
+            content = b''.join(r.streaming_content)
+            r.close()
+        self.assertEqual(content, b'<script>alert(1)</script>')
+        self.assertEqual(r['Content-Type'], 'application/octet-stream')
+        self.assertTrue(r['Content-Disposition'].startswith('attachment'))
+        self.assertEqual(r['X-Content-Type-Options'], 'nosniff')
+
+    def test_path_traversal_returns_404(self):
+        """Выйти за пределы MEDIA_ROOT нельзя."""
+        self.assertEqual(self._get('../../../manage.py').status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# ContactView
+# ---------------------------------------------------------------------------
+
+# адреса заданы явно: в CI нет .env, а без получателя письмо не отправляется
+@override_settings(SUPPORT_EMAIL='support@example.com', EMAIL_HOST_USER='noreply@example.com')
+class ContactViewTest(ViewTestBase):
+    DATA = {'name': 'Иван', 'email': 'ivan@example.com', 'message': 'Не открывается задача'}
+
+    def _post(self, data):
+        self.client.force_login(self.plain_user)
+        return self.client.post(self.url('signal1520:contact'), data)
+
+    def test_valid_form_sends_mail(self):
+        """Корректное обращение уходит письмом, пользователь видит подтверждение."""
+        r = self._post(self.DATA)
+        self.assertTrue(r.context['success'])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Не открывается задача', mail.outbox[0].body)
+
+    def test_invalid_form_shows_errors(self):
+        """Невалидная форма возвращается с ошибками, а не падает; письмо не отправляется."""
+        r = self._post({**self.DATA, 'email': 'не-адрес', 'message': ''})
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('success', r.context)
+        self.assertTrue(r.context['form'].errors)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_missing_support_email_is_not_reported_as_success(self):
+        """Если адрес поддержки не настроен, письмо не уходит — пользователь видит ошибку, а не «отправлено»."""
+        with self.settings(SUPPORT_EMAIL=''):
+            r = self._post(self.DATA)
+        self.assertNotIn('success', r.context)
+        self.assertContains(r, 'Не удалось отправить обращение')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_send_failure_is_not_reported_as_success(self):
+        """Если письмо не ушло, пользователь видит ошибку, а набранный текст остаётся в форме."""
+        with mock.patch('signal1520.views.send_mail', side_effect=OSError('smtp down')):
+            r = self._post(self.DATA)
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('success', r.context)
+        self.assertContains(r, 'Не удалось отправить обращение')
+        self.assertContains(r, 'Не открывается задача')
 
 
 # ---------------------------------------------------------------------------
@@ -1796,3 +2266,109 @@ class IndexSummaryTest(ViewTestBase):
         for key in ('my_tasks', 'org_tasks', 'stations_count', 'equipment_count', 'warehouses_count'):
             self.assertNotIn(key, r.context)
         self.assertContains(r, 'Выберите раздел в меню')
+
+
+# ---------------------------------------------------------------------------
+# Главная: лента последних изменений
+# ---------------------------------------------------------------------------
+
+class ActivityFeedTest(ViewTestBase):
+    def _texts(self, user):
+        self.client.force_login(user)
+        r = self.client.get(self.url('signal1520:index'))
+        return [event.text for event in r.context.get('activity_events', [])]
+
+    def test_task_actions_are_logged(self):
+        """Создание задачи, комментарий, вложение и смена статуса попадают в ленту с автором."""
+        self.client.force_login(self.task_user)
+        self.client.post(self.url('signal1520:create_bug'), {
+            'station': self.station.pk, 'description': 'Задача для ленты',
+            'responsible_organization': '', 'due_date': '',
+        })
+        task = Task.objects.get(description='Задача для ленты')
+        detail_url = self.url('signal1520:bug_details', pk=task.pk)
+        self.client.post(detail_url, {'comment_text': 'Комментарий'})
+        self.client.post(detail_url, {'file': SimpleUploadedFile('a.txt', b'x', content_type='text/plain')})
+        self.client.post(detail_url, data=json.dumps({'status': 'completed'}), content_type='application/json')
+
+        events = ActivityEvent.objects.filter(task=task).order_by('pk')
+        prefix = f'Задача #{task.pk}, Тест Станция — '
+        self.assertEqual([e.text for e in events], [
+            prefix + 'создана',
+            prefix + 'добавлен комментарий',
+            prefix + 'добавлено вложение',
+            prefix + 'статус «Выполнена»',
+        ])
+        for event in events:
+            self.assertEqual(event.user, self.task_user)
+            self.assertEqual(event.organization, self.org)
+
+    def test_station_creation_is_logged(self):
+        """Создание объекта попадает в ленту."""
+        self.client.force_login(self.station_user)
+        self.client.post(self.url('signal1520:create_station'), {
+            'name': 'Новый объект', 'road': self.road.pk, 'distance': 'ДЦС-2',
+            'system': self.system.pk, 'description': '', 'latitude': '', 'longitude': '',
+        })
+        event = ActivityEvent.objects.get(kind=ActivityEvent.Kind.STATION_CREATED)
+        self.assertEqual(event.text, 'Объект «Новый объект» — создан')
+        self.assertEqual(event.user, self.station_user)
+
+    def test_rejected_actions_are_not_logged(self):
+        """Пустой комментарий, правка комментария и отклонённая смена статуса событий не создают."""
+        comment = Comment.objects.create(task=self.task, user=self.task_user, body='Текст')
+        detail_url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.client.post(detail_url, {'comment_text': '   '})
+        self.client.post(detail_url, {'edit_comment_id': comment.pk, 'edit_comment_text': 'Правка'})
+        self.client.post(detail_url, data=json.dumps({'status': 'new'}), content_type='application/json')
+        self.assertFalse(ActivityEvent.objects.exists())
+
+    def test_feed_respects_section_permissions(self):
+        """События по задачам видны при view_task, по объектам — при view_station; без прав блока нет."""
+        ActivityEvent.log(ActivityEvent.Kind.TASK_CREATED, self.task_user, task=self.task)
+        ActivityEvent.log(ActivityEvent.Kind.STATION_CREATED, self.station_user, station=self.station)
+        task_text = f'Задача #{self.task.pk}, Тест Станция — создана'
+        station_text = 'Объект «Тест Станция» — создан'
+
+        self.assertEqual(self._texts(self.task_user), [station_text, task_text])
+        self.assertEqual(self._texts(self.station_user), [station_text])
+        only_tasks = make_user('only_tasks', org=self.org, codenames=['view_task'])
+        self.assertEqual(self._texts(only_tasks), [task_text])
+
+        self.client.force_login(self.plain_user)
+        r = self.client.get(self.url('signal1520:index'))
+        self.assertNotIn('activity_events', r.context)
+        self.assertNotContains(r, 'Последние изменения')
+
+    def test_feed_shows_only_own_organization(self):
+        """События другой организации в ленту не попадают."""
+        other_org = Organization.objects.create(name='Other', slug='feed-other')
+        other_road = Road.objects.create(title='Дорога 2', organization=other_org)
+        other_station = Station.objects.create(
+            name='Чужая станция', road=other_road, created_by=self.superuser, organization=other_org,
+        )
+        ActivityEvent.log(ActivityEvent.Kind.STATION_CREATED, self.superuser, station=other_station)
+        self.assertEqual(self._texts(self.task_user), [])
+        self.assertContains(self.client.get(self.url('signal1520:index')), 'Изменений пока нет')
+
+    def test_event_survives_task_deletion(self):
+        """После удаления задачи событие остаётся в ленте, но уже не ссылка."""
+        ActivityEvent.log(ActivityEvent.Kind.TASK_CREATED, self.task_user, task=self.task)
+        detail_url = self.url('signal1520:bug_details', pk=self.task.pk)
+        self.client.force_login(self.task_user)
+        self.assertContains(self.client.get(self.url('signal1520:index')), f'href="{detail_url}"')
+        self.task.delete()
+        r = self.client.get(self.url('signal1520:index'))
+        self.assertContains(r, 'Тест Станция</span> — создана')
+        self.assertNotContains(r, f'href="{detail_url}"')
+
+    def test_feed_is_newest_first_and_limited(self):
+        """Лента идёт от новых к старым и отдаёт не больше ACTIVITY_LIMIT строк."""
+        for _ in range(45):
+            ActivityEvent.log(ActivityEvent.Kind.TASK_COMMENT, self.task_user, task=self.task)
+        newest = ActivityEvent.log(ActivityEvent.Kind.TASK_ATTACHMENT, self.task_user, task=self.task)
+        self.client.force_login(self.task_user)
+        events = list(self.client.get(self.url('signal1520:index')).context['activity_events'])
+        self.assertEqual(len(events), 40)
+        self.assertEqual(events[0], newest)
