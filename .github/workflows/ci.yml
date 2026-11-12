@@ -62,3 +62,5 @@ jobs:
             cd workflow_monitoring  # сюда, где лежит docker-compose.yml
             docker compose build --no-cache web
             docker compose up -d
+            docker exec workflow_monitoring-nginx-1 nginx -t &&
+            docker exec workflow_monitoring-nginx-1 nginx -s reload

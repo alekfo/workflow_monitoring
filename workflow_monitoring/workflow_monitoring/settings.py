@@ -201,6 +201,9 @@ LOGIN_REDIRECT_URL = '/signal1520/'  # Куда перенаправлять п�
 
 LOGOUT_REDIRECT_URL = '/accounts/login/'  # Куда перенаправлять после выхода
 
+# Nginx перезаписывает этот заголовок при проксировании HTTPS-запросов.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Email (SMTP)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.yandex.ru')
@@ -209,6 +212,9 @@ EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'True') == 'True'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', '')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_TIMEOUT = 10
+PASSWORD_RESET_TIMEOUT = 3600  # ссылка восстановления действительна один час
 
 LOGGING = {
     'version': 1,
