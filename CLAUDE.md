@@ -1,5 +1,16 @@
 # CLAUDE.md — Контекст проекта workflow_monitoring
 
+Актуализировано по исходникам 12.11.2026. Краткий рабочий контекст для Codex — в AGENTS.md.
+
+## Обязательное согласование файлов
+
+Не создавать, не изменять, не переименовывать и не удалять файлы проекта без явного подтверждения пользователя в терминале.
+Перед каждой записью показать полный unified diff конкретного файла и получить отдельное подтверждение именно этого diff.
+Задание выполнить работу не заменяет одобрение изменений. Следующая правка требует нового подтверждения.
+При недоступном подтверждении оставить diff предложением; не обходить согласование другим инструментом.
+Правило распространяется и на документацию, навыки, генераторы и команды с побочными записями в проект.
+Подробности: .agents/skills/approved-file-edits/SKILL.md.
+
 ## Что это за проект
 
 Django-приложение для мониторинга рабочих процессов на объектах (станциях).
@@ -11,8 +22,11 @@ Django-приложение для мониторинга рабочих про�
 
 ## Структура проекта
 
+Корень Git содержит этот CLAUDE.md, AGENTS.md, FRONTEND.md, DEPLOY.md и .github/.
+Показанное ниже дерево начинается с вложенного каталога workflow_monitoring/.
+
 ```
-workflow_monitoring/        ← корень git-репозитория, здесь лежит manage.py
+workflow_monitoring/        ← каталог Django внутри корня Git; здесь лежит manage.py
 ├── workflow_monitoring/    ← настройки Django (settings.py, urls.py)
 ├── signal1520/             ← основное приложение
 │   ├── models.py
@@ -269,7 +283,7 @@ Vasya видит только задачи своей организации.
 
 Общий каркас `base.html` используют и страницы signal1520, и страницы профиля из `authentication`
 (`about_me`, `profile_update_form`, `password_change_form`, `users_list`, `user_detail`).
-Вне каркаса остаются `login`, `register`, `locked_out`, `privacy_policy` и карточка «Нет прав» — отдельные экраны.
+Вне каркаса остаются `login`, `register`, `password_reset_*`, `locked_out`, `privacy_policy` и карточка «Нет прав» — отдельные экраны.
 
 **«Нет прав»** — один шаблон `templates/403.html` на все случаи. Его рендерят `handler403`
 (`workflow_monitoring/urls.py`) и `ErrorView` (`/accounts/error/`, куда редиректят view с `handle_no_permission`).
@@ -331,7 +345,8 @@ Vasya видит только задачи своей организации.
 |------|-------------|
 | `BugsListView` | 10 |
 | `AlarmListView` | 10 |
-| `MyBugsListView` | не включена |
+| `MyBugsListView` | 10 |
+| `StationListView` | 10 |
 | `WarehouseListView` | 10 |
 | `EquipmentListView` | 10 |
 | `WarehouseDetailView` | 10 (equipment_page через Paginator вручную) |
@@ -495,7 +510,7 @@ Vasya видит только задачи своей организации.
 ## Аутентификация
 
 Приложение `authentication` — кастомная реализация.
-`LoginRequiredMixin` используется на всех view.
+`LoginRequiredMixin` защищает страницы профиля и внутренние разделы. Вход, регистрация, политика и восстановление пароля доступны без входа.
 Права доступа через `UserPassesTestMixin` и `has_perm()`.
 
 Корневой URL `/` редиректит на `/accounts/login/` через `RedirectView` в `workflow_monitoring/urls.py`.
@@ -614,6 +629,31 @@ CACHES = {
 
 Реализована через `CustomPasswordChangeView` (`authentication/views.py`). URL: `/accounts/password_change/`. После смены текущая сессия остаётся активной (`update_session_auth_hash` вызывается в родительском `PasswordChangeView`). Ссылка — в меню «Настройки».
 
+### Восстановление забытого пароля (12.11.2026)
+
+Стандартные Django PasswordResetView и PasswordResetConfirmView, обёртки PasswordRecoveryView и PasswordRecoveryConfirmView.
+Отдельный сценарий от password_change: вход и текущий пароль не нужны, доступ подтверждается ссылкой из письма.
+
+| URL с префиксом /accounts/ | Назначение |
+|---|---|
+| password-reset/ | форма email, POST отправляет письмо |
+| password-reset/done/ | одинаковое уведомление для существующего и неизвестного email |
+| password-reset/<uidb64>/<token>/ | проверка ссылки и форма нового пароля |
+| password-reset/complete/ | уведомление об успехе, ссылка на вход |
+
+PASSWORD_RESET_TIMEOUT=3600 (час). Ссылка перестаёт работать после смены пароля.
+При открытии Django переносит токен в сессию и перенаправляет на URL с set-password вместо токена.
+Формы используют штатные валидаторы пароля; RussianAuthFormMixin включает русский язык и CSS-классы.
+Шаблоны password_reset_* наследуют самостоятельный password_reset_base.html; ссылка «Забыли пароль?» находится на странице входа.
+Письма получают активные пользователи с подходящим email и пригодным паролем.
+User.email не уникален: при общем адресе несколько аккаунтов могут получить отдельные письма.
+После восстановления автоматического входа нет; блокировка django-axes автоматически не снимается.
+Отдельного ограничения частоты запросов восстановления пока нет.
+
+SMTP: DEFAULT_FROM_EMAIL=EMAIL_HOST_USER, EMAIL_TIMEOUT=10. Реальная доставка в этой сессии не проверялась.
+SECURE_PROXY_SSL_HEADER учитывает X-Forwarded-Proto, который перезаписывает Nginx: ссылки в письме сохраняют HTTPS.
+Gunicorn должен оставаться за доверенным proxy.
+
 ### Переменные окружения
 
 - `SECRET_KEY` — при старте проверяется: `if not SECRET_KEY: raise RuntimeError(...)`. Django не запустится без ключа.
@@ -623,7 +663,7 @@ CACHES = {
 
 ## Персональные данные (152-ФЗ)
 
-Состояние, оставшиеся задачи и риски — в `privacy_policy.md` в корне репозитория.
+Упомянутый ранее privacy_policy.md в корне репозитория отсутствует на 12.11.2026; не использовать ссылку как доступный источник. Фактическая политика находится в шаблоне ниже.
 
 - Политика: `authentication/templates/authentication/privacy_policy.html`, URL `/accounts/privacy/`. Текущая версия — 2.0 от 02.10.2026.
 - **При любом изменении текста политики** поднимать `POLICY_VERSION` в `authentication/views.py` и версию/дату в шапке шаблона — версия пишется в `Profile.consent_policy_version` и в письмо о согласии (`RegisterView._send_consent_email`).
@@ -634,7 +674,12 @@ CACHES = {
 
 ## Запуск тестов
 
-`python manage.py test` — 253 теста (`signal1520`, `authentication`). Окружение должно соответствовать `requirements.txt` (Django 6.0.3). На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
+Из корня Git: `.venv/bin/python workflow_monitoring/manage.py test signal1520 authentication --noinput`.
+Для аутентификации: `.venv/bin/python workflow_monitoring/manage.py test authentication --noinput` — 18 тестов прошли 12.11.2026.
+Полный набор в этой сессии не запускался; прежнее количество 253 не подтверждено.
+CI (.github/workflows/ci.yml) сейчас запускает только signal1520, без authentication.
+В requirements.txt закреплён Django 6.0.3; локально установлен 6.0.4, Python 3.12.3; CI — Python 3.12.
+Не обновлять зависимости автоматически. На Django 4.2 + Python 3.14 около сотни тестов падают с `AttributeError: 'super' object has no attribute 'dicts'`, а `makemigrations` генерирует лишние `AlterField id` по всем моделям — это признак неверного окружения, а не изменений в моделях.
 
 ---
 
