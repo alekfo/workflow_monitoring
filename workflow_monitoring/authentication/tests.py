@@ -121,3 +121,79 @@ class ProfileUpdateTest(TestCase):
         self.assertEqual(r.status_code, 200)
         self.user.refresh_from_db()
         self.assertEqual(self.user.first_name, 'Иван')
+
+
+class PasswordRecoveryTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            'recover-user', email='recover@example.com', password='Old-password-817!'
+        )
+
+    def test_login_has_recovery_link(self):
+        response = self.client.get(reverse('authentication:login'))
+        self.assertContains(response, reverse('authentication:password_reset'))
+
+    def test_email_link_resets_password_and_cannot_be_reused(self):
+        import re
+        from django.core import mail
+
+        response = self.client.post(reverse('authentication:password_reset'),
+                                    {'email': 'RECOVER@example.com'},
+                                    HTTP_X_FORWARDED_PROTO='https')
+        self.assertRedirects(response, reverse('authentication:password_reset_done'))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Fieldlog', mail.outbox[0].subject)
+        link = re.search(r'https?://[^\s]+', mail.outbox[0].body).group()
+        self.assertTrue(link.startswith('https://'))
+        response = self.client.get(link, follow=True)
+        self.assertTrue(response.context['validlink'])
+        form_url = response.request['PATH_INFO']
+        response = self.client.post(form_url, {
+            'new_password1': 'New-password-914!',
+            'new_password2': 'different-password',
+        })
+        self.assertTrue(response.context['form'].errors)
+        response = self.client.post(form_url, {
+            'new_password1': 'New-password-914!',
+            'new_password2': 'New-password-914!',
+        })
+        self.assertRedirects(response, reverse('authentication:password_reset_complete'))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('New-password-914!'))
+        self.assertFalse(self.user.check_password('Old-password-817!'))
+        response = self.client.get(link, follow=True)
+        self.assertFalse(response.context['validlink'])
+
+    def test_unknown_and_inactive_email_get_same_response_without_mail(self):
+        from django.core import mail
+
+        self.user.is_active = False
+        self.user.save()
+        for email in ['missing@example.com', self.user.email]:
+            response = self.client.post(reverse('authentication:password_reset'),
+                                        {'email': email})
+            self.assertRedirects(response, reverse('authentication:password_reset_done'))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_expired_link_is_rejected(self):
+        from datetime import timedelta
+        from unittest.mock import patch
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+
+        now = default_token_generator._now()
+        with patch.object(default_token_generator, '_now', return_value=now - timedelta(hours=2)):
+            token = default_token_generator.make_token(self.user)
+        response = self.client.get(reverse('authentication:password_reset_confirm', kwargs={
+            'uidb64': urlsafe_base64_encode(force_bytes(self.user.pk)),
+            'token': token,
+        }))
+        self.assertFalse(response.context['validlink'])
+
+    def test_invalid_link_shows_retry(self):
+        response = self.client.get(reverse('authentication:password_reset_confirm', kwargs={
+            'uidb64': 'invalid', 'token': 'invalid',
+        }))
+        self.assertContains(response, 'Запросить новую ссылку')

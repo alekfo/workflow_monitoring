@@ -6,7 +6,7 @@ from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.views import LogoutView, LoginView, PasswordChangeView
+from django.contrib.auth.views import LogoutView, LoginView, PasswordChangeView, PasswordResetView, PasswordResetConfirmView
 from django.contrib import messages
 from django.utils import timezone, translation
 from django.core.mail import EmailMessage
@@ -249,3 +249,32 @@ class MyLogoutPage(View):
     def get(self, request):
         logout(request)
         return redirect('authentication:login')
+
+
+class RussianAuthFormMixin:
+    """Русские подписи, подсказки и ошибки на страницах восстановления."""
+
+    def dispatch(self, request, *args, **kwargs):
+        with translation.override('ru'):
+            response = super().dispatch(request, *args, **kwargs)
+            if hasattr(response, 'render'):
+                response.render()
+        return response
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field in form.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+        return form
+
+
+class PasswordRecoveryView(RussianAuthFormMixin, PasswordResetView):
+    template_name = 'authentication/password_reset_form.html'
+    email_template_name = 'authentication/password_reset_email.txt'
+    subject_template_name = 'authentication/password_reset_subject.txt'
+    success_url = reverse_lazy('authentication:password_reset_done')
+
+
+class PasswordRecoveryConfirmView(RussianAuthFormMixin, PasswordResetConfirmView):
+    template_name = 'authentication/password_reset_confirm.html'
+    success_url = reverse_lazy('authentication:password_reset_complete')
